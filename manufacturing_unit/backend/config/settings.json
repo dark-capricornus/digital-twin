@@ -1,0 +1,6 @@
+{
+    "opcua_port": 4840,
+    "scan_rate_ms": 200,
+    "simulation_dt_sec": 0.2,
+    "exposed_machines": ["m_furnace", "m_lpdc", "m_cnc", "m_storage"]
+}

@@ -1,0 +1,15 @@
+.env
+env
+__pycache__/
+*.pyc
+venv/
+node_modules/
+dist/
+pki/
+Documentation/
+*.bat
+*.log
+check_imports.py
+generate_cert.py
+plc_state_machine.md
+tests/gh

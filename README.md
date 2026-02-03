@@ -116,8 +116,7 @@ These limitations are **intentional**.
 ---
 ## Version Status
 
-V0 is now:
-  - [x] **Frozen**
+V0 is now:**Frozen**
 
 No further development will occur on V0.
 

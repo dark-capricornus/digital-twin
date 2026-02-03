@@ -69,16 +69,14 @@ Development is progressing toward **V1**, which will introduce:
 - Session-based KPIs and analytics
 - Clear separation of live state and analytical data
 
-> ⚠️ Note: V1 implementation is ongoing and not yet documented in this README.
+> Note: V1 implementation is ongoing and not yet documented in this README.
 
 ---
 
-## 🧠 Design Principles
+## Design Principles
 
 - Versioned evolution (no breaking changes to archived versions)
 - Clear separation of concerns (simulation, orchestration, visualization)
 - Realistic production logic and material conservation
 - Simulation-first, visualization-later approach
 - Explicit scope and limitations per version
-
----

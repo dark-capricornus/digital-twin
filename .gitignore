@@ -16,3 +16,4 @@ tests/gh
 tests/
 devices.json
 v1_check.txt
+manufacturing_unit/tests/

@@ -49,11 +49,10 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     # 9. CNC Machining - Machining Role
     cnc = SimpleMachine("m_cnc", "CNC Machining", cycle_time=10.0,
                        role="machining", has_trigger=True)
-    # Pre-fill CNC for testing triggers
-    for i in range(20):
-        cnc.queue_in.append(f"Casting-{i}")
+    # Pre-fill REMOVED to ensure correct flow (HT -> CNC)
 
     # 10. Inspection
+    # Fail rate 0.1 (10%) enabled - Rejects now captured by Orchestrator via queue_reject
     inspection = InspectionMachine("m_inspect", "X-Ray Inspection", cycle_time=6.0, fail_rate=0.1)
 
     # 11. Pretreatment

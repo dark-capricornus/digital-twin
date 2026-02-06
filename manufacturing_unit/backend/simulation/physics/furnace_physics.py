@@ -35,11 +35,11 @@ class FurnacePhysics(PhysicsModel):
         self.T_ambient = 20.0  # °C (ambient temperature)
         self.T_current = 20.0  # °C (current furnace temperature)
         self.C_thermal = 50000.0  # J/K (thermal mass / heat capacity)
-        self.k_loss = 100.0  # W/K (heat loss coefficient to environment)
-        self.P_max = 50000.0  # W (maximum heater power)
+        self.k_loss = 80.0  # W/K (heat loss coefficient - reduced for efficiency)
+        self.P_max = 1500000.0  # W (maximum heater power - increased 10x for fast sim)
         
         # Constraints (industrial realism)
-        self.max_ramp_rate = 10.0  # °C/s (maximum heating/cooling rate)
+        self.max_ramp_rate = 50.0  # °C/s (faster heating for simulation responsiveness)
         self.T_max = 900.0  # °C (safety limit)
         self.T_min = 20.0  # °C (cannot go below ambient)
         

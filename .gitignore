@@ -13,3 +13,6 @@ check_imports.py
 generate_cert.py
 plc_state_machine.md
 tests/gh
+tests/
+devices.json
+v1_check.txt

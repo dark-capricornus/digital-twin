@@ -2,6 +2,7 @@ import time
 from typing import List, Dict, Any
 from .machines import Machine
 from .flow import EventDispatcher, MaterialFlowEngine
+from .orchestrator import ProductionOrchestrator # V1 Orchestration
 
 class SimulationEngine:
     """
@@ -27,10 +28,13 @@ class SimulationEngine:
         self.post_step_callbacks = []
         self.plc_ref = plc_ref  # Reference to PLC for power gating
         
-        # Phase 2: Material Flow Engine
+        # Phase 2: Material Flow Engine (V0/Legacy)
         self.event_dispatcher = EventDispatcher()
         self.flow_engine = MaterialFlowEngine(self.event_dispatcher)
         self.flow_engine.kpis.set_start_time(self.sim_time)
+        
+        # V1 Production Orchestrator
+        self.orchestrator = None # initialized lazily
 
     def add_machine(self, machine: Machine):
         """
@@ -57,15 +61,24 @@ class SimulationEngine:
         if self.plc_ref and not self.plc_ref.is_running():
             return  # Physics frozen
         
-        # 1. Update all machines (physics + state)
+        # Lazy Init Orchestrator (needs full machine list)
+        if self.orchestrator is None:
+            self.orchestrator = ProductionOrchestrator(self.machines)
+            self.orchestrator.start_session(self.sim_time)
+            
+        # 1. ORCHESTRATION (V1): Material Flow & Commands
+        # Run BEFORE physics to minimize latency (Load -> Run in same tick)
+        self.orchestrator.tick(self.time_step, self.sim_time)
+        
+        # 2. Update all machines (physics + state)
         for machine in self.machines:
             machine.tick(self.time_step)
             
-        # 2. Run registered post-step logic (e.g. Material Flow)
+        # 3. Run registered post-step logic (e.g. Material Flow V0)
         for callback in self.post_step_callbacks:
             callback()
         
-        # 3. Advance global simulation clock
+        # 4. Advance global simulation clock
         self.sim_time += self.time_step
         self.ticks += 1
 
@@ -91,13 +104,27 @@ class SimulationEngine:
         all_tags = {}
         for m in self.machines:
             all_tags.update(m.get_tags())
+            
+        # Include Orchestrator WIP in tags
+        if self.orchestrator:
+            wip = self.orchestrator.get_wip_state()
+            for k, v in wip.items():
+                all_tags[f"Plant.WIP.{k}"] = v
+            
+            kpis = self.orchestrator.get_kpis()
+            for k, v in kpis.items():
+                all_tags[f"Plant.KPI.{k}"] = v
+                
         return all_tags
     
     def get_production_metrics(self) -> Dict[str, Any]:
         """
-        Get production metrics from Flow Engine (read-only).
-        
-        Returns:
-            Dict of production KPIs for UI/Analytics
+        Get production metrics.
+        Prefers V1 Orchestrator metrics.
         """
+        if self.orchestrator:
+             return {
+                 "wip": self.orchestrator.get_wip_state(),
+                 "kpi": self.orchestrator.get_kpis()
+             }
         return self.flow_engine.get_metrics(self.sim_time)

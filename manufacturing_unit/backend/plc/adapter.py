@@ -39,31 +39,24 @@ class SimulationAdapter:
         # Common tags
         "temperature": "Temperature",
         "target_temp": "TargetTemp",
-        "burner_enable": "BurnerEnable", 
-        "cmd_auto": "CmdAuto",
+        "max_temp": "FurnaceMaxTemp",
         "progress": "Progress",
+        "rejects": "RejectCount",
         "processed_count": "ProcessedCount",
-        "queue_in": "QueueIn",
-        "queue_out": "QueueOut",
-        "busy": "Busy",
         "error": "Error",
         "state": "State",
-        "fault": "Fault",
         
         # LPDC-specific tags
         "pressure_psi": "PressurePSI",
         "pour_request": "PourRequest",
-        "cycle_running": "CycleRunning",
         
         # CNC-specific tags
         "spindle_rpm": "SpindleRPM",
         "trigger": "Trigger",
         
         # Buffer-specific tags
-        "part_count": "PartCount",
-        "capacity": "Capacity",
-        "full": "Full",
-        "empty": "Empty"
+        # Note: Buffers usually map queue_out via logic, but we can keep explicit if needed.
+        "capacity": "Capacity"
     }
 
     def get_tags(self) -> Dict[str, Any]:
@@ -94,34 +87,28 @@ class SimulationAdapter:
 
     def _synthesize_legacy_tags(self, tags: Dict[str, Any]) -> Dict[str, Any]:
         """Inject tags that existed in Phase 1 but are missing in Simulation logic."""
-        # CHANGED_BY_ANTIGRAVITY: Deduped method
-        if "Furnace" in self.device_id:
-            # New Architecture: Just RUNNING (STARTING is gone)
-            is_active = self.machine.state == MachineState.RUNNING
-            tags["BurnerEnable"] = is_active
-            
-            current_temp = tags.get("Temperature", 20.0)
-            tags["OverTempAlarm"] = current_temp > 800.0
-        
-        elif "LPDC" in self.device_id:
+        if "LPDC" in self.device_id:
             # Ensure LPDC has all expected tags
             if "PourRequest" not in tags:
                 tags["PourRequest"] = False
-            if "CycleRunning" not in tags:
-                tags["CycleRunning"] = self.machine.state == MachineState.RUNNING
         
         elif "CNC" in self.device_id:
             # Ensure CNC has all expected tags
-            if "Busy" not in tags:
-                tags["Busy"] = self.machine.state == MachineState.RUNNING
-
             if "Trigger" not in tags:
                 tags["Trigger"] = False
         
         elif "Buffer" in self.device_id or "Storage" in self.device_id:
-            # Ensure Buffer has all expected tags
-            if "PartCount" not in tags:
-                tags["PartCount"] = len(self.machine.queue_out)
+            # Buffer: PartCount IS QueueOut length
+            # If "QueueOut" exists (from TAG_MAP), we can alias it or just rely on it.
+            # But HMI expects "PartCount". Let's provide PartCount.
+            if "QueueOut" in tags:
+                tags["PartCount"] = tags["QueueOut"]
+                # We can optionally remove QueueOut to be cleaner, or keep both.
+                # User asked to remove redundant.
+                del tags["QueueOut"]
+            elif "part_count" not in tags:
+                 # Fallback if TAG_MAP didn't catch it
+                 tags["PartCount"] = len(self.machine.queue_out)
             
         return tags
 

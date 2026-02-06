@@ -21,6 +21,7 @@ from datetime import datetime
 from backend.simulation.factory import build_factory
 from backend.plc.adapter import SimulationAdapter
 from backend.plc.power_state import PLCPowerState
+from backend.simulation.machines.base_machine import MachineState
 
 # --- Custom User Manager for Dev/Ignition Compatibility ---
 class DevUserManager(UserManager):
@@ -164,7 +165,7 @@ class VirtualPLC:
             "Furnace_01": "m_furnace",
             "LPDC_01": "m_lpdc",
             "CNC_01": "m_cnc",
-            "Buffer_01": "m_storage" 
+            "Inspection_01": "m_inspect" 
         }
         
         for dev_id, sim_id in mapping.items():
@@ -218,9 +219,6 @@ class VirtualPLC:
         
         # Note: Users previously used "PLC" root. We keep "PLC" as an alias or use the new structure? 
         # The prompt explicitly asked for 'Objects -> VirtualPLC', so we use that.
-        # But wait, checking existing verification code, it uses 'PLC.Devices...'. 
-        # I will strictly follow the prompt 'Objects -> VirtualPLC' but beware this might break hardcoded verification.
-        # I will update verification script to browse.
         
         self.cmd_start = await cmds_node.add_variable(ua.NodeId("VirtualPLC.Commands.Start", idx), ua.QualifiedName("Start", idx), False)
         self.cmd_stop = await cmds_node.add_variable(ua.NodeId("VirtualPLC.Commands.Stop", idx), ua.QualifiedName("Stop", idx), False)
@@ -228,48 +226,80 @@ class VirtualPLC:
         logger.info(f"Created Start Command Node: {self.cmd_start.nodeid}")
 
         # Allow Write for Commands (REQ 1)
-        # Allow Write for Commands (REQ 1)
-        # OPTION 1: PERMISSIVE ADMIN ACCESS
-        # Ignition requires explicit AccessLevel.CurrentWrite for these to be writable widgets
         for node in [self.cmd_start, self.cmd_stop]:
             await node.set_writable() 
             await self.cmd_sub.subscribe_data_change(node)
+
+        # --- 3b. Plant Logic (V1 Orchestration) ---
+        # Expose Global Plant Tags (WIP, KPI)
+        self.plant_nodes = {}
+        plant_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Plant", idx), ua.QualifiedName("Plant", idx))
         
-        # 4. Devices Folder
+        # We pre-create nodes based on expected keys or just dynamic?
+        # Let's verify what keys exist now by peeking or assuming standard keys.
+        # Ideally we'd iterate sim_engine keys, but sim_engine might not be initialized fully or stepped yet.
+        # But `build_factory` created the engine. check what `get_all_tags` returns.
+        # Since Orchestrator is lazy loaded in step(), `get_all_tags` might not have Plant tags yet!
+        # Force init of orchestrator? Or just handle "lazy creation"?
+        # OPC UA nodes structure must be static usually or created at startup.
+        # I'll force init the orchestrator in engine.py NOW or just hardcode the known WIP keys.
+        # Hardcoding is safer for static address space.
+        
+        # Expected WIP Keys
+        wip_keys = [
+            "ingots_kg", "molten_metal_kg", "degassed_metal_kg", "cast_parts", 
+            "heat_treated_parts", "machined_parts", "painted_parts", 
+            "xray_passed", "qc_passed", "scrap_parts"
+        ]
+        for k in wip_keys:
+            tag_name = f"VirtualPLC.Plant.WIP.{k}"
+            # Explicitly set to Int32 to match write logic
+            node = await plant_node.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"WIP_{k}", idx), 0, ua.VariantType.Int32)
+            self.plant_nodes[f"Plant.WIP.{k}"] = node
+            
+        # Expected KPI Keys
+        kpi_keys = [
+            "total_ingots_consumed", "total_wheels_produced", "total_scrap", 
+            "batches_completed", "throughput_wheels_hr", "yield_percent"
+        ]
+        for k in kpi_keys:
+            tag_name = f"VirtualPLC.Plant.KPI.{k}"
+            is_float = "throughput" in k or "yield" in k
+            val = 0.0 if is_float else 0
+            # Explicitly set type
+            v_type = ua.VariantType.Double if is_float else ua.VariantType.Int32
+            node = await plant_node.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"KPI_{k}", idx), val, v_type)
+            self.plant_nodes[f"Plant.KPI.{k}"] = node
+
+
         devs_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Devices", idx), ua.QualifiedName("Devices", idx))
         
+        # Categorization Rules
         # Categorization Rules
         tag_categories = {
             "Furnace_01": {
                 "Temperature": "Status", 
                 "TargetTemp": "Status",
-                "BurnerEnable": "Outputs", 
-                "OverTempAlarm": "Status"
+                "FurnaceMaxTemp": "Status",
+                "BurnerEnable": "Outputs"
             },
             "LPDC_01": {
                 "PourRequest": "Inputs", 
                 "PressurePSI": "Status",
-                "CycleRunning": "Status",
                 "Progress": "Status",
                 "ProcessedCount": "Status",
                 "State": "Status"
             },
             "CNC_01": {
                 "Trigger": "Inputs",
-                "Busy": "Status",
                 "SpindleRPM": "Status",
                 "Progress": "Status",
                 "ProcessedCount": "Status",
                 "State": "Status"
             },
-            "Buffer_01": {
-                "PartCount": "Status",
-                "Capacity": "Status",
-                "Full": "Status",
-                "Empty": "Status",
-                "QueueIn": "Status",
-                "QueueOut": "Status",
-                "State": "Status"
+            "Inspection_01": {
+                "RejectCount": "Status",
+                "Progress": "Status"
             }
         }
         
@@ -403,9 +433,46 @@ class VirtualPLC:
                         variant_type = ua.VariantType.String
                     
                     write_tasks.append(self._write_tag_with_quality(node, val, variant_type, timestamp))
-        
+                    
+        # Update Plant Nodes (V1 Orchestration)
+        all_sim_tags = self.sim_engine.get_all_tags()
+        for tag_key, node in self.plant_nodes.items():
+            if tag_key in all_sim_tags:
+                val = all_sim_tags[tag_key]
+                
+                # STRICT TYPE ENFORCEMENT based on Key Name
+                # To prevent Int/Float mismatch crashes
+                try:
+                    is_kpi_float = "throughput" in tag_key or "yield" in tag_key
+                    if is_kpi_float:
+                         val = float(val)
+                         variant_type = ua.VariantType.Double
+                    elif "ingots" in tag_key or "parts" in tag_key or "wheels" in tag_key or "scrap" in tag_key or "batches" in tag_key or "WIP" in tag_key:
+                         val = int(val)
+                         variant_type = ua.VariantType.Int32
+                    else:
+                         # Fallback
+                         if isinstance(val, int):
+                             variant_type = ua.VariantType.Int32
+                         elif isinstance(val, float):
+                             variant_type = ua.VariantType.Double
+                         else:
+                             variant_type = ua.VariantType.String
+
+                    write_tasks.append(self._write_tag_with_quality(node, val, variant_type, timestamp))
+                except Exception as e:
+                    logger.error(f"Error preparing write for {tag_key}: {e}")
+
         # CRITICAL: Await ALL writes
-        await asyncio.gather(*write_tasks)
+        try:
+            await asyncio.gather(*write_tasks)
+        except Exception as e:
+            logger.error(f"Batch Write Failed: {e}")
+            # Identify which task failed? Hard with gather.
+            # But the detailed try-except above catches preparation errors.
+            # The gather catches write errors (like TypeMismatch). 
+            # We need to Log strict Type info if it fails.
+            pass
     
     async def _write_tag_with_quality(self, node, value, variant_type, timestamp):
         """
@@ -456,6 +523,11 @@ class VirtualPLC:
                     # 2. Propagate RUNNING signal to Adapters (Triggers autonomous starts like Furnace)
                     for dev in self.devices:
                         dev.bind_to_plc_state(True)
+                    
+                    # CRITICAL FIX: Start ALL machines, not just mapped adapters
+                    # Unmapped machines (Degasser, Heat Treat) must run for flow to work
+                    for machine in self.sim_engine.machines:
+                        machine.state = MachineState.RUNNING
 
                     # Auto-transition to RUNNING
                     self.power_state = PLCPowerState.RUNNING
@@ -474,9 +546,10 @@ class VirtualPLC:
                         dev.bind_to_plc_state(False)
 
                     # Force all machines to safe state
-                    for dev in self.devices:
-                        if hasattr(dev.machine, 'force_safe_state'):
-                            dev.machine.force_safe_state()
+                    for machine in self.sim_engine.machines:
+                        machine.state = MachineState.IDLE
+                        if hasattr(machine, 'force_safe_state'):
+                            machine.force_safe_state()
                     
                     # Physics already frozen by is_running() gate
                     # Auto-transition to OFF

@@ -1,0 +1,14 @@
+{
+    "m_inbound.state": 101,
+    "m_inbound.progress": 102,
+    "m_storage.state": 201,
+    "m_storage.progress": 202,
+    "m_furnace.state": 301,
+    "m_furnace.temperature": 302,
+    "m_furnace.progress": 303,
+    "m_degasser.state": 401,
+    "m_cooling1.temperature": 501,
+    "m_lpdc.state": 601,
+    "m_heat.temperature": 701,
+    "m_inspect.rejects": 801
+}

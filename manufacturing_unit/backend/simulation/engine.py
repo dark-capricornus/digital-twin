@@ -1,6 +1,6 @@
 import time
 from typing import List, Dict, Any
-from .machines import Machine
+from .machines import BaseMachine
 from .flow import EventDispatcher, MaterialFlowEngine
 from .orchestrator import ProductionOrchestrator # V1 Orchestration
 
@@ -20,7 +20,7 @@ class SimulationEngine:
         CRITICAL: Timestep is FIXED for deterministic physics.
         All machines step synchronously with this dt.
         """
-        self.machines: List[Machine] = []
+        self.machines: List[BaseMachine] = []
         self.time_step = time_step  # FIXED timestep (deterministic)
         self.running = False
         self.ticks = 0
@@ -36,7 +36,7 @@ class SimulationEngine:
         # V1 Production Orchestrator
         self.orchestrator = None # initialized lazily
 
-    def add_machine(self, machine: Machine):
+    def add_machine(self, machine: BaseMachine):
         """
         Add machine to simulation.
         

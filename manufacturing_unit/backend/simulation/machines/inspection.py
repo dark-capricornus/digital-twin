@@ -72,6 +72,13 @@ class InspectionMachine(BaseMachine):
             f"{self.id}.fail_rate": self.fail_rate
         }
 
+    def _calculate_power(self) -> float:
+        """
+        Calculate power based on state.
+        """
+        is_running = self.state == MachineState.RUNNING
+        return 15.0 if is_running else 2.0
+
     # --- Legacy Helper ---
 
     def receive_item(self, item: Any) -> bool:

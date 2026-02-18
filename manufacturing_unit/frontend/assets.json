@@ -1,0 +1,109 @@
+{
+    "assets": {
+        "INBOUND_01": {
+            "serial_number": "INB-001",
+            "model": "Generic Dock",
+            "vendor": "LogiSystems",
+            "install_date": "2023-01-01",
+            "department": "Logistics"
+        },
+        "STORAGE_01": {
+            "serial_number": "STR-001",
+            "model": "Heavy Storage",
+            "vendor": "LogiSystems",
+            "install_date": "2023-01-01",
+            "department": "Logistics"
+        },
+        "FURNACE_01": {
+            "serial_number": "FURN-2024-X10",
+            "model": "Thermax 5000",
+            "vendor": "HeatTech Industrial",
+            "install_date": "2024-01-15",
+            "department": "Smelting Department"
+        },
+        "DEGASSER_01": {
+            "serial_number": "DEG-001",
+            "model": "GasPurge 100",
+            "vendor": "MeltFlow",
+            "install_date": "2024-02-10",
+            "department": "Smelting Department"
+        },
+        "COOLING_01": {
+            "serial_number": "COOL-001",
+            "model": "CryoTank 200",
+            "vendor": "CoolFlow",
+            "install_date": "2024-02-15",
+            "department": "Smelting Department"
+        },
+        "LPDC_01": {
+            "serial_number": "LPDC-V5-092",
+            "model": "CastingPro LPDC-20",
+            "vendor": "FoundryWorks",
+            "install_date": "2023-11-20",
+            "department": "Casting Department"
+        },
+        "HEAT_01": {
+            "serial_number": "HT-33-001",
+            "model": "NitroQuench 200",
+            "vendor": "Metallurgy Systems",
+            "install_date": "2023-12-05",
+            "department": "Casting Department"
+        },
+        "COOLING_02": {
+            "serial_number": "COOL-002",
+            "model": "CryoTank 200",
+            "vendor": "CoolFlow",
+            "install_date": "2024-02-15",
+            "department": "Casting Department"
+        },
+        "CNC_01": {
+            "serial_number": "CNC-400-0045",
+            "model": "UltraMill Precision 4",
+            "vendor": "Precision Dynamics",
+            "install_date": "2024-03-10",
+            "department": "Machining Department"
+        },
+        "INSPECTION_01": {
+            "serial_number": "XR-88-293",
+            "model": "VisionX Ray IV",
+            "vendor": "OpticalSense",
+            "install_date": "2024-05-22",
+            "department": "Machining Department"
+        },
+        "PRETREAT_01": {
+            "serial_number": "PRE-001",
+            "model": "WashSystem 50",
+            "vendor": "SurfaceTech",
+            "install_date": "2024-04-01",
+            "department": "Finishing Department"
+        },
+        "PAINT_01": {
+            "serial_number": "PNT-001",
+            "model": "SprayMaster 300",
+            "vendor": "ColorCorp",
+            "install_date": "2024-04-10",
+            "department": "Finishing Department"
+        },
+        "PAINT_02": {
+            "serial_number": "PNT-002",
+            "model": "SprayMaster 300",
+            "vendor": "ColorCorp",
+            "install_date": "2024-04-10",
+            "department": "Finishing Department"
+        },
+        "PACK_01": {
+            "serial_number": "PKL-001",
+            "model": "WrapFast 100",
+            "vendor": "LogiSystems",
+            "install_date": "2023-01-01",
+            "department": "Logistics"
+        },
+        "OUTBOUND_01": {
+            "serial_number": "OUT-001",
+            "model": "Generic Dock",
+            "vendor": "LogiSystems",
+            "install_date": "2023-01-01",
+            "department": "Logistics"
+        }
+    }
+}

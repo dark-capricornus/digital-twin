@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import json
 from data_gateway.core.interfaces import ISource, IAdapter
@@ -10,16 +11,17 @@ class RestSourceAdapter(ISource, IAdapter):
         self.url = url
         self._connected = True # specialized state for REST
 
-    def connect(self):
+    async def connect(self):
         # Setup session if needed
         pass
 
-    def disconnect(self):
+    async def disconnect(self):
         pass
 
-    def read(self) -> dict:
+    async def read(self) -> dict:
         try:
-            response = requests.get(self.url, timeout=2.0)
+            # Offload blocking HTTP request to thread
+            response = await asyncio.to_thread(requests.get, self.url, timeout=2.0)
             if response.status_code == 200:
                 return response.json()
             else:

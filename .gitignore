@@ -5,6 +5,8 @@ __pycache__/
 venv/
 node_modules/
 dist/
+# User-specific
+textfile_codes/
 pki/
 Documentation/
 *.bat
@@ -17,3 +19,5 @@ tests/
 devices.json
 v1_check.txt
 manufacturing_unit/tests/
+texfile_codes/
+.postman/

@@ -141,6 +141,21 @@ class ThermalMachine(BaseMachine):
             f"{self.id}.queue_out": len(self.queue_out),
         }
 
+    def _calculate_power(self) -> float:
+        """
+        Calculate power based on furnace/tank type and state.
+        """
+        is_running = self.state == MachineState.RUNNING
+        
+        if "furnace" in self.id.lower():
+            return 120.0 if is_running else 15.0
+        elif "heat" in self.id.lower():
+            return 80.0 if is_running else 10.0
+        elif "cooling" in self.id.lower():
+            return 5.0 if is_running else 1.0
+            
+        return 10.0 if is_running else 1.0
+
     # --- Legacy Helper ---
     def receive_item(self, item: Any) -> bool:
         self.queue_in.append(item)

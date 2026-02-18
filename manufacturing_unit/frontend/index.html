@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Twin - Manufacturing Unit</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <div id="status">
+        <div id="connection-status">Connecting...</div>
+        <div id="device-count">Devices: 0</div>
+    </div>
+
+    <div id="details-sidebar" class="sidebar right-sidebar">
+        <div class="sidebar-header">
+            <h3 id="details-title">Device Details</h3>
+            <button id="close-details" class="close-btn">&times;</button>
+        </div>
+        <div id="details-content" class="sidebar-content"></div>
+    </div>
+
+    <!-- Import maps for Three.js ES modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- Application modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

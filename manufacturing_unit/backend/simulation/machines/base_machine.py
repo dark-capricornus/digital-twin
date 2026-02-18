@@ -16,10 +16,10 @@ from datetime import datetime
 
 class MachineState(Enum):
     """Simplified ISA-88 aligned state machine"""
-    IDLE = "Idle"
-    RUNNING = "Running"
-    STOPPED = "Stopped"
-    FAULTED = "Faulted"
+    IDLE = "IDLE"
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    FAULTED = "FAULTED"
 
 
 class BaseMachine(ABC):
@@ -47,6 +47,10 @@ class BaseMachine(ABC):
         
         # Counters
         self.processed_count = 0
+        self.runtime_total_hrs = 0.0 # Accumulated session runtime
+        
+        # Metrics
+        self.power_kw = 0.0 # Instantaneous power consumption
         
         # Internal flags
         self._process_done = False
@@ -135,7 +139,11 @@ class BaseMachine(ABC):
         
         # Execute device-specific logic
         if self.state == MachineState.RUNNING:
+            self.runtime_total_hrs += dt / 3600.0
             self._execute_running_logic(dt)
+        
+        # Calculate power (State-dependent)
+        self.power_kw = self._calculate_power()
     
     def set_event_dispatcher(self, dispatcher):
         """Set event dispatcher for event emission"""
@@ -169,9 +177,12 @@ class BaseMachine(ABC):
         """
         base_tags = {
             f"{self.id}.state": self.state.value,
+            f"{self.id}.is_running": self.state == MachineState.RUNNING,
             f"{self.id}.enabled": self.enabled,
             f"{self.id}.fault_code": self.fault_code,
             f"{self.id}.processed_count": self.processed_count,
+            f"{self.id}.power_kw": round(self.power_kw, 2),
+            f"{self.id}.runtime_total_hrs": round(self.runtime_total_hrs, 4),
         }
         
         # Add device-specific tags
@@ -207,6 +218,11 @@ class BaseMachine(ABC):
     @abstractmethod
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         """Override: Return dict of device-specific tags"""
+        pass
+    
+    @abstractmethod
+    def _calculate_power(self) -> float:
+        """Override: Return current power consumption in kW"""
         pass
     
     # ============================================================

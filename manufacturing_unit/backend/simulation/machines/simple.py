@@ -136,6 +136,21 @@ class SimpleMachine(BaseMachine):
             
         return tags
 
+    def _calculate_power(self) -> float:
+        """
+        Calculate power based on role and state.
+        """
+        is_running = self.state == MachineState.RUNNING
+        
+        if self.role == "machining":
+            return 40.0 if is_running else 2.0
+        elif self.role == "casting":
+            return 60.0 if is_running else 10.0
+        elif self.role == "buffer":
+            return 2.0 if is_running else 0.5
+            
+        return 10.0 if is_running else 1.0
+
     # --- Legacy / Helper Methods ---
 
     def receive_item(self, item: Any) -> bool:

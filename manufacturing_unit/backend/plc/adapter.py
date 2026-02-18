@@ -43,8 +43,16 @@ class SimulationAdapter:
         "progress": "Progress",
         "rejects": "RejectCount",
         "processed_count": "ProcessedCount",
-        "error": "Error",
+        "fault_code": "FaultCode",
+        "fault": "Fault",
         "state": "State",
+        "is_running": "IsRunning",
+        "enabled": "Enabled",
+        "power_kw": "PowerKW",
+        "runtime_total_hrs": "RuntimeTotalHrs",
+        "queue_in": "QueueIn",
+        "queue_out": "QueueOut",
+        "burner_enable": "BurnerEnable",
         
         # LPDC-specific tags
         "pressure_psi": "PressurePSI",
@@ -55,7 +63,6 @@ class SimulationAdapter:
         "trigger": "Trigger",
         
         # Buffer-specific tags
-        # Note: Buffers usually map queue_out via logic, but we can keep explicit if needed.
         "capacity": "Capacity"
     }
 

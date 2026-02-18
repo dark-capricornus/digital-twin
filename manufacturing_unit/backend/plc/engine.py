@@ -162,10 +162,10 @@ class VirtualPLC:
         # MAPPING LAYER: Connect Sim Machines to PLC Device Interfaces
         # We manually map specific machines to preserve the specific NodeIDs SCADA expects.
         mapping = {
-            "Furnace_01": "m_furnace",
-            "LPDC_01": "m_lpdc",
-            "CNC_01": "m_cnc",
-            "Inspection_01": "m_inspect" 
+            "FURNACE_01": "FURNACE_01",
+            "LPDC_01": "LPDC_01",
+            "CNC_01": "CNC_01",
+            "INSPECTION_01": "INSPECTION_01" 
         }
         
         for dev_id, sim_id in mapping.items():
@@ -230,20 +230,13 @@ class VirtualPLC:
             await node.set_writable() 
             await self.cmd_sub.subscribe_data_change(node)
 
-        # --- 3b. Plant Logic (V1 Orchestration) ---
         # Expose Global Plant Tags (WIP, KPI)
         self.plant_nodes = {}
         plant_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Plant", idx), ua.QualifiedName("Plant", idx))
         
-        # We pre-create nodes based on expected keys or just dynamic?
-        # Let's verify what keys exist now by peeking or assuming standard keys.
-        # Ideally we'd iterate sim_engine keys, but sim_engine might not be initialized fully or stepped yet.
-        # But `build_factory` created the engine. check what `get_all_tags` returns.
-        # Since Orchestrator is lazy loaded in step(), `get_all_tags` might not have Plant tags yet!
-        # Force init of orchestrator? Or just handle "lazy creation"?
-        # OPC UA nodes structure must be static usually or created at startup.
-        # I'll force init the orchestrator in engine.py NOW or just hardcode the known WIP keys.
-        # Hardcoding is safer for static address space.
+        # Explicitly create folders for VIP and KPI
+        wip_folder = await plant_node.add_object(ua.NodeId("VirtualPLC.Plant.WIP", idx), ua.QualifiedName("WIP", idx))
+        kpi_folder = await plant_node.add_object(ua.NodeId("VirtualPLC.Plant.KPI", idx), ua.QualifiedName("KPI", idx))
         
         # Expected WIP Keys
         wip_keys = [
@@ -254,7 +247,7 @@ class VirtualPLC:
         for k in wip_keys:
             tag_name = f"VirtualPLC.Plant.WIP.{k}"
             # Explicitly set to Int32 to match write logic
-            node = await plant_node.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"WIP_{k}", idx), 0, ua.VariantType.Int32)
+            node = await wip_folder.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"WIP_{k}", idx), 0, ua.VariantType.Int32)
             self.plant_nodes[f"Plant.WIP.{k}"] = node
             
         # Expected KPI Keys
@@ -268,7 +261,7 @@ class VirtualPLC:
             val = 0.0 if is_float else 0
             # Explicitly set type
             v_type = ua.VariantType.Double if is_float else ua.VariantType.Int32
-            node = await plant_node.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"KPI_{k}", idx), val, v_type)
+            node = await kpi_folder.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"KPI_{k}", idx), val, v_type)
             self.plant_nodes[f"Plant.KPI.{k}"] = node
 
 
@@ -277,29 +270,43 @@ class VirtualPLC:
         # Categorization Rules
         # Categorization Rules
         tag_categories = {
-            "Furnace_01": {
+            "FURNACE_01": {
                 "Temperature": "Status", 
                 "TargetTemp": "Status",
                 "FurnaceMaxTemp": "Status",
-                "BurnerEnable": "Outputs"
+                "BurnerEnable": "Outputs",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
             },
             "LPDC_01": {
                 "PourRequest": "Inputs", 
                 "PressurePSI": "Status",
                 "Progress": "Status",
                 "ProcessedCount": "Status",
-                "State": "Status"
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
             },
             "CNC_01": {
                 "Trigger": "Inputs",
                 "SpindleRPM": "Status",
                 "Progress": "Status",
                 "ProcessedCount": "Status",
-                "State": "Status"
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
             },
-            "Inspection_01": {
+            "INSPECTION_01": {
                 "RejectCount": "Status",
-                "Progress": "Status"
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
             }
         }
         
@@ -517,7 +524,6 @@ class VirtualPLC:
                     # 1. Initialize all machines to IDLE first (Safety)
                     for dev in self.devices:
                         if hasattr(dev.machine, 'state'):
-                            from backend.simulation.machines.base_machine import MachineState
                             dev.machine.state = MachineState.IDLE
                     
                     # 2. Propagate RUNNING signal to Adapters (Triggers autonomous starts like Furnace)

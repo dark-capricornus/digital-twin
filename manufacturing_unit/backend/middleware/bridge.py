@@ -1,3 +1,5 @@
+import sys
+import os
 import json
 import asyncio
 import base64
@@ -5,6 +7,18 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import List, Union
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
+
+# --- Fix Path for Imports ---
+# Add the current directory to sys.path so standalone bridge can find sparkplug_b_pb2
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Try to import Sparkplug B decoder
+try:
+    import sparkplug_b_pb2
+    HAS_SPARKPLUG_DECODER = True
+except ImportError:
+    HAS_SPARKPLUG_DECODER = False
+    print("WARNING: sparkplug_b_pb2 not found. Sparkplug B messages will be sent as Base64.")
 
 # --- Configuration ---
 MQTT_BROKER = "localhost"
@@ -37,8 +51,43 @@ app = FastAPI()
 mqtt_client = mqtt.Client()
 
 def on_connect(client, userdata, flags, rc):
-    print(f"Connected to MQTT Broker with result code {rc}")
+    print(f"[BRIDGE] Connected to MQTT Broker with result code {rc}")
+    print(f"[BRIDGE] Subscribing to topic: {MQTT_TOPIC}")
     client.subscribe(MQTT_TOPIC)
+
+def decode_sparkplug_metrics(payload_bytes):
+    """Decode Sparkplug B payload and extract metrics as dict"""
+    if not HAS_SPARKPLUG_DECODER:
+        return None
+    
+    try:
+        payload = sparkplug_b_pb2.Payload()
+        payload.ParseFromString(payload_bytes)
+        
+        metrics = {}
+        for metric in payload.metrics:
+            # Extract value based on datatype
+            value = None
+            if metric.HasField('int_value'):
+                value = metric.int_value
+            elif metric.HasField('long_value'):
+                value = metric.long_value
+            elif metric.HasField('float_value'):
+                value = metric.float_value
+            elif metric.HasField('double_value'):
+                value = metric.double_value
+            elif metric.HasField('boolean_value'):
+                value = metric.boolean_value
+            elif metric.HasField('string_value'):
+                value = metric.string_value
+            
+            if metric.name and value is not None:
+                metrics[metric.name] = value
+        
+        return metrics
+    except Exception as e:
+        print(f"Sparkplug decode error: {e}")
+        return None
 
 def on_message(client, userdata, msg):
     """
@@ -46,16 +95,25 @@ def on_message(client, userdata, msg):
     Decodes payload and broadcasts to WS clients.
     """
     topic = msg.topic
+    print(f"[BRIDGE] Received MQTT message on topic: {topic}")
     payload = msg.payload
     
-    # Try to decode as JSON, otherwise send as Base64 (for Sparkplug B)
+    # Try to decode as JSON first
     try:
         data = json.loads(payload.decode('utf-8'))
         content_type = "json"
     except:
-        # Binary data (Sparkplug B) -> Send as Base64
-        data = base64.b64encode(payload).decode('utf-8')
-        content_type = "binary"
+        # Try Sparkplug B decoding
+        decoded_metrics = decode_sparkplug_metrics(payload)
+        
+        if decoded_metrics:
+            # Successfully decoded Sparkplug B
+            data = decoded_metrics
+            content_type = "sparkplug"
+        else:
+            # Fallback: send as Base64
+            data = base64.b64encode(payload).decode('utf-8')
+            content_type = "binary"
 
     message = {
         "topic": topic,

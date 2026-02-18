@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any, List, Optional
-from .machines.base import Machine
+from .machines.base_machine import BaseMachine as Machine
 # No direct dependency on SimpleMachine class needed if using base interface, 
 # but we access queue_in/out lists.
 
@@ -40,15 +40,15 @@ class ProductionOrchestrator:
         self.machines = {m.id: m for m in machines}
         
         # Machines Mapping
-        self.m_furnace = self.machines.get("m_furnace")
-        self.m_degasser = self.machines.get("m_degasser")
-        self.m_lpdc = self.machines.get("m_lpdc")
-        self.m_heat = self.machines.get("m_heat") 
-        self.m_cnc = self.machines.get("m_cnc")
-        self.m_paint = self.machines.get("m_paint1") # Using Paint1 as main booth
-        self.m_inspect = self.machines.get("m_inspect") # X-Ray
-        self.m_pack = self.machines.get("m_pack") # Used as QC/Packing
-        self.m_outbound = self.machines.get("m_outbound")
+        self.m_furnace = self.machines.get("FURNACE_01")
+        self.m_degasser = self.machines.get("DEGASSER_01")
+        self.m_lpdc = self.machines.get("LPDC_01")
+        self.m_heat = self.machines.get("HEAT_01") 
+        self.m_cnc = self.machines.get("CNC_01")
+        self.m_paint = self.machines.get("PAINT_01") # Using Paint1 as main booth
+        self.m_inspect = self.machines.get("INSPECTION_01") # X-Ray
+        self.m_pack = self.machines.get("PACK_01") # Used as QC/Packing
+        self.m_outbound = self.machines.get("OUTBOUND_01")
 
         # WIP State (Frozen Model)
         self.wip = {key: 0 for key in self.WIP_KEYS}

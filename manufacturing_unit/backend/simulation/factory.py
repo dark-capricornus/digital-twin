@@ -31,7 +31,9 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     furnace = ThermalMachine("FURNACE_01", "Melting Furnace", cycle_time=10.0, target_temp=750.0)
 
     # 4. Degasser
-    degasser = SimpleMachine("DEGASSER_01", "Degasser", cycle_time=8.0)
+    from .machines.degasser import DegasserMachine
+    degasser = DegasserMachine("DEGASSER_01", "Degasser", cycle_time=8.0)
+
 
     # 5. Cooling Tank 1 - Thermal (Cooling)
     cooling1 = ThermalMachine("COOLING_01", "Cooling Tank 1", cycle_time=5.0, target_temp=25.0, cooling=True)

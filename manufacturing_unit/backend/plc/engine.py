@@ -165,7 +165,8 @@ class VirtualPLC:
             "FURNACE_01": "FURNACE_01",
             "LPDC_01": "LPDC_01",
             "CNC_01": "CNC_01",
-            "INSPECTION_01": "INSPECTION_01" 
+            "INSPECTION_01": "INSPECTION_01",
+            "DEGASSER_01": "DEGASSER_01" 
         }
         
         for dev_id, sim_id in mapping.items():
@@ -305,6 +306,14 @@ class VirtualPLC:
                 "Progress": "Status",
                 "State": "Status",
                 "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            "DEGASSER_01": {
+                "VacuumLevel": "Status",
+                "Temp": "Status",
+                "Progress": "Status",
+                "State": "Status",
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
             }

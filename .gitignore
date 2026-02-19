@@ -22,3 +22,5 @@ manufacturing_unit/tests/
 texfile_codes/
 .postman/
 RUN_INSTRUCTIONS.md
+PROJECT_DOCUMENTATION.md
+SCADA_INTEGRATION.md

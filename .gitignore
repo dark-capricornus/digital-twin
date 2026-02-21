@@ -23,4 +23,6 @@ texfile_codes/
 .postman/
 RUN_INSTRUCTIONS.md
 PROJECT_DOCUMENTATION.md
-SCADA_INTEGRATION.md
+SCADA_INTEGRATION.md    
+CLIENT_DISCOVERY_QUESTIONNAIRE.md
+Digital_Twin_Tag_and_Device_Naming.md

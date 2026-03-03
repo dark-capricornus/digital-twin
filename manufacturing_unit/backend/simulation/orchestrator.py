@@ -1,7 +1,12 @@
+import os
+import sys
 import logging
 from typing import Dict, Any, List, Optional
-from .machines.base_machine import BaseMachine as Machine
-# No direct dependency on SimpleMachine class needed if using base interface, 
+
+# --- Add parent backend dir to path for direct execution ---
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from simulation.machines.base_machine import BaseMachine as Machine
 # but we access queue_in/out lists.
 
 logger = logging.getLogger("Orchestrator")

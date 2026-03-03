@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 class SceneManager {
     constructor(container) {
@@ -12,40 +13,53 @@ class SceneManager {
         this.labelRenderer = null;
         this.controls = null;
         this.model = null;
-        
-        this.meshRegistry = new Map();
+
+        this.meshRegistry = new Map(); // Used only for raycasting
+        this.nodeRegistry = new Map(); // Used for device lookup (Groups + Meshes)
         this.labelRegistry = new Map();
-        // Manual mapping overrides for known discrepancies (Lowercased Keys -> Lowercased Meshes)
+        this.warningMeshes = new Map(); // Map of deviceId -> warning mesh instance
+
+        // Manual mapping overrides for known discrepancies where fuzzy search fails
         this.manualMap = {
-            'cnc_01': 'vertical_holder_01',      
-            'inspection_01': 'cube005',          
+            'cnc_01': 'vertical_holder_01',
+            'cnc_02': 'vertical_holder_01', // Fallback if no second CNC mesh exists natively
+            'inspection_01': 'cube005',
+            'inspection_02': 'cube005',
             'furnace_01': 'smelting_machine',
             'cooling_01': 'cooling_tank',
-            'pack_01': 'wraping_machine',      
-            'degasser_01': 'degasing_machine_01', 
+            'cooling_02': 'cooling_tank',
+            'pack_01': 'wraping_machine',
+            'degasser_01': 'degasing_machine_01',
             'lpdc_01': 'lpdc_01_machine',
+            'lpdc_02': 'lpdc_01_machine',
             'heat_01': 'heat_treated_machine',
+            'paint_01': 'painting_machine001', // Guessed closest painting machine
+            'paint_02': 'painting_machine001',
+            'storage_01': 'storage_rack001',
+            'inbound_01': 'pallet',
+            'outbound_01': 'pallet',
+            'pretreat_01': 'washsystem',
             'plant': null,
             'buffer_01': 'storage_rack001'
         };
 
         this.overlayLayouts = new Map();
-        this.persistentValues = new Map(); 
-        
+        this.persistentValues = new Map();
+
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
-        
+
         this.init();
         this.setupInteraction();
     }
 
     init() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x050505);
-        
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        this.scene.background = new THREE.Color(0xffffff);
+
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 50000);
         this.camera.position.set(30, 30, 30);
-        
+
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -57,10 +71,16 @@ class SceneManager {
         this.labelRenderer.domElement.style.top = '0px';
         this.labelRenderer.domElement.style.pointerEvents = 'none';
         this.container.appendChild(this.labelRenderer.domElement);
-        
+
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
-        
+        this.controls.dampingFactor = 0.05; // Smooth camera deceleration
+        this.controls.zoomSpeed = 0.8;      // Smoother, slightly slower zoom
+
+        // HDRI & Natural Metallic Reflections (SSR-like glossiness)
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(20, 40, 20);
@@ -84,31 +104,43 @@ class SceneManager {
         const intersects = this.raycaster.intersectObjects(Array.from(this.meshRegistry.values()), true);
 
         if (intersects.length > 0) {
-            let mesh = intersects[0].object;
+            let clickedObject = intersects[0].object;
             let deviceId = null;
-            // Search up the tree to find a registered device
-            while (mesh) {
-                const foundId = Array.from(this.labelRegistry.keys()).find(id => this.findMesh(id) === mesh);
-                if (foundId) { deviceId = foundId; break; }
-                mesh = mesh.parent;
+
+            // Search up the hierarchy to find a registered device's root node
+            // A device's root node is the one to which its label is attached.
+            // We check if any of the clicked object's ancestors (including itself)
+            // is the parent of a registered label.
+            let current = clickedObject;
+            while (current) {
+                const foundId = Array.from(this.labelRegistry.keys()).find(id => {
+                    const labelObject = this.labelRegistry.get(id);
+                    return labelObject && labelObject.parent === current;
+                });
+                if (foundId) {
+                    deviceId = foundId;
+                    break;
+                }
+                current = current.parent;
             }
-            
-            // If still no ID, try fuzzy match against manual map
+
+            // If still no ID found by label hierarchy, try fuzzy name matching against ancestors
             if (!deviceId) {
-                let current = intersects[0].object;
+                current = clickedObject;
                 while (current) {
-                    const match = Object.keys(this.manualMap).find(id => this.manualMap[id] === current.name);
+                    // Check against manualMap values
+                    const match = Object.keys(this.manualMap).find(id => this.manualMap[id] === current.name.toLowerCase());
                     if (match) { deviceId = match; break; }
                     current = current.parent;
                 }
             }
 
             this.selectDevice(deviceId);
-            
+
             // Sync Sidebar
             if (deviceId) {
-                window.dispatchEvent(new CustomEvent('open-device-details', { 
-                    detail: { deviceId: deviceId } 
+                window.dispatchEvent(new CustomEvent('open-device-details', {
+                    detail: { deviceId: deviceId }
                 }));
             }
         } else {
@@ -131,10 +163,10 @@ class SceneManager {
             const old = this.labelRegistry.get(this.activeDeviceId);
             if (old) old.element.classList.remove('active', 'expanded');
         }
-        
+
         // 2. Set new
         this.activeDeviceId = id;
-        
+
         // 3. Show new
         if (id) {
             const l = this.labelRegistry.get(id);
@@ -154,95 +186,121 @@ class SceneManager {
         const gltf = await loader.loadAsync(path);
         this.model = gltf.scene;
         this.scene.add(this.model);
+
+        let baseWarningMesh = null;
+
         this.model.traverse(c => {
-            if (c.isMesh) {
+            if (c.name) {
                 const normName = c.name.toLowerCase();
-                console.log(`[Scene] MESH_DISCOVERY: ${c.name} -> ${normName}`);
-                this.meshRegistry.set(normName, c);
-                if (c.material) c.material = c.material.clone();
+
+                // Explicitly intercept the warning mesh so it doesn't get treated as a normal static model
+                if (normName.includes('warning') || normName.includes('alert') || normName.includes('Triangle')) {
+                    if (c.isMesh && !baseWarningMesh) {
+                        baseWarningMesh = c;
+                        baseWarningMesh.visible = false; // Hide the template
+                    }
+                }
+
+                // Track all nodes (groups and meshes) for ID resolution
+                if (!this.nodeRegistry.has(normName) || c.isMesh) {
+                    this.nodeRegistry.set(normName, c);
+                }
+
+                // Track meshes explicitly for raycasting and visual updates
+                if (c.isMesh) {
+                    this.meshRegistry.set(normName, c);
+                    if (c.material) c.material = c.material.clone();
+                }
             }
         });
-        console.log('[Scene] Model loaded. Normalized Meshes:', this.meshRegistry.size);
+
+        this.baseWarningMesh = baseWarningMesh;
+        if (this.baseWarningMesh) {
+            console.log('[Scene] Base Warning Mesh found:', this.baseWarningMesh.name);
+        } else {
+            console.warn('[Scene] No warning mesh found in GLB. Animation will be skipped.');
+        }
+
+        console.log('[Scene] Model loaded. Nodes registered:', this.nodeRegistry.size, 'Meshes:', this.meshRegistry.size);
         return gltf;
     }
 
     /**
-     * Aggressive Mesh Discovery
+     * Node Discovery (Groups & Meshes)
      */
-    findMesh(rawId) {
+    findMesh(rawId) { // Renamed from findMesh to findNode conceptually, but kept name for compatibility
         if (!rawId) return null;
         const id = rawId.toLowerCase();
-        
+
         // 1. Manual map check (High priority)
         if (id in this.manualMap) {
             const target = this.manualMap[id];
             if (target === null) return null; // Explicitly no mesh for this ID
-            const mesh = this.meshRegistry.get(target);
-            if (mesh) return mesh;
+            // target could be mapped to a mesh or a group
+            if (this.nodeRegistry.has(target)) return this.nodeRegistry.get(target);
+            if (this.meshRegistry.has(target)) return this.meshRegistry.get(target);
         }
 
-        // 2. Direct name match (on normalized registry)
-        if (this.meshRegistry.has(id)) return this.meshRegistry.get(id);
+        // 2. Direct exact match in node registry
+        if (this.nodeRegistry.has(id)) return this.nodeRegistry.get(id);
 
-        // 3. Normalized fuzzy search with priority
-        const normId = id.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // 2. Normalized fuzzy search with priority
+        const normId = id.replace(/[^a-z0-9]/g, '');
         let bestMatch = null;
         let bestPriority = -1;
 
-        for (const [name, mesh] of this.meshRegistry.entries()) {
-            const normName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-            
+        for (const [name, node] of this.nodeRegistry.entries()) {
+            const normName = name.replace(/[^a-z0-9]/g, '');
+
             if (normName === normId || normName.includes(normId) || normId.includes(normName)) {
                 let priority = 0;
-                // Favor names that explicitly mention machine-like qualities
-                if (normName.includes('machine') || normName.includes('smelting') || 
-                    normName.includes('tank') || normName.includes('cnc') || 
-                    normName.includes('lpdc') || normName.includes('xray') || 
-                    normName.includes('inspection') || normName.includes('oven')) {
-                    priority = 2;
-                } else if (normName.includes('unit') || normName.includes('cell') || normName.includes('holder')) {
-                    priority = 1;
-                }
+                // Perfect alpha-numeric match
+                if (normName === normId) priority = 5;
+                // Prefer objects that actually have geometry (children or are meshes)
+                else if (node.isMesh) priority = 3;
+                else if (node.children.length > 0) priority = 2;
+                else priority = 1;
 
                 if (priority > bestPriority) {
                     bestPriority = priority;
-                    bestMatch = mesh;
+                    bestMatch = node;
                 }
             }
         }
 
         if (bestMatch) {
-            console.log(`[Scene] Fuzzy Match Found: ${id} -> ${bestMatch.name} (Priority: ${bestPriority})`);
-            this.manualMap[id] = bestMatch.name;
+            console.log(`[Scene] Fuzzy Node Match: ${id} -> ${bestMatch.name} (Priority: ${bestPriority})`);
+            this.nodeRegistry.set(id, bestMatch); // Cache the result for future lookups
+            this.manualMap[id] = bestMatch.name.toLowerCase(); // Cache the result into manualMap
             return bestMatch;
         }
-        
-        // 4. Last resort: scan model for ANY mesh related to ID
-        if (!this.model) {
-            console.warn(`[Scene] Cannot deep scan for ${id}: Model not loaded yet.`);
-            return null;
-        }
 
-        console.warn(`[Scene] No mesh found for ${id} in registry. Attempting deep scan...`);
+        // 4. Fallback: traverse everything manually to catch unnamed sub-groups just in case
+        console.warn(`[Scene] No node found for ${id} in registry. Attempting deep scan...`);
         let deepMatch = null;
         this.model.traverse(c => {
-            if (c.isMesh && c.name.toLowerCase().includes(normId)) deepMatch = c;
+            if (c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '').includes(normId)) {
+                deepMatch = c;
+            }
         });
+
         if (deepMatch) {
             console.log(`[Scene] Deep Scan Match: ${id} -> ${deepMatch.name}`);
-            this.meshRegistry.set(deepMatch.name.toLowerCase(), deepMatch);
+            this.nodeRegistry.set(deepMatch.name.toLowerCase(), deepMatch);
             this.manualMap[id] = deepMatch.name.toLowerCase();
+            return deepMatch;
         }
-        
-        return deepMatch;
+
+        return null;
     }
 
     updateMeshColor(id, hex) {
-        const m = this.findMesh(id);
+        const m = this.findMesh(id); // findMesh now returns a Node (Group or Mesh)
         if (m) {
-            m.traverse(c => { 
+            // If it's a Group, traverse its children to find meshes
+            m.traverse(c => {
                 if (c.isMesh && c.material) {
-                    c.material.color.setHex(hex); 
+                    c.material.color.setHex(hex);
                 }
             });
         }
@@ -254,11 +312,11 @@ class SceneManager {
     getValue(data, key) {
         if (!data || !key) return undefined;
         const lowerKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
+
         // 1. Precise match
         if (data[key] !== undefined) return data[key];
         if (data[key.toUpperCase()] !== undefined) return data[key.toUpperCase()];
-        
+
         // 2. State Alias (Always prefer CalculatedState if looking for State)
         if (lowerKey === 'state') {
             if (data['CalculatedState'] !== undefined) return data['CalculatedState'];
@@ -279,7 +337,10 @@ class SceneManager {
 
     updateDeviceLabel(id, data, preferred = null) {
         let mesh = this.findMesh(id);
-        if (!mesh) return;
+        if (!mesh) {
+            console.warn(`[Scene] Cannot display data: No 3D model found for ${id}`);
+            return;
+        }
 
         let label = this.labelRegistry.get(id);
 
@@ -311,12 +372,12 @@ class SceneManager {
                     <div class="label-arrow"></div>
                 </div>
             `;
-            
+
             const metricsContainer = div.querySelector('.machine-metrics');
-            const keys = preferred || Object.keys(data).filter(k => 
+            const keys = preferred || Object.keys(data).filter(k =>
                 !['id', 'topic', 'type', 'source', 'bridge', 'plc', 'timestamp', 'state', 'status'].includes(k.toLowerCase())
             ).slice(0, 3);
-            
+
             this.overlayLayouts.set(id, keys);
 
             keys.forEach(k => {
@@ -333,18 +394,18 @@ class SceneManager {
                     const mode = btn.dataset.mode;
                     if (mode === 'meta') div.classList.add('meta-mode');
                     else div.classList.remove('meta-mode');
-                    
+
                     div.classList.add('expanded'); // Expand card on button click
-                    
+
                     // Toggle active state on buttons
                     div.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active-toggle'));
                     btn.classList.add('active-toggle');
-                    
+
                     // Universal Mode Sync Event
-                    window.dispatchEvent(new CustomEvent('global-view-mode-change', { 
-                        detail: { mode: mode, deviceId: id } 
+                    window.dispatchEvent(new CustomEvent('global-view-mode-change', {
+                        detail: { mode: mode, deviceId: id }
                     }));
-                    
+
                     window.dispatchEvent(new CustomEvent('manual-view-change'));
                 };
             });
@@ -355,21 +416,42 @@ class SceneManager {
             };
 
             label = new CSS2DObject(div);
-            
+
             // Positioning - PIN TO CENTER OF VOLUME
             const box = new THREE.Box3().setFromObject(mesh);
             const center = new THREE.Vector3();
             box.getCenter(center);
-            
+
             // Create a local coordinate relative to the mesh origin that corresponds to the top-center
             const localPos = mesh.worldToLocal(center.clone());
             const height = box.max.y - box.min.y;
-            
+
             console.log(`[Scene] Pinning label for ${id} to mesh: ${mesh.name}`);
-            
-            label.position.set(localPos.x, localPos.y + (height/2) + 0.5, localPos.z); 
+
+            label.position.set(localPos.x, localPos.y + (height / 2) + 0.5, localPos.z);
             mesh.add(label);
             this.labelRegistry.set(id, label);
+
+            // ---- Attach Warning Mesh ----
+            if (this.baseWarningMesh) {
+                const warningClone = this.baseWarningMesh.clone();
+                // Position it slightly above the UI label
+                warningClone.position.set(localPos.x, localPos.y + (height / 2) + 3.0, localPos.z);
+                warningClone.visible = false;
+
+                // Keep original scale for basis
+                warningClone.userData.baseScale = warningClone.scale.clone();
+
+                // Add emissive red glow to the warning material if possible
+                if (warningClone.material) {
+                    warningClone.material = warningClone.material.clone();
+                    warningClone.material.emissive = new THREE.Color(0xff0000);
+                    warningClone.material.emissiveIntensity = 0.5;
+                }
+
+                mesh.add(warningClone);
+                this.warningMeshes.set(id, warningClone);
+            }
         }
 
         // 2. Continuous Update Phase
@@ -388,7 +470,7 @@ class SceneManager {
                     }
                     cache.set(k, val);
                 }
-                
+
                 const display = cache.get(k);
                 if (display !== undefined) {
                     slot.textContent = typeof display === 'number' ? display.toFixed(1) : display;
@@ -398,7 +480,7 @@ class SceneManager {
         this.persistentValues.set(id, cache);
 
         const state = (this.getValue(data, 'State') || this.getValue(data, 'status') || "").toString().toLowerCase();
-        
+
         // Define State Groups
         const runningStates = ['running', 'active', 'heating', 'melting', 'pouring', 'processing', 'enabled'];
         const idleStates = ['idle', 'waiting', 'starved', 'blocked', 'ready'];
@@ -408,8 +490,14 @@ class SceneManager {
         if (runningStates.some(s => state.includes(s))) stateClass = 'running';
         else if (idleStates.some(s => state.includes(s))) stateClass = 'idle';
         else if (stoppedStates.some(s => state.includes(s))) stateClass = 'stopped';
-        
+
         element.querySelector('.label-content').className = 'label-content ' + stateClass;
+
+        // Toggle Warning Mesh Visibility
+        const wMesh = this.warningMeshes.get(id);
+        if (wMesh) {
+            wMesh.visible = (stateClass === 'stopped');
+        }
 
         // Strictly visibility
         if (this.activeDeviceId === id) element.classList.add('active');
@@ -441,10 +529,10 @@ class SceneManager {
     updateMetaKPIs(id, metaData) {
         const label = this.labelRegistry.get(id);
         if (!label) return;
-        
+
         const container = label.element.querySelector('.meta-metrics');
         if (!container) return;
-        
+
         Object.entries(metaData).forEach(([key, val]) => {
             let slot = container.querySelector(`[data-meta="${key}"]`);
             if (!slot) {
@@ -456,7 +544,7 @@ class SceneManager {
                 container.appendChild(row);
                 slot = row.querySelector('.meta-value');
             }
-            
+
             if (slot) {
                 slot.textContent = val;
                 slot.classList.add('value-updated');
@@ -467,9 +555,9 @@ class SceneManager {
 
     checkZoom() {
         if (!this.camera) return;
-        const dist = this.camera.position.distanceTo(new THREE.Vector3(0,0,0));
+        const dist = this.camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
         const isMini = dist > 60; // Threshold for mini labels
-        
+
         this.labelRegistry.forEach((label, id) => {
             // Active device label is NEVER mini
             if (isMini && id !== this.activeDeviceId) {
@@ -488,10 +576,25 @@ class SceneManager {
     }
 
     start() {
+        // Animation Clock for Warning Meshes
+        const clock = new THREE.Clock();
+
         const loop = () => {
             requestAnimationFrame(loop);
+            const elapsedTime = clock.getElapsedTime();
+
             this.controls.update();
             this.checkZoom();
+
+            // Animate Warning Meshes (Scale pulsing + slight rotation)
+            this.warningMeshes.forEach(wMesh => {
+                if (wMesh.visible) {
+                    const scalePulse = 1.0 + Math.sin(elapsedTime * 5.0) * 0.2; // Pulse between 0.8x and 1.2x
+                    wMesh.scale.copy(wMesh.userData.baseScale).multiplyScalar(scalePulse);
+                    wMesh.rotation.y += 0.05; // Spin slowly
+                }
+            });
+
             this.renderer.render(this.scene, this.camera);
             this.labelRenderer.render(this.scene, this.camera);
         };

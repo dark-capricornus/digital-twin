@@ -16,8 +16,8 @@ class DigitalTwinApp {
         this.activeMode = 'telemetry'; // 'telemetry' | 'meta'
         this.assetData = {}; // device_id -> asset info
         // Unified telemetry store (deviceId -> Map(key -> value))
-        this.telemetryStore = new Map(); 
-        
+        this.telemetryStore = new Map();
+
         // Sticky layouts for Sidebars
         // 3D Overlay Preferred Schemas
         this.overlaySchemas = {
@@ -68,7 +68,7 @@ class DigitalTwinApp {
         };
 
         this.sidebarLayouts = new Map();
-        
+
         this.init();
         this.setupListeners();
     }
@@ -97,7 +97,7 @@ class DigitalTwinApp {
         });
 
         this.websocket = new WebSocketHandler(
-            'ws://localhost:8000/ws',
+            'ws://localhost:8001/ws',
             (deviceId, state, fullData) => this.handleData(deviceId, state, fullData),
             (status) => this.updateStatus(status)
         );
@@ -105,7 +105,7 @@ class DigitalTwinApp {
         this.websocket.connect();
         await this.scene.loadModel('assets/models/plant.glb');
         this.scene.start();
-        
+
         // Start the Cyclic Tour
         this.initTour();
     }
@@ -129,10 +129,10 @@ class DigitalTwinApp {
             }
 
             const currentId = devices[this.tourIndex];
-            
+
             // --- Phase 1: Show Telemetry (5s) ---
             if (this.tourActive) await this.showTourPhase(currentId, 'telemetry', 5000);
-            
+
             // --- Phase 2: Hide / Visual Break (2s) ---
             if (this.tourActive) await this.hideTourPhase(2000);
 
@@ -149,10 +149,10 @@ class DigitalTwinApp {
 
     async showTourPhase(id, mode, duration) {
         if (!this.tourActive) return;
-        
+
         console.log(`[Tour] Phase: ${mode.toUpperCase()} for ${id}`);
         this.scene.selectDevice(id);
-        
+
         // Expansion delay for smooth reveal
         await new Promise(r => setTimeout(r, 800));
         if (!this.tourActive) return;
@@ -175,7 +175,7 @@ class DigitalTwinApp {
 
     async hideTourPhase(duration) {
         if (!this.tourActive) return;
-        
+
         console.log(`[Tour] Phase: HIDE`);
         this.scene.resetInteraction();
         this.closeSidebar();
@@ -186,10 +186,10 @@ class DigitalTwinApp {
         document.getElementById('close-details')?.addEventListener('click', () => this.closeSidebar());
         window.addEventListener('open-device-details', (e) => {
             const { deviceId } = e.detail;
-            this.tourActive = false; 
+            this.tourActive = false;
             this.activeMode = 'telemetry'; // Start in telemetry view by default
             this.openSidebar(deviceId);
-            
+
             // Sync Meta Data immediately
             const metaKey = Object.keys(this.metaKPIs).find(k => deviceId.toLowerCase().includes(k));
             if (metaKey) {
@@ -198,12 +198,12 @@ class DigitalTwinApp {
         });
 
         window.addEventListener('scene-background-click', () => {
-            this.tourActive = true; 
+            this.tourActive = true;
             this.closeSidebar();
         });
 
         window.addEventListener('manual-view-change', () => {
-            this.tourActive = false; 
+            this.tourActive = false;
             this.lastInteraction = Date.now();
         });
 
@@ -223,7 +223,7 @@ class DigitalTwinApp {
             const normId = deviceId.toLowerCase();
             console.log(`[Sync] Global Mode Change: ${mode} for ${normId}`);
             this.activeMode = mode;
-            
+
             // Sync sidebar if it's open for this device
             if (this.activeDetailsId === normId) {
                 this.renderSidebar(normId);
@@ -243,19 +243,19 @@ class DigitalTwinApp {
             // 2. Sync Meta Data for expanded card/sidebar
             const metaKey = Object.keys(this.metaKPIs).find(k => deviceId.includes(k));
             if (metaKey) {
-                 // Dynamic KPI Updates
-                 if (fullData.RuntimeTotalHrs !== undefined) {
-                     const hrs = fullData.RuntimeTotalHrs;
-                     this.metaKPIs[metaKey].uptime = hrs < 1 ? '< 1 hr' : `${Math.floor(hrs).toLocaleString()} hrs`;
-                     
-                     // Approximate Energy Calc: PowerKW * Hours
-                     if (fullData.PowerKW !== undefined) {
-                         const kwh = fullData.PowerKW * hrs;
-                         this.metaKPIs[metaKey].energy = kwh > 1000 ? 
-                             `${(kwh/1000).toFixed(1)} MWh` : 
-                             `${Math.floor(kwh).toLocaleString()} kWh`;
-                     }
-                 }
+                // Dynamic KPI Updates
+                if (fullData.RuntimeTotalHrs !== undefined) {
+                    const hrs = fullData.RuntimeTotalHrs;
+                    this.metaKPIs[metaKey].uptime = hrs < 1 ? '< 1 hr' : `${Math.floor(hrs).toLocaleString()} hrs`;
+
+                    // Approximate Energy Calc: PowerKW * Hours
+                    if (fullData.PowerKW !== undefined) {
+                        const kwh = fullData.PowerKW * hrs;
+                        this.metaKPIs[metaKey].energy = kwh > 1000 ?
+                            `${(kwh / 1000).toFixed(1)} MWh` :
+                            `${Math.floor(kwh).toLocaleString()} kWh`;
+                    }
+                }
                 this.scene.updateMetaKPIs(deviceId, this.metaKPIs[metaKey]);
             }
 
@@ -311,7 +311,7 @@ class DigitalTwinApp {
         html += '<table class="data-table">';
         keys.forEach(k => {
             let val, label;
-            
+
             if (this.activeMode === 'meta') {
                 // Pull from assets.json if specifically asked, else from legacy metaKPIs
                 if (assetInfo[k]) {
@@ -341,7 +341,7 @@ class DigitalTwinApp {
     getValue(data, key) {
         if (!data || !key) return undefined;
         const lowerTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
+
         // 1. Precise match
         if (data[key] !== undefined) return data[key];
         if (data[key.toUpperCase()] !== undefined) return data[key.toUpperCase()];
@@ -353,7 +353,7 @@ class DigitalTwinApp {
             if (data['state'] !== undefined) return data['state'];
             if (data['Status'] !== undefined) return data['Status'];
         }
-        
+
         // 3. Normalized fuzzy match
         for (const [k, v] of Object.entries(data)) {
             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');

@@ -1,11 +1,12 @@
 :root {
-    --primary: #00d4ff;
-    --success: #00cc00;
-    --danger: #ff3333;
-    --warning: #ffaa00;
-    --bg-dark: #0a0c10;
-    --panel-bg: rgba(15, 17, 21, 0.9);
-    --border: rgba(255, 255, 255, 0.1);
+    --primary: #1392ec;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg-dark: #ffffff;
+    --panel-bg: #09090b; /* Solid Dark Theme Background */
+    --border: rgba(255, 255, 255, 0.15);
+    --radius: 8px;
 }
 
 * {
@@ -38,10 +39,9 @@ body {
 #connection-status {
     background: var(--panel-bg);
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     font-weight: 700;
     font-size: 13px;
-    backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     margin-bottom: 8px;
     text-transform: uppercase;
@@ -54,9 +54,8 @@ body {
 #device-count {
     background: var(--panel-bg);
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     font-size: 12px;
-    backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     color: #888;
 }
@@ -69,9 +68,8 @@ body {
     right: 10px;
     width: 400px;
     background: var(--panel-bg);
-    backdrop-filter: blur(25px);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius);
     z-index: 200;
     display: flex;
     flex-direction: column;
@@ -158,10 +156,9 @@ body {
 }
 
 .label-content {
-    background: rgba(15, 17, 21, 0.95);
-    backdrop-filter: blur(15px);
-    border-left: 4px solid var(--primary);
-    border-radius: 4px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     padding: 12px;
     width: 220px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -176,12 +173,11 @@ body {
     overflow: hidden;
 }
 
-/* Mini State (Zoomed Out) */
 .machine-label.mini .label-content {
     width: 60px;
     height: 30px;
     padding: 4px;
-    border-left-width: 2px;
+    border: 1px solid var(--border);
 }
 
 .machine-label.mini .machine-name {
@@ -209,9 +205,9 @@ body {
     padding-bottom: 8px;
 }
 
-.label-content.running { border-left-color: var(--success); }
-.label-content.idle { border-left-color: var(--warning); }
-.label-content.stopped { border-left-color: var(--danger); }
+.label-content.running { border-top: 3px solid var(--success); }
+.label-content.idle { border-top: 3px solid var(--warning); }
+.label-content.stopped { border-top: 3px solid var(--danger); }
 
 .machine-name {
     font-size: 13px;
@@ -275,11 +271,11 @@ body {
 
 .toggle-btn {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(0, 243, 255, 0.2);
+    border: 1px solid var(--border);
     color: #888;
     font-size: 8px;
     padding: 4px 8px;
-    border-radius: 2px;
+    border-radius: 4px;
     cursor: pointer;
     font-weight: 800;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -304,16 +300,16 @@ body {
 }
 
 .toggle-btn:hover {
-    background: rgba(0, 243, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
     color: #fff;
-    border-color: rgba(0, 243, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .toggle-btn.active-toggle {
     background: var(--primary);
-    color: #000;
+    color: #fff;
     border-color: var(--primary);
-    box-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+    box-shadow: 0 0 10px rgba(19, 146, 236, 0.4);
 }
 
 .metric-row {
@@ -363,5 +359,5 @@ body {
     width: 0; height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    border-top: 6px solid rgba(15, 17, 21, 0.95);
+    border-top: 6px solid var(--panel-bg);
 }

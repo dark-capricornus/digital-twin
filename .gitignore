@@ -26,3 +26,7 @@ PROJECT_DOCUMENTATION.md
 SCADA_INTEGRATION.md    
 CLIENT_DISCOVERY_QUESTIONNAIRE.md
 Digital_Twin_Tag_and_GLB_Naming_Reference.md
+manufacturing_unit/frontend/assets/models/
+parse_gltf.py
+test_fault_injection.py
+stsich_design.html

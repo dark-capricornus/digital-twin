@@ -33,7 +33,7 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     # 4. Degasser
     from .machines.degasser import DegasserMachine
     degasser = DegasserMachine("DEGASSER_01", "Degasser", cycle_time=8.0)
-
+    degasser2 = DegasserMachine("DEGASSER_02", "Degasser 2", cycle_time=8.0)
 
     # 5. Cooling Tank 1 - Thermal (Cooling)
     cooling1 = ThermalMachine("COOLING_01", "Cooling Tank 1", cycle_time=5.0, target_temp=25.0, cooling=True)
@@ -41,15 +41,22 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     # 6. LPDC (Die Casting) - Casting Role
     lpdc = SimpleMachine("LPDC_01", "LPDC Machine", cycle_time=15.0,
                         role="casting", has_pour=True)
+    lpdc2 = SimpleMachine("LPDC_02", "LPDC Machine 2", cycle_time=15.0,
+                        role="casting", has_pour=True)
+    lpdc3 = SimpleMachine("LPDC_03", "LPDC Machine 3", cycle_time=15.0,
+                        role="casting", has_pour=True)
 
     # 7. Heat Treatment - Thermal
     heat_treat = ThermalMachine("HEAT_01", "Heat Treatment", cycle_time=12.0, target_temp=500.0)
+    heat_treat2 = ThermalMachine("HEAT_02", "Heat Treatment 2", cycle_time=12.0, target_temp=500.0)
 
     # 8. Cooling Tank 2 - Thermal (Cooling)
     cooling2 = ThermalMachine("COOLING_02", "Cooling Tank 2", cycle_time=5.0, target_temp=25.0, cooling=True)
 
     # 9. CNC Machining - Machining Role
     cnc = SimpleMachine("CNC_01", "CNC Machining", cycle_time=10.0,
+                       role="machining", has_trigger=True)
+    cnc2 = SimpleMachine("CNC_02", "CNC Machining 2", cycle_time=10.0,
                        role="machining", has_trigger=True)
     # Pre-fill REMOVED to ensure correct flow (HT -> CNC)
 
@@ -66,15 +73,14 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     # 13. Paint Booth 2
     paint2 = SimpleMachine("PAINT_02", "Paint Booth 2", cycle_time=8.0)
 
-    # 14. Packing
-    packing = SimpleMachine("PACK_01", "Packing Line", cycle_time=4.0)
+    # 14. Packing (Removed)
 
     # 15. Outbound
     outbound = SimpleMachine("OUTBOUND_01", "Shipping Dock", cycle_time=2.0)
 
     # Add all to engine
-    machines = [inbound, storage, furnace, degasser, cooling1, lpdc, heat_treat, 
-                cooling2, cnc, inspection, pretreat, paint1, paint2, packing, outbound]
+    machines = [inbound, storage, furnace, degasser, degasser2, cooling1, lpdc, lpdc2, lpdc3, heat_treat, heat_treat2, 
+                cooling2, cnc, cnc2, inspection, pretreat, paint1, paint2, outbound]
     
     for m in machines:
         engine.add_machine(m)

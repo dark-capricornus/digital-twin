@@ -18,12 +18,17 @@ class SimulationAdapter:
     def bind_to_plc_state(self, is_running: bool):
         """
         Sync adapter state with PLC.
-        Trigger edge-based commands to the underlying machine when state changes.
+        Dual-mode control:
+        - CENTRALIZED: Global PLC Start/Stop cascades to all machines.
+        - INDEPENDENT: Individual Start/Stop tags can override per-machine via OPC UA.
         """
         if is_running and not self.plc_running:
-             self.machine.set_command("start", True)
+            # Enable and start machine when global PLC starts
+            self.machine.enabled = True
+            self.machine.set_command("start", True)
         elif not is_running and self.plc_running:
-             self.machine.set_command("stop", True)
+            # Stop machine on global PLC stop
+            self.machine.set_command("stop", True)
 
         self.plc_running = is_running
 
@@ -39,55 +44,143 @@ class SimulationAdapter:
         # Common tags
         "temperature": "Temperature",
         "target_temp": "TargetTemp",
-        "max_temp": "FurnaceMaxTemp",
         "progress": "Progress",
-        "rejects": "RejectCount",
-        "processed_count": "ProcessedCount",
         "fault_code": "FaultCode",
-        "fault": "Fault",
         "state": "State",
         "is_running": "IsRunning",
         "enabled": "Enabled",
-        "power_kw": "PowerKW",
+        "power_kw": "Instant_kW",
+        "energy_kwh": "Total_kWh",
         "runtime_total_hrs": "RuntimeTotalHrs",
-        "queue_in": "QueueIn",
-        "queue_out": "QueueOut",
-        "burner_enable": "BurnerEnable",
+        "processed_count": "ProcessedCount",
         
-        # LPDC-specific tags
-        "pressure_psi": "PressurePSI",
-        "pour_request": "PourRequest",
+        # Specialized Thermal
+        "bath_temp": "Melt_Bath_Temperature",
+        "roof_temp": "Roof_Temperature",
+        "wall_temp": "Wall_Temperature",
+        "mode": "Mode",
+        "step_timer": "Step_Timer",
         
-        # CNC-specific tags
-        "spindle_rpm": "SpindleRPM",
-        "trigger": "Trigger",
+        # Specialized Simple/LPDC/CNC
+        "cycle_status": "Cycle_Status",
+        "pressure_psi": "Pressure_PSI",
+        "riser_pressure": "Riser_Pressure",
+        "pressure_setpoint": "Pressure_Setpoint",
+        "holding_pressure": "Holding_Pressure",
+        "holding_furnace_temp": "Holding_Furnace_Temperature",
+        "die_top_temp": "Die_Top_Temperature",
+        "die_bottom_temp": "Die_Bottom_Temperature",
+        "fill_time": "Fill_Time",
+        "solidification_time": "Solidification_Time",
+        "cycle_time": "Cycle_Time",
+        "shot_count": "Shot_Count",
+        "good_count": "Good_Part_Count",
+        "reject_count": "Reject_Count",
+        "program_id": "Program_ID",
+        "model_id": "Model_ID",
+        "spindle_rpm": "Spindle_RPM",
         
-        # Buffer-specific tags
-        "capacity": "Capacity"
+        # Environment
+        "humidity": "Booth_Humidity",
+        "air_flow": "Air_Flow_Status",
+        "conveyor_speed": "Conveyor_Speed",
+        "dryer_temp": "Dryer_Temperature",
+        
+        # Inspection
+        "scan_status": "Scan_Status",
+        "inspected_count": "Inspected_Count",
+        "ok_count": "OK_Count",
+        "ng_count": "NG_Count",
+        "inspection_cycle_time": "Inspection_Cycle_Time",
+        "alarm_status": "Alarm_Status",
+        "accumulating": "Accumulating",
+        "vacuum_level": "VacuumLevel",
+        
+        # New Simulated Industrial Tags
+        "vibration": "Vibration_mm_s",
+        "motor_load": "Motor_Load_Pct",
+        "oil_level": "Oil_Level_Pct",
+        "air_pressure": "Air_Supply_PSI",
+        "internal_temp": "Internal_Temp"
     }
 
     def get_tags(self) -> Dict[str, Any]:
         """
-        Retrieve tags from the simulation machine and format for OPC UA.
-        Using explicit TAG_MAP for consistency.
+        Retrieve tags from the simulation machine and format for SCADA.
+        Handles dynamic prefixing for energy tags (e.g., Furnace_Instant_kW).
         """
-        # CHANGED_BY_ANTIGRAVITY: Deduped and added TAG_MAP
         sim_tags = self.machine.get_tags()
         mapped_tags = {}
         
+        # Identify Device Prefix (e.g., "FURNACE_01" or "LPDC_01")
+        prefix = self.device_id
+        # Align with frontend schema prefixes (main.js)
+        if "PAINT_01" in prefix: base_type = "PB1"
+        elif "PAINT_02" in prefix: base_type = "PB2"
+        elif "INSPECTION" in prefix: base_type = "XRay"
+        elif "HEAT" in prefix: base_type = "HT"
+        elif "PRETREAT" in prefix: base_type = "PT"
+        elif "FURNACE" in prefix: base_type = "Furnace"
+        elif "LPDC" in prefix: base_type = "LPDC"
+        elif "CNC" in prefix: base_type = "CNC"
+        elif "COOLING" in prefix: base_type = "Cooling"
+        elif "DEGASSER" in prefix: base_type = "Degasser"
+        elif "OUTBOUND" in prefix: base_type = "Outbound"
+        else: base_type = prefix.split('_')[0] if '_' in prefix else prefix
+        
         for k, v in sim_tags.items():
-            # Example: "machine.temperature" -> "temperature"
             key_clean = k.split('.')[-1]
             
             if key_clean in self.TAG_MAP:
                 final_key = self.TAG_MAP[key_clean]
-            else:
-                # Fallback: simple capitalization (heuristic)
-                final_key = key_clean[0].upper() + key_clean[1:] if key_clean else key_clean
                 
-            mapped_tags[final_key] = v
+                # Apply Prefix to Energy & Specific Status tags if requested
+                # e.g., PB1_Instant_kW, Furnace_Instant_kW
+                if final_key in ["Instant_kW", "Total_kWh"]:
+                    final_key = f"{base_type}_{final_key}"
+                # For specific overrides like Furnace_Mode
+                elif final_key == "Mode":
+                    if "FURNACE" in base_type:
+                        final_key = "Furnace_Mode"
+                    elif "HT" in base_type:
+                        final_key = "Process_Step"
+                elif final_key == "Cycle_Status":
+                    if "PT" in base_type:
+                        final_key = "Stage_Status"
+                    elif "PAINT" in base_type or "PB" in base_type:
+                        final_key = "Booth_Cycle_Status"
+                elif final_key == "Temperature":
+                    if "HT" in base_type:
+                        final_key = "Furnace_Temperature"
+                    elif "PAINT" in base_type or "PB" in base_type:
+                        final_key = "Booth_Temperature"
+                elif final_key == "ProcessedCount" and "CNC" in base_type:
+                    final_key = "Part_Count"
+                elif final_key == "TargetTemp":
+                    if "HT" in base_type:
+                        final_key = "Temperature_Setpoint"
+                        
+                mapped_tags[final_key] = v
+            else:
+                # Fallback
+                mapped_tags[key_clean] = v
+                
+        # Inject Run_Status (Alias of State)
+        state_val = str(sim_tags.get(f"{self.machine.id}.state", "IDLE")).upper()
+        if "RUNNING" in state_val: final_state = "RUNNING"
+        elif "STOPPED" in state_val or "IDLE" in state_val: final_state = "STOPPED"
+        elif "FAULT" in state_val: final_state = "FAULT"
+        else: final_state = state_val
+
+        status_key = f"{base_type}_Run_Status"
+        
+        mapped_tags[status_key] = final_state
+        
+        # Inject device-specific Independent Controls (if not already there)
+        if "Start" not in mapped_tags: mapped_tags["Start"] = False
+        if "Stop" not in mapped_tags: mapped_tags["Stop"] = False
             
-        # Synthesize Legacy Tags
+        # Restore legacy tags (PourRequest, Trigger, PartCount)
         mapped_tags = self._synthesize_legacy_tags(mapped_tags)
             
         return mapped_tags

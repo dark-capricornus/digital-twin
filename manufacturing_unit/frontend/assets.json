@@ -104,6 +104,13 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "department": "Logistics"
+        },
+        "OUTBOUND_02": {
+            "serial_number": "OUT-002",
+            "model": "Generic Dock 2",
+            "vendor": "LogiSystems",
+            "install_date": "2023-01-01",
+            "department": "Logistics"
         }
     }
 }

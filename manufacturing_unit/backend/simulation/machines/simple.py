@@ -33,6 +33,22 @@ class SimpleMachine(BaseMachine):
         self.pressure_psi = 0.0
         self.spindle_rpm = 0.0
         self.part_count = 0
+        
+        # New Process Stages & Timers
+        self.cycle_status = "IDLE"
+        self.stage_timer = 0.0
+        self.shot_count = 0
+        self.good_count = 0
+        self.reject_count = 0
+        self.alarm_status = "NORMAL"
+        
+        # Environment (Booth / Pre-treat)
+        self.temperature = 25.0
+        self.humidity = 45.0
+        self.conveyor_speed = 0.0
+        
+        # Accumulation State
+        self.accumulating = False
 
     # --- BaseMachine Implementation ---
 
@@ -52,87 +68,174 @@ class SimpleMachine(BaseMachine):
         self.progress = 0.0
         self.spindle_rpm = 0.0
         self.pressure_psi = 0.0
-        # Don't dump queue, just stop processing
+        self.cycle_status = "IDLE"
+        self.stage_timer = 0.0
+        self.alarm_status = "NORMAL"
         
     def _execute_running_logic(self, dt: float):
         """
         Executed ONLY when State=RUNNING.
         """
-        # Role-specific physics emulation
-        if self.role == "casting":
-            self.pressure_psi = 45.0 if self.current_item else 0.0
-        elif self.role == "machining":
-            self.spindle_rpm = 3500.0 if self.current_item else 0.0
-
+        import random
+        
         # 1. Try to Load
         if self.current_item is None:
-            # Check Input Queue
             if self.queue_in:
-                # Gating: CNC Trigger
                 if self.role == "machining" and self.has_trigger and not self.cmd_trigger:
-                    self.spindle_rpm = 1000.0 # Idle spin
-                    return 
-                    
+                     self.cycle_status = "IDLE"
+                     return
                 self.current_item = self.queue_in.pop(0)
                 self.progress = 0.0
-                
-                # Consume Triggers
+                self.stage_timer = 0.0
                 self.cmd_trigger = False
                 self.cmd_pour_request = False
-                
-            # Special Case: Casting (Infinite Supply but needs Pour Request)
             elif self.role == "casting":
                 if self.has_pour and not self.cmd_pour_request:
-                    self.pressure_psi = 5.0 # Low pressure
-                    return
-                
-                # Start Cycle
+                     self.cycle_status = "IDLE"
+                     return
                 self.current_item = "MoltenMetal_Shot"
                 self.progress = 0.0
+                self.stage_timer = 0.0
                 self.cmd_pour_request = False
-                
+                self.alarm_status = "NORMAL"
+                # Simulated Casting Params
+                self.holding_furnace_temp = 730.0 + random.uniform(-2, 2)
+                self.die_top_temp = 450.0 + random.uniform(-5, 5)
+                self.die_bottom_temp = 420.0 + random.uniform(-5, 5)
+            elif "paint" in self.role or "pretreat" in self.role:
+                # Continuous load simulation
+                self.current_item = "Part"
+                self.progress = 0.0
+                self.stage_timer = 0.0
+                self.alarm_status = "NORMAL"
             else:
-                 return # Starved
+                self.cycle_status = "IDLE"
+                return
 
-        # 2. Process
+        # 2. Role-specific Stage Transitions
         self.progress += (dt / self.cycle_time) * 100.0
-        
+        self.stage_timer += dt
+
+        if self.role == "casting":
+            if self.progress < 20: 
+                self.cycle_status = "FILLING"
+                self.pressure_psi = 45.0
+            elif self.progress < 70:
+                self.cycle_status = "HOLDING"
+                self.pressure_psi = 60.0 # Solidification pressure
+            elif self.progress < 90:
+                self.cycle_status = "COOLING"
+                self.pressure_psi = 5.0
+            else:
+                self.cycle_status = "EJECTING"
+                self.pressure_psi = 0.0
+                
+        elif self.role == "machining":
+            self.spindle_rpm = 3500.0
+            if self.progress < 15: self.cycle_status = "STARTING"
+            elif self.progress < 85: self.cycle_status = "RUNNING"
+            elif self.progress < 95: self.cycle_status = "TOOL_CHANGE"
+            else: self.cycle_status = "COMPLETE"
+
+        elif "paint" in self.role:
+            # Cycle between SPRAYING -> IDLE -> CLEANING
+            if self.progress < 70: 
+                 self.cycle_status = "SPRAYING"
+                 self.alarm_status = "NORMAL"
+            elif self.progress < 90: 
+                 self.cycle_status = "CLEANING"
+            else: 
+                 self.cycle_status = "IDLE"
+            
+            # Simulate Environment
+            self.temperature = 22.0 + random.uniform(-0.5, 0.5)
+            self.humidity = 60.0 + random.uniform(-2, 2)
+            
+            # Occasional Alarms
+            if random.random() < 0.005: # Rare alarm
+                 if "PAINT_01" in self.id:
+                      self.alarm_status = random.choice(["Low Paint Pressure", "Filter Block", "Gun Fault"])
+                 else: # Paint 02
+                      self.alarm_status = random.choice(["Low Lacquer Pressure", "Air Fault", "Exhaust Fault"])
+
+        elif "pretreat" in self.role:
+            self.conveyor_speed = 1.2 # m/min
+            if self.progress < 25: self.cycle_status = "DEGREASE"
+            elif self.progress < 50: self.cycle_status = "RINSE"
+            elif self.progress < 75: self.cycle_status = "PHOSPHATE"
+            else: self.cycle_status = "DRY"
+
         # 3. Finish
         if self.progress >= 100.0:
             self.queue_out.append(self.current_item)
             self.current_item = None
             self.processed_count += 1
-            self.progress = 0.0
+            self.shot_count += 1
             
-            # Update Buffers
-            if self.role == "buffer":
-                self.part_count = len(self.queue_out)
+            # Simple QA Simulation
+            if random.random() < 0.02: # 2% reject rate
+                self.reject_count += 1
+            else:
+                self.good_count += 1
                 
-            # Events
-            if self.role == "casting":
-                self._emit_event("LPDC_CYCLE_COMPLETE", {})
-            elif self.role == "machining":
-                self._emit_event("CNC_CYCLE_COMPLETE", {})
+            self.progress = 0.0
+            self.stage_timer = 0.0
+            
+        # 4. Accumulation Logic
+        # If we have more than 5 items waiting to be picked up by the next machine
+        self.accumulating = len(self.queue_out) > 5
+            
+        # Update Buffers
+        if self.role == "buffer":
+            self.part_count = len(self.queue_out)
+            
+        # Events
+        if self.role == "casting":
+            self._emit_event("LPDC_CYCLE_COMPLETE", {})
+        elif self.role == "machining":
+            self._emit_event("CNC_CYCLE_COMPLETE", {})
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         tags = {
             f"{self.id}.progress": round(self.progress, 2),
-            f"{self.id}.queue_in": len(self.queue_in),
-            f"{self.id}.queue_out": len(self.queue_out),
+            f"{self.id}.cycle_status": self.cycle_status,
+            f"{self.id}.stage_timer": round(self.stage_timer, 1),
+            f"{self.id}.alarm_status": self.alarm_status,
+            f"{self.id}.accumulating": self.accumulating,
         }
         
         # Role Tags
         if self.role == "casting":
             tags[f"{self.id}.pressure_psi"] = round(self.pressure_psi, 1)
-            tags[f"{self.id}.pour_request"] = self.cmd_pour_request
+            tags[f"{self.id}.pressure_setpoint"] = 60.0
+            tags[f"{self.id}.riser_pressure"] = round(self.pressure_psi * 0.95, 1)
+            tags[f"{self.id}.holding_pressure"] = 45.0 if self.cycle_status == "HOLDING" else 0.0
+            tags[f"{self.id}.holding_furnace_temp"] = round(getattr(self, 'holding_furnace_temp', 730.0), 1)
+            tags[f"{self.id}.die_top_temp"] = round(getattr(self, 'die_top_temp', 450.0), 1)
+            tags[f"{self.id}.die_bottom_temp"] = round(getattr(self, 'die_bottom_temp', 420.0), 1)
+            tags[f"{self.id}.fill_time"] = self.cycle_time * 0.2
+            tags[f"{self.id}.solidification_time"] = self.cycle_time * 0.5
+            tags[f"{self.id}.shot_count"] = self.shot_count
+            tags[f"{self.id}.model_id"] = "WHEEL_V1_SPORT"
+            
         elif self.role == "machining":
             tags[f"{self.id}.spindle_rpm"] = round(self.spindle_rpm, 1)
-            tags[f"{self.id}.trigger"] = self.cmd_trigger
+            tags[f"{self.id}.program_id"] = "PRG_8821_OP10"
+            tags[f"{self.id}.good_count"] = self.good_count
+            tags[f"{self.id}.reject_count"] = self.reject_count
+            
+        elif "paint" in self.role:
+            tags[f"{self.id}.temperature"] = round(self.temperature, 1)
+            tags[f"{self.id}.humidity"] = round(self.humidity, 1)
+            tags[f"{self.id}.air_flow"] = "ACTIVE"
+            
+        elif "pretreat" in self.role:
+            tags[f"{self.id}.conveyor_speed"] = self.conveyor_speed
+            tags[f"{self.id}.dryer_temp"] = 120.0 if self.cycle_status == "DRY" else 45.0
+            
         elif self.role == "buffer":
             tags[f"{self.id}.part_count"] = self.part_count
             tags[f"{self.id}.capacity"] = self.capacity
-            # tags[f"{self.id}.full"] = self.part_count >= self.capacity # Redundant
-            # tags[f"{self.id}.empty"] = self.part_count == 0 # Redundant
             
         return tags
 
@@ -146,6 +249,8 @@ class SimpleMachine(BaseMachine):
             return 40.0 if is_running else 2.0
         elif self.role == "casting":
             return 60.0 if is_running else 10.0
+        elif "paint" in self.role:
+            return 25.0 if is_running else 4.0
         elif self.role == "buffer":
             return 2.0 if is_running else 0.5
             

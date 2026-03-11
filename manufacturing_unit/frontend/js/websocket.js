@@ -9,15 +9,9 @@ class WebSocketHandler {
         this.onMessage = onMessage;
         this.onStatusChange = onStatusChange;
         this.ws = null;
+        this.isConnected = false;
         this.reconnectInterval = 3000;
         this.reconnectTimer = null;
-        
-        // Diagnostic heartbeat to verify script is running
-        setInterval(() => {
-            if (this.ws) {
-                console.log(`[WebSocket] Heartbeat - State: ${this.getReadyStateText()} | URL: ${this.url}`);
-            }
-        }, 5000);
     }
 
     getReadyStateText() {
@@ -26,18 +20,14 @@ class WebSocketHandler {
         return states[this.ws.readyState] || 'UNKNOWN';
     }
 
-    /**
-     * Establish WebSocket connection
-     */
     connect() {
         try {
             this.ws = new WebSocket(this.url);
 
             this.ws.onopen = () => {
                 console.log('[WebSocket] Connected to', this.url);
+                this.isConnected = true;
                 this.onStatusChange('connected');
-                
-                // Clear reconnect timer
                 if (this.reconnectTimer) {
                     clearTimeout(this.reconnectTimer);
                     this.reconnectTimer = null;
@@ -45,7 +35,6 @@ class WebSocketHandler {
             };
 
             this.ws.onmessage = (event) => {
-                console.log("[RAW WS MESSAGE]", event.data);
                 try {
                     const data = JSON.parse(event.data);
                     this.handleMessage(data);
@@ -60,6 +49,7 @@ class WebSocketHandler {
 
             this.ws.onclose = () => {
                 console.log('[WebSocket] Disconnected');
+                this.isConnected = false;
                 this.onStatusChange('disconnected');
                 this.scheduleReconnect();
             };
@@ -72,112 +62,116 @@ class WebSocketHandler {
     }
 
     /**
-     * Aggressively search for a state value in a payload object
+     * Derive a canonical state string from a device payload object.
+     *
+     * Priority order (strict):
+     *  1. Explicit State / Status string key  → use as-is
+     *  2. IsRunning / Enabled booleans        → 'Running' | 'Stopped'
+     *  3. No recognisable signal              → null (message is skipped)
+     *
+     * The old "activity keywords" fallback has been removed — it was the
+     * main cause of OFF machines being reported as 'Active' / green because
+     * they still emitted numeric telemetry (Temperature, PressurePSI …).
      */
     extractState(payload) {
         if (!payload || typeof payload !== 'object') return null;
-        
-        const keys = Object.keys(payload);
-        
-        // 1. Direct/Common keys (Precise match)
-        const commonKeys = ['status', 'state', 'value', 'State', 'Status', 'val', 'current_state', 'IsRunning', 'is_running'];
-        for (const key of commonKeys) {
-            if (payload[key] !== undefined) return payload[key];
-        }
 
-        // 2. Suffix match (e.g., "Device Control/Status")
-        const suffixes = ['/Status', '/State', '/is_running', '/IsRunning', '_status', '_state'];
-        for (const key of keys) {
-            for (const suffix of suffixes) {
-                if (key.endsWith(suffix)) return payload[key];
+        // ── 1. Explicit state string (most reliable) ──────────────────────
+        // Check 'State' before 'Status' — Status can be a gateway-level key
+        // with values like 'connected' that should not drive machine colour.
+        const stateKeys = ['State', 'state', 'Status', 'status', 'current_state'];
+        for (const key of stateKeys) {
+            if (payload[key] !== undefined) {
+                const val = payload[key];
+                // Reject gateway-level values that bleed into device messages
+                if (typeof val === 'string' &&
+                    ['connected', 'disconnected', 'connecting', 'online', 'offline'].includes(val.toLowerCase())) {
+                    continue; // skip — this is a connection-status flag, not a machine state
+                }
+                return val;
             }
         }
 
-        // 3. Contains match
-        for (const key of keys) {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey.includes('status') || lowerKey.includes('state')) {
-                return payload[key];
-            }
-        }
+        // ── 2. Boolean / numeric IsRunning / Enabled ──────────────────────
+        // Only use these flags when no explicit state string is present.
+        const runningKey = Object.keys(payload).find(k =>
+            k.toLowerCase() === 'isrunning' || k.toLowerCase() === 'is_running' || k.toLowerCase() === 'enabled'
+        );
 
-        // 4. Boolean IsRunning fallback
-        const isRunningKey = keys.find(k => k.toLowerCase().includes('isrunning') || k.toLowerCase().includes('running'));
-        if (isRunningKey) {
-            const val = payload[isRunningKey];
+        if (runningKey !== undefined) {
+            const val = payload[runningKey];
             if (typeof val === 'boolean') return val ? 'Running' : 'Stopped';
-            return val;
+            if (val === 1 || val === '1' || val === 'true') return 'Running';
+            if (val === 0 || val === '0' || val === 'false') return 'Stopped';
         }
 
-        // 5. Counter-only fallback (e.g., Inspection unit)
-        // If it sends telemetry but no state, assume it's at least "Active"
-        const activityKeywords = ['count', 'kg', 'rejected', 'passed', 'produced', 'progress', 'throughput', 'degassed', 'temperature', 'rpm', 'pressure', 'val', 'current', 'part', 'ingot'];
-        if (keys.some(k => activityKeywords.some(kw => k.toLowerCase().includes(kw)))) {
-            return 'Active';
-        }
-
+        // ── 3. Nothing usable — let caller skip this message ──────────────
+        // Partial telemetry update without state/status keys.
+        // Return null so we don't overwrite the existing running state.
         return null;
     }
 
     handleMessage(data) {
         if (!data.topic || !data.payload) return;
-        
+
         const payload = data.payload;
 
-        // --- Case 1: Batch JSON Object (Gateway Format) ---
+        // ── Case 1: Batch JSON Object (digital-twin/state gateway format) ──
         if (data.type === 'json' && !payload.metrics && !data.topic.includes('spBv1.0')) {
             const deviceMap = payload.devices || payload;
-            
-            // Filter out system keys and the bridge status heartbeat
-            const systemKeys = ['topic', 'type', 'timestamp', 'source', 'status', 'connected_clients', 'active'];
-            const deviceIds = Object.keys(deviceMap).filter(k => !systemKeys.includes(k.toLowerCase()));
-            
+
+            // Strip gateway-level envelope keys that are not machine IDs
+            const systemKeys = [
+                'topic', 'type', 'timestamp', 'source', 'status',
+                'connected_clients', 'active'
+            ];
+            const deviceIds = Object.keys(deviceMap).filter(
+                k => !systemKeys.map(s => s.toLowerCase()).includes(k.toLowerCase())
+            );
+
             if (deviceIds.length > 0) {
                 let processedCount = 0;
                 deviceIds.forEach(rawId => {
-                    const deviceId = rawId.trim();
-                    const state = this.extractState(deviceMap[rawId]);
-                    if (state !== null && state !== undefined) {
-                        this.onMessage(deviceId, state, deviceMap[rawId]);
+                    const devicePayload = deviceMap[rawId];
+                    if (!devicePayload || typeof devicePayload !== 'object') return;
+
+                    const state = this.extractState(devicePayload);
+                    // Pass null state forward so telemetry still updates
+                    if (state !== undefined) {
+                        this.onMessage(rawId.trim(), state, devicePayload);
                         processedCount++;
                     }
                 });
                 if (processedCount > 0) {
-                    console.log(`[WebSocket] Processed batch of ${processedCount} devices`);
+                    console.log(`[WebSocket] Batch processed: ${processedCount} devices`);
                     return;
                 }
             }
         }
 
-        // --- Case 2: Individual Device Update (Sparkplug or JSON) ---
+        // ── Case 2: Individual Device (Sparkplug B / single JSON) ─────────
         const parts = data.topic.split('/');
         if (parts.length >= 5) {
             const deviceId = parts[4].trim();
-            
-            // Skip system/runtime topics if they don't look like machines
-            if (deviceId.toLowerCase() === 'runtime' || deviceId.toLowerCase() === 'plc') return;
+
+            // Skip Sparkplug system/runtime topics
+            const skipIds = ['runtime', 'plc', 'plant', 'commands'];
+            if (skipIds.includes(deviceId.toLowerCase())) return;
 
             const state = this.extractState(payload);
 
-            if (state !== null && state !== undefined) {
-                console.log(`[WebSocket] Update: ${deviceId} = ${state}`);
+            // Pass null state forward so telemetry still updates
+            if (state !== undefined) {
+                if (state !== null) {
+                    console.log(`[WebSocket] Update: ${deviceId} = ${state}`);
+                }
                 this.onMessage(deviceId, state, payload);
-                return;
             }
-        }
-
-        // Fallback logging for unhandled messages that look like they should contain data
-        if (data.topic.includes('DDATA') || data.topic.includes('state')) {
-            console.warn(`[WebSocket] Unparsed message on ${data.topic}. Payload keys:`, Object.keys(payload));
         }
     }
 
-    /**
-     * Schedule reconnection attempt
-     */
     scheduleReconnect() {
         if (this.reconnectTimer) return;
-        
         this.onStatusChange('connecting');
         this.reconnectTimer = setTimeout(() => {
             console.log('[WebSocket] Attempting to reconnect...');
@@ -185,15 +179,11 @@ class WebSocketHandler {
         }, this.reconnectInterval);
     }
 
-    /**
-     * Close connection
-     */
     disconnect() {
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
-        
         if (this.ws) {
             this.ws.close();
             this.ws = null;

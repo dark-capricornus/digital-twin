@@ -1,100 +1,133 @@
 /**
  * State Manager
- * Maintains device state and applies color mapping rules
+ * Maintains device state and applies colour-mapping rules.
+ *
+ * Colour priority (highest → lowest):
+ *   RUNNING      – #00A651
+ *   IDLE         – #FFC107
+ *   FAULT        – #D32F2F
+ *   STOPPED      – #616161
+ *   MAINTENANCE  – #1976D2
  */
 
 class StateManager {
     constructor() {
-        this.deviceStates = new Map(); // deviceId -> {state, color}
+        this.deviceStates = new Map(); // deviceId → { state, color, lastUpdate }
         this.listeners = [];
     }
 
     /**
-     * Update device state and determine color
-     * @param {string} deviceId - Device identifier
-     * @param {string} state - Device state (e.g., "Running", "Stopped", "Idle")
+     * Update device state and compute colour.
+     * @param {string} rawId
+     * @param {string|boolean|number} state  – canonical state from extractState()
+     * @param {object} [fullData]            – full telemetry payload (optional)
      */
-    updateDeviceState(rawId, state) {
+    updateDeviceState(rawId, state, fullData = null) {
         const deviceId = rawId.toLowerCase();
-        const color = this.getColorForState(state);
-        
+
+        // Preserve existing state if new state is null (partial telemetry payload)
+        let resolvedState = state;
+        if (resolvedState === null && this.deviceStates.has(deviceId)) {
+            resolvedState = this.deviceStates.get(deviceId).state;
+        }
+
+        const color = this.getColorForState(resolvedState, fullData);
+
         this.deviceStates.set(deviceId, {
-            state: state,
-            color: color,
+            state: resolvedState,
+            color,
             lastUpdate: Date.now()
         });
 
-        // Notify listeners
-        this.listeners.forEach(callback => {
-            callback(deviceId, color, state);
-        });
+        this.listeners.forEach(cb => cb(deviceId, color, resolvedState));
     }
 
     /**
-     * Apply color mapping rules (v1)
-     * @param {string} state - Device state
-     * @returns {number} - Hex color code
+     * Map a machine state to a hex mesh colour.
+     *
+     * Rules are applied in strict priority order.  Loose substring matches on
+     * 'true' / 'false' have been removed — they caused healthy OFF machines to
+     * flash green/red whenever another telemetry field happened to serialise a
+     * boolean.
+     *
+     * @param {string|boolean|number} state
+     * @param {object|null} fullData  – raw payload, used to check IsRunning / Enabled
+     * @returns {number} hex colour
      */
-    getColorForState(state) {
-        if (state === undefined || state === null) return 0x808080; // Gray for unknown
+    getColorForState(state, fullData = null) {
 
-        const stateString = String(state).toLowerCase();
-        
-        // 1. ACTIVE / RUNNING (GREEN) - High Priority
-        const runningKeywords = ['running', 'active', 'heating', 'melting', 'pouring', 'processing', 'enabled', 'true', 'on'];
-        if (runningKeywords.some(k => stateString.includes(k))) return 0x00cc00; // VIBRANT GREEN
+        // ── Guard ─────────────────────────────────────────────────────────
+        if (state === undefined || state === null) return 0x2b2b2b; // Solid neutral grey
 
-        // 2. IDLE / WAITING (YELLOW)
-        const idleKeywords = ['idle', 'waiting', 'starved', 'blocked', 'ready', 'paused'];
-        if (idleKeywords.some(k => stateString.includes(k))) return 0xffd700; // GOLD/YELLOW
+        const s = String(state).toLowerCase().trim();
 
-        // 3. STOPPED / FAULT (RED)
-        const stopKeywords = ['stopped', 'stop', 'fault', 'error', 'offline', 'disabled', 'false', '0', '0.0', 'off', 'failure'];
-        if (stopKeywords.some(k => stateString.includes(k))) return 0xcc0000; // DEEP RED
+        // ── 0. Override: if IsRunning or Enabled is explicitly false in the
+        //       payload, the machine MUST NOT show green — even if State says
+        //       'IDLE' which could otherwise be ambiguous.
+        if (fullData) {
+            const isRunning = fullData['IsRunning'] ?? fullData['is_running'];
+            const enabled = fullData['Enabled'] ?? fullData['enabled'];
 
-        // 4. Numerical values (if > 0 assume active/running)
-        if (typeof state === 'number' && !isNaN(state)) {
-             return state > 0 ? 0x00cc00 : 0xcc0000;
-        }
-        
-        // 5. Activity keywords fallback
-        const activityTerms = ['count', 'kg', 'produced', 'progress', 'throughput', 'degassed', 'temp', 'rpm', 'pressure', 'val', 'current', 'part'];
-        if (activityTerms.some(term => stateString.includes(term))) {
-            return 0x00cc00; // VIBRANT GREEN
+            // If the machine is explicitly off, clamp to STOPPED colour
+            if (isRunning === false || enabled === false) {
+                // Only apply the override for non-running state strings.
+                // ('Running' + IsRunning=true is the normal running path.)
+                const isRunningState = ['running', 'active', 'heating', 'melting',
+                    'pouring', 'processing'].some(k => s.includes(k));
+                if (!isRunningState) return 0x616161; // Solid Grey (STOPPED)
+            }
         }
 
-        return 0xcc0000; // Default to RED if unknown/stopped-like
+        // ── 1. RUNNING / ACTIVE → #00A651 ───────────────────────────────
+        const runningWords = [
+            'running', 'active', 'heating', 'melting', 'pouring', 'processing', 'enabled'
+        ];
+        if (runningWords.some(k => s.includes(k))) return 0x00A651;
+
+        // ── 2. IDLE / WAITING → #FFC107 ────────────────────────────────────
+        const idleWords = ['idle', 'waiting', 'starved', 'blocked', 'ready', 'paused'];
+        if (idleWords.some(k => s.includes(k))) return 0xFFC107;
+
+        // ── 3. STOPPED / FAULT / MAINTENANCE ────────────────────────────────
+        if (s.includes('maintenance')) return 0x1976D2;
+
+        const stoppedWords = [
+            'stopped', 'stop', 'fault', 'error', 'offline', 'disabled', 'failure', 'off'
+        ];
+        if (stoppedWords.some(k => s.includes(k))) return 0xD32F2F; // FAULT RED
+
+        // Final fallback for explicitly stopped (Grey)
+        if (s === 'stopped') return 0x616161;
+
+        // ── 4. Numeric state ──────────────────────────────────────────────
+        if (!isNaN(Number(s)) && s !== '') {
+            return Number(s) > 0 ? 0x00A651 : 0xD32F2F;
+        }
+
+        // ── 5. Unknown / unrecognised → grey ─────────────────────────────
+        return 0x616161;
     }
 
-    /**
-     * Register a callback for state changes
-     * @param {Function} callback - (deviceId, color, state) => void
-     */
     onStateChange(callback) {
         this.listeners.push(callback);
     }
 
-    /**
-     * Get current state for a device
-     * @param {string} deviceId
-     * @returns {Object|null}
-     */
     getDeviceState(rawId) {
-        return this.deviceStates.get(rawId.toLowerCase()) || null;
+        const key = rawId.toLowerCase();
+        // 1. Exact match
+        if (this.deviceStates.has(key)) return this.deviceStates.get(key);
+        // 2. Fuzzy match (strip non-alphanumeric)
+        const normKey = key.replace(/[^a-z0-9]/g, '');
+        for (const [storedKey, val] of this.deviceStates.entries()) {
+            if (storedKey.replace(/[^a-z0-9]/g, '') === normKey) return val;
+        }
+        return null;
     }
 
-    /**
-     * Get all device states
-     * @returns {Map}
-     */
     getAllStates() {
         return this.deviceStates;
     }
 
-    /**
-     * Get device count
-     * @returns {number}
-     */
     getDeviceCount() {
         return this.deviceStates.size;
     }

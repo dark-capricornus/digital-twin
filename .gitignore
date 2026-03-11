@@ -30,3 +30,27 @@ manufacturing_unit/frontend/assets/models/
 parse_gltf.py
 test_fault_injection.py
 stsich_design.html
+generate_complete_factory_tags.py
+generate_machine_templates.py
+generate_tags.py
+generate_machine_templates.py
+get_glb_names.py
+list_nodes.py
+output.txt
+merge_tags.py 
+merged_tags.json 
+tags_required.txt 
+tags.json
+machine_template_tags_import.json
+run.sh   
+all_ignition_tags_import.json 
+complete_factory_ignition_tags.json
+generate_all_tags.py
+get_names.py
+get_names.js 
+ignition Tag Contracts.md 
+ignition_tags_import.json
+list_meshes.py
+peek_mqtt.py
+
+postman/

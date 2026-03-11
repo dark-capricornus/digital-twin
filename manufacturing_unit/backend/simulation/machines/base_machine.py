@@ -51,6 +51,14 @@ class BaseMachine(ABC):
         
         # Metrics
         self.power_kw = 0.0 # Instantaneous power consumption
+        self.energy_kwh = 0.0 # Cumulative energy consumed
+        
+        # --- NEW: Simulated Industrial Tags (Not yet in SCADA) ---
+        self.vibration = 0.05       # Base vibration (mm/s)
+        self.motor_load = 0.0       # % load
+        self.oil_level = 98.5       # % level
+        self.air_pressure = 92.0    # PSI
+        self.internal_temp = 28.5   # Celsius
         
         # Internal flags
         self._process_done = False
@@ -144,6 +152,42 @@ class BaseMachine(ABC):
         
         # Calculate power (State-dependent)
         self.power_kw = self._calculate_power()
+        
+        # Accumulate energy (kW * hours)
+        self.energy_kwh += self.power_kw * (dt / 3600.0)
+        
+        # --- Simulate Industrial Tags ---
+        import random
+        is_running = self.state == MachineState.RUNNING
+        
+        # 1. Vibration (Baseline noise + Operational intensity)
+        noise = random.uniform(-0.01, 0.01)
+        if is_running:
+            target_vib = 1.2 + random.uniform(-0.2, 0.2)
+            self.vibration += (target_vib - self.vibration) * 0.1 # Smoothing
+        else:
+            self.vibration += (0.05 + noise - self.vibration) * 0.05
+            
+        # 2. Motor Load
+        if is_running:
+            target_load = 75.0 + random.uniform(-5, 5)
+            self.motor_load += (target_load - self.motor_load) * 0.1
+        else:
+            self.motor_load += (0.0 - self.motor_load) * 0.2
+            
+        # 3. Oil Level (Slow bleed simulation)
+        if is_running:
+            self.oil_level -= 0.0001 # Extremely slow decrease
+            
+        # 4. Air Pressure (Fluctuating around setpoint)
+        self.air_pressure = 92.0 + random.uniform(-1.5, 1.5)
+        
+        # 5. Internal Temp (Heats up when running)
+        if is_running:
+            target_temp = 48.0 + random.uniform(-1, 1)
+            self.internal_temp += (target_temp - self.internal_temp) * 0.01
+        else:
+            self.internal_temp += (28.5 - self.internal_temp) * 0.005
     
     def set_event_dispatcher(self, dispatcher):
         """Set event dispatcher for event emission"""
@@ -182,7 +226,15 @@ class BaseMachine(ABC):
             f"{self.id}.fault_code": self.fault_code,
             f"{self.id}.processed_count": self.processed_count,
             f"{self.id}.power_kw": round(self.power_kw, 2),
+            f"{self.id}.energy_kwh": round(self.energy_kwh, 4),
             f"{self.id}.runtime_total_hrs": round(self.runtime_total_hrs, 4),
+            
+            # Simulated Industrial Tags
+            f"{self.id}.vibration": round(self.vibration, 3),
+            f"{self.id}.motor_load": round(self.motor_load, 1),
+            f"{self.id}.oil_level": round(self.oil_level, 2),
+            f"{self.id}.air_pressure": round(self.air_pressure, 1),
+            f"{self.id}.internal_temp": round(self.internal_temp, 1),
         }
         
         # Add device-specific tags

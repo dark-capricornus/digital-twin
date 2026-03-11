@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>GLB Inspector</title>
+</head>
+
+<body>
+    <h2>GLB Node Names</h2>
+    <pre id="out">Loading...</pre>
+    <script>
+        (async () => {
+            const resp = await fetch('/assets/models/plant.glb');
+            const buf = await resp.arrayBuffer();
+            const view = new DataView(buf);
+            const jsonLen = view.getUint32(12, true);
+            const bytes = new Uint8Array(buf, 20, jsonLen);
+            const json = JSON.parse(new TextDecoder().decode(bytes));
+            const nodeNames = (json.nodes || []).map(n => n.name).filter(Boolean);
+            const meshNames = (json.meshes || []).map(m => m.name).filter(Boolean);
+            const errorRelated = nodeNames.filter(n => /error|warn|alert|tri/i.test(n));
+            document.getElementById('out').textContent =
+                'ERROR/WARN NODES:\n' + (errorRelated.length ? errorRelated.join('\n') : '(none found)') +
+                '\n\nALL NODE NAMES:\n' + nodeNames.join('\n') +
+                '\n\nALL MESH NAMES:\n' + meshNames.join('\n');
+        })();
+    </script>
+</body>
+
+</html>

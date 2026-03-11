@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CNC Station B - Machine Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#1a1a1a",
+                        "charcoal": "#2d2d2d",
+                        "surface-dark": "#262626"
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 overflow-hidden h-screen">
+<div class="flex h-full flex-col">
+<!-- Header -->
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-charcoal bg-white dark:bg-surface-dark px-6 py-3">
+<div class="flex items-center gap-4">
+<div class="text-primary">
+<span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
+</div>
+<div>
+<h2 class="text-lg font-bold leading-tight uppercase tracking-wider">CNC Station B - Intelligence</h2>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="flex h-2 w-2 rounded-full bg-green-500"></span>
+<span class="text-xs font-semibold text-green-500 uppercase">Status: Running</span>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center justify-center rounded bg-slate-100 dark:bg-charcoal p-2 hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-300">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded bg-slate-100 dark:bg-charcoal p-2 hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-300">settings</span>
+</button>
+<button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded text-sm font-bold uppercase tracking-wide">
+                    Maintenance Mode
+                </button>
+</div>
+</header>
+<main class="flex flex-1 overflow-hidden">
+<!-- Left Panel: 3D Twin View -->
+<section class="relative flex-1 bg-slate-200 dark:bg-black p-4">
+<div class="absolute top-8 left-8 z-10 bg-white/80 dark:bg-surface-dark/80 backdrop-blur border border-slate-300 dark:border-charcoal p-4 rounded shadow-sm">
+<p class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Viewpoint</p>
+<p class="text-sm font-mono font-medium">STATION_B_ISO_ZOOM</p>
+</div>
+<div class="w-full h-full border border-slate-300 dark:border-charcoal rounded overflow-hidden bg-slate-50 dark:bg-surface-dark flex items-center justify-center">
+<img alt="CNC Machine Close-up Digital Twin" class="object-cover w-full h-full opacity-80" data-alt="3D digital twin of a CNC machine in operation zoomed in" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkld9tF8D87Ofny1wS02hj5DPC25F-eV1-6M9oaPURj--PLtzKzh8DWk5fCcEbU0qpgUWh0BsAiOyz_Q_ib2qyzOM1T7ZrdL7z-zoo3Cs22H46HpTFrCoJgIks5ugux_N8I-G5eAogLJ_QVVoxR-rop5DL1zX-OX8MAcWU8qsgNRi13RhS51yVFK5w0krQCBHTyACHEdfotV47rcvQwkaAD8DLqkMLACgzUqLJqr-RXwgFAf-2qXPI3EhInl-GAiw6pY9_Amou7cmE"/>
+<!-- Overlay grid for operational feel -->
+<div class="absolute inset-0 pointer-events-none opacity-10" style="background-image: linear-gradient(#ccc 1px, transparent 1px), linear-gradient(90deg, #ccc 1px, transparent 1px); background-size: 32px 32px;"></div>
+</div>
+<!-- 3D Controls Overlay -->
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 bg-white dark:bg-surface-dark border border-slate-300 dark:border-charcoal p-1 rounded shadow-lg">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-charcoal rounded"><span class="material-symbols-outlined">videogame_asset</span></button>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-charcoal rounded text-primary"><span class="material-symbols-outlined">center_focus_strong</span></button>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-charcoal rounded"><span class="material-symbols-outlined">3d_rotation</span></button>
+<div class="w-px bg-slate-300 dark:bg-charcoal mx-1"></div>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-charcoal rounded"><span class="material-symbols-outlined">zoom_in</span></button>
+</div>
+</section>
+<!-- Right Panel: Contextual Metrics & Alarms -->
+<aside class="w-[420px] bg-white dark:bg-surface-dark border-l border-slate-200 dark:border-charcoal overflow-y-auto flex flex-col">
+<!-- Status & Title -->
+<div class="p-6 border-b border-slate-200 dark:border-charcoal">
+<h3 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">Machine Diagnostics</h3>
+<!-- Metrics Grid (8px alignment) -->
+<div class="grid grid-cols-2 gap-4">
+<div class="border border-slate-200 dark:border-charcoal bg-slate-50 dark:bg-charcoal/30 p-4 rounded">
+<p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Energy/Unit</p>
+<p class="text-2xl font-mono font-bold">2.1 <span class="text-sm font-normal text-slate-400">kWh</span></p>
+</div>
+<div class="border border-slate-200 dark:border-charcoal bg-slate-50 dark:bg-charcoal/30 p-4 rounded">
+<p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Production</p>
+<p class="text-2xl font-mono font-bold">412 <span class="text-sm font-normal text-slate-400">units</span></p>
+</div>
+<div class="border border-slate-200 dark:border-charcoal bg-slate-50 dark:bg-charcoal/30 p-4 rounded">
+<p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Cycle Time</p>
+<p class="text-2xl font-mono font-bold text-primary">42 <span class="text-sm font-normal text-slate-400">sec</span></p>
+</div>
+<div class="border border-slate-200 dark:border-charcoal bg-slate-50 dark:bg-charcoal/30 p-4 rounded">
+<p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Temp</p>
+<p class="text-2xl font-mono font-bold">68 <span class="text-sm font-normal text-slate-400">°C</span></p>
+</div>
+<div class="border border-slate-200 dark:border-charcoal bg-slate-50 dark:bg-charcoal/30 p-4 rounded col-span-2">
+<div class="flex justify-between items-end">
+<div>
+<p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Pressure</p>
+<p class="text-2xl font-mono font-bold">4.5 <span class="text-sm font-normal text-slate-400">Bar</span></p>
+</div>
+<div class="w-32 h-8 bg-slate-200 dark:bg-charcoal rounded overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full bg-primary/40 w-3/4"></div>
+<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold uppercase">Optimal</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Alarm Log -->
+<div class="flex-1 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Alarm Log</h3>
+<button class="text-[10px] font-bold uppercase text-primary hover:underline">Clear History</button>
+</div>
+<div class="space-y-2">
+<!-- Alarm Item -->
+<div class="flex gap-4 p-3 border-l-4 border-yellow-500 bg-yellow-500/5 dark:bg-yellow-500/10 border border-slate-200 dark:border-charcoal/50 rounded-r">
+<span class="material-symbols-outlined text-yellow-500 text-xl">warning</span>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="text-xs font-bold uppercase">Coolant Level Low</p>
+<p class="text-[10px] font-mono text-slate-500">14:22:05</p>
+</div>
+<p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1">Reservoir B-12 at 15% capacity.</p>
+</div>
+</div>
+<!-- Alarm Item -->
+<div class="flex gap-4 p-3 border-l-4 border-slate-400 bg-slate-100 dark:bg-charcoal/20 border border-slate-200 dark:border-charcoal/50 rounded-r opacity-60">
+<span class="material-symbols-outlined text-slate-400 text-xl">info</span>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="text-xs font-bold uppercase">Cycle Completed</p>
+<p class="text-[10px] font-mono text-slate-500">14:15:30</p>
+</div>
+<p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1">Batch #412 processed successfully.</p>
+</div>
+</div>
+<!-- Alarm Item -->
+<div class="flex gap-4 p-3 border-l-4 border-red-500 bg-red-500/5 dark:bg-red-500/10 border border-slate-200 dark:border-charcoal/50 rounded-r">
+<span class="material-symbols-outlined text-red-500 text-xl">error</span>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="text-xs font-bold uppercase">Spindle Torque Spike</p>
+<p class="text-[10px] font-mono text-slate-500">13:45:12</p>
+</div>
+<p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1">Load exceeded 115% threshold for 2.4s.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Info -->
+<div class="p-6 bg-slate-50 dark:bg-charcoal/40 border-t border-slate-200 dark:border-charcoal">
+<div class="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>Uptime: 142h 12m</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">database</span>
+<span>ID: CNC-B-INTEL-09</span>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

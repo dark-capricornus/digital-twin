@@ -20,6 +20,9 @@ class InspectionMachine(BaseMachine):
         self.queue_in: List[Any] = []
         self.queue_out: List[Any] = []
         self.queue_reject: List[Any] = []
+        
+        # New SCADA states
+        self.scan_status = "IDLE"
 
     # --- BaseMachine Implementation ---
 
@@ -35,7 +38,7 @@ class InspectionMachine(BaseMachine):
     def force_safe_state(self):
         """Reset progress on Stop"""
         self.progress = 0.0
-        # self.current_item = None # Optional: Drop part? No, hold it.
+        self.scan_status = "IDLE"
         
     def _execute_running_logic(self, dt: float):
         # 1. Try to load
@@ -43,7 +46,9 @@ class InspectionMachine(BaseMachine):
             if self.queue_in:
                 self.current_item = self.queue_in.pop(0)
                 self.progress = 0.0
+                self.scan_status = "SCANNING"
             else:
+                self.scan_status = "IDLE"
                 return
 
         # 2. Process
@@ -51,6 +56,8 @@ class InspectionMachine(BaseMachine):
         
         # 3. Finish / Decide
         if self.progress >= 100.0:
+            self.scan_status = "COMPLETE"
+            import random
             if random.random() < self.fail_rate:
                 self.reject_count += 1
                 self.queue_reject.append(self.current_item) # Capture reject
@@ -65,11 +72,12 @@ class InspectionMachine(BaseMachine):
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         return {
-            f"{self.id}.rejects": self.reject_count,
+            f"{self.id}.scan_status": self.scan_status,
+            f"{self.id}.inspected_count": self.processed_count,
+            f"{self.id}.ok_count": self.processed_count - self.reject_count,
+            f"{self.id}.ng_count": self.reject_count,
+            f"{self.id}.inspection_cycle_time": self.cycle_time,
             f"{self.id}.progress": round(self.progress, 2),
-            f"{self.id}.queue_in": len(self.queue_in),
-            f"{self.id}.queue_out": len(self.queue_out),
-            f"{self.id}.fail_rate": self.fail_rate
         }
 
     def _calculate_power(self) -> float:

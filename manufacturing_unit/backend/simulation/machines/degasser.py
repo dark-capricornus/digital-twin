@@ -70,7 +70,7 @@ class DegasserMachine(BaseMachine):
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         return {
             f"{self.id}.VacuumLevel": round(self.vacuum_level, 2),
-            f"{self.id}.Temp": round(self.temperature, 1),
+            f"{self.id}.temperature": round(self.temperature, 1),
             f"{self.id}.progress": round(self.progress, 2),
             f"{self.id}.queue_in": len(self.queue_in),
             f"{self.id}.queue_out": len(self.queue_out)

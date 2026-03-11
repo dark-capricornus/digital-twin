@@ -65,7 +65,12 @@ def load_config():
             "opcua_port": 4840,
             "scan_rate_ms": 500,
             "simulation_dt_sec": 0.5,
-            "exposed_machines": ["m_furnace", "m_lpdc", "m_cnc", "m_storage"]
+            "exposed_machines": [
+                "FURNACE_01", "LPDC_01", "LPDC_02", "LPDC_03", "CNC_01", "CNC_02", "INSPECTION_01", 
+                "DEGASSER_01", "DEGASSER_02", "HEAT_01", "HEAT_02", "PAINT_01", "PAINT_02", 
+                "INBOUND_01", "STORAGE_01", "COOLING_01", 
+                "COOLING_02", "PRETREAT_01", "OUTBOUND_01"
+            ]
         }
 
 CONFIG = load_config()
@@ -145,7 +150,7 @@ class Buffer(DeviceBase):
 class VirtualPLC:
     def __init__(self):
         # CRITICAL: Use PLCPowerState enum instead of boolean
-        self.power_state = PLCPowerState.OFF  # Start in OFF state
+        self.power_state = PLCPowerState.STARTING  # Start in STARTING state to auto-run
         self.opcua_server = Server(user_manager=DevUserManager())
         self.opcua_nodes = {} # Map: "Device.Tag" -> UA Node
         
@@ -163,10 +168,24 @@ class VirtualPLC:
         # We manually map specific machines to preserve the specific NodeIDs SCADA expects.
         mapping = {
             "FURNACE_01": "FURNACE_01",
+            "DEGASSER_01": "DEGASSER_01",
+            "DEGASSER_02": "DEGASSER_02",
             "LPDC_01": "LPDC_01",
+            "LPDC_02": "LPDC_02",
+            "LPDC_03": "LPDC_03",
+            "HEAT_01": "HEAT_01",
+            "HEAT_02": "HEAT_02",
             "CNC_01": "CNC_01",
+            "CNC_02": "CNC_02",
             "INSPECTION_01": "INSPECTION_01",
-            "DEGASSER_01": "DEGASSER_01" 
+            "PAINT_01": "PAINT_01",
+            "PAINT_02": "PAINT_02",
+            "INBOUND_01": "INBOUND_01",
+            "STORAGE_01": "STORAGE_01",
+            "COOLING_01": "COOLING_01",
+            "COOLING_02": "COOLING_02",
+            "PRETREAT_01": "PRETREAT_01",
+            "OUTBOUND_01": "OUTBOUND_01"
         }
         
         for dev_id, sim_id in mapping.items():
@@ -242,7 +261,8 @@ class VirtualPLC:
         # Expected WIP Keys
         wip_keys = [
             "ingots_kg", "molten_metal_kg", "degassed_metal_kg", "cast_parts", 
-            "heat_treated_parts", "machined_parts", "painted_parts", 
+            "cooled_parts_1", "cooled_parts_2", "heat_treated_parts", 
+            "pretreated_parts", "machined_parts", "painted_parts", 
             "xray_passed", "qc_passed", "scrap_parts"
         ]
         for k in wip_keys:
@@ -271,6 +291,7 @@ class VirtualPLC:
         # Categorization Rules
         # Categorization Rules
         tag_categories = {
+            # Furnaces
             "FURNACE_01": {
                 "Temperature": "Status", 
                 "TargetTemp": "Status",
@@ -281,6 +302,7 @@ class VirtualPLC:
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
             },
+            # LPDCs
             "LPDC_01": {
                 "PourRequest": "Inputs", 
                 "PressurePSI": "Status",
@@ -291,6 +313,27 @@ class VirtualPLC:
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
             },
+            "LPDC_02": {
+                "PourRequest": "Inputs", 
+                "PressurePSI": "Status",
+                "Progress": "Status",
+                "ProcessedCount": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            "LPDC_03": {
+                "PourRequest": "Inputs", 
+                "PressurePSI": "Status",
+                "Progress": "Status",
+                "ProcessedCount": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # CNCs
             "CNC_01": {
                 "Trigger": "Inputs",
                 "SpindleRPM": "Status",
@@ -301,6 +344,17 @@ class VirtualPLC:
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
             },
+            "CNC_02": {
+                "Trigger": "Inputs",
+                "SpindleRPM": "Status",
+                "Progress": "Status",
+                "ProcessedCount": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Inspection
             "INSPECTION_01": {
                 "RejectCount": "Status",
                 "Progress": "Status",
@@ -309,6 +363,7 @@ class VirtualPLC:
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
             },
+            # Degassers
             "DEGASSER_01": {
                 "VacuumLevel": "Status",
                 "Temp": "Status",
@@ -316,7 +371,95 @@ class VirtualPLC:
                 "State": "Status",
                 "PowerKW": "Status",
                 "RuntimeTotalHrs": "Status"
-            }
+            },
+            "DEGASSER_02": {
+                "VacuumLevel": "Status",
+                "Temp": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Heat Treatment
+            "HEAT_01": {
+                "FurnaceTemperature": "Status",
+                "TemperatureSetpoint": "Status",
+                "ProcessStep": "Status",
+                "StepTimer": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            "HEAT_02": {
+                "FurnaceTemperature": "Status",
+                "TemperatureSetpoint": "Status",
+                "ProcessStep": "Status",
+                "StepTimer": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Paint Booths
+            "PAINT_01": {
+                "BoothCycleStatus": "Status",
+                "BoothTemperature": "Status",
+                "BoothHumidity": "Status",
+                "AirFlowStatus": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            "PAINT_02": {
+                "BoothCycleStatus": "Status",
+                "BoothTemperature": "Status",
+                "BoothHumidity": "Status",
+                "AirFlowStatus": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Pretreatment
+            "PRETREAT_01": {
+                "StageStatus": "Status",
+                "ConveyorSpeed": "Status",
+                "DryerTemperature": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Cooling Arrays
+            "COOLING_01": {
+                "Temperature": "Status",
+                "TargetTemp": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            "COOLING_02": {
+                "Temperature": "Status",
+                "TargetTemp": "Status",
+                "Progress": "Status",
+                "State": "Status",
+                "IsRunning": "Status",
+                "PowerKW": "Status",
+                "RuntimeTotalHrs": "Status"
+            },
+            # Simple Conveyors / Buffers
+            "INBOUND_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"},
+            "OUTBOUND_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"},
+            "STORAGE_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "Capacity": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"}
         }
         
 
@@ -352,7 +495,10 @@ class VirtualPLC:
                 if tag == "Trigger": continue # Handled above
 
                 category = "Status" # Default
-                if dev_id_str in tag_categories and tag in tag_categories[dev_id_str]:
+                # Force Input types to Inputs folder regardless of manual map
+                if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
+                    category = "Inputs"
+                elif dev_id_str in tag_categories and tag in tag_categories[dev_id_str]:
                     category = tag_categories[dev_id_str][tag]
                 
                 parent_folder = cat_map[category]
@@ -415,6 +561,9 @@ class VirtualPLC:
              device = next((d for d in self.devices if d.device_id == dev_id), None)
              if device:
                  device.set_tag(tag, val)
+                 # Reset latched commands
+                 if val and tag in ["Start", "Stop", "Trigger", "PourRequest"]:
+                     await node.set_value(False)
                  
     async def _update_opcua_outputs(self, scan_ms: float):
         """

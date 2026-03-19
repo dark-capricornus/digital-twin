@@ -64,7 +64,7 @@ class EnergyAnalytics {
             const id = deviceId.toUpperCase();
 
             // Extract raw values robustly by inspecting metric keys
-            let kw=0, kwh=0, prod=0, scrap=0;
+            let kw=0, kwh=0, prod=0, scrap=0, cycle=0;
             let state = '';
             let isRunning = false;
 
@@ -76,6 +76,7 @@ class EnergyAnalytics {
                     else if (k.endsWith('total_kwh')) kwh = num;
                     else if (k.includes('shot_count') || k.includes('part_count') || k.includes('wheelsproduced') || k.includes('ok_count') || k.includes('pallet_count')) prod = num;
                     else if (k.includes('reject_count') || k.includes('ng_count') || k.includes('totalscrap')) scrap = num;
+                    else if (k.includes('cycle_time') || k.includes('step_timer')) cycle = num;
                 }
                 
                 if (k === 'calculatedstate' || k === 'state') state = (val || '').toString().toLowerCase();
@@ -90,6 +91,7 @@ class EnergyAnalytics {
                 totalKWh: kwh,
                 production: prod,
                 scrap: scrap,
+                cycleTime: cycle,
                 state: state,
                 isRunning: isRunning,
                 energyPerUnit: prod > 0 ? kwh / prod : 0
@@ -103,8 +105,19 @@ class EnergyAnalytics {
             if (isRunning) this.data.plant.runningMachines++;
 
             // Aggregate Zones
+            const normId = id.replace(/[^A-Z0-9]/g, '');
             for (const [zoneId, members] of Object.entries(machineGroups)) {
-                if (members.includes(id)) {
+                // Check for direct match or variations (e.g., PAINT01 matches PAINT_01 or PB1)
+                const isMember = members.some(m => {
+                    const mId = m.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    if (mId === normId) return true;
+                    // Special cases for Paint shop
+                    if ((mId === 'PAINT01' && (normId === 'PB1' || normId === 'PAINT01')) ||
+                        (mId === 'PAINT02' && (normId === 'PB2' || normId === 'PAINT02'))) return true;
+                    return false;
+                });
+
+                if (isMember) {
                     this.data.zones[zoneId].instantKW += kw;
                     this.data.zones[zoneId].totalKWh += kwh;
                     this.data.zones[zoneId].production += prod;

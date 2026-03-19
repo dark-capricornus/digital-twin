@@ -22,8 +22,20 @@
 }
 
 .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined', sans-serif !important;
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     transition: font-variation-settings 0.2s;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
 }
 
 .nav-item.active .material-symbols-outlined {
@@ -116,6 +128,52 @@ body {
     padding-left: 32px;
 }
 
+/* ─── Gemba Info Overlays ──────────────────────────────── */
+#gemba-info-overlay {
+    position: fixed;
+    top: 84px;
+    left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.gemba-info-box {
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 16px;
+    border-radius: 8px;
+    min-width: 180px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    border-left: 3px solid var(--primary);
+}
+
+.gemba-info-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.gemba-info-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+/* ─── Responsive Adjustments ────────────────────────── */
+@media (max-width: 1200px) {
+    .kpi-summary-row {
+        gap: 10px;
+        padding: 0 10px;
+    }
+}
+
 /* ─── 2. KPI Summary Row ────────────────────────── */
 #kpi-summary-row {
     position: fixed;
@@ -132,7 +190,7 @@ body {
     border-bottom: 1px solid var(--surface-dark);
 }
 
-/* KPI Chevron in Navbar */
+/* Branding Info Button in Navbar */
 .kpi-chevron {
     background: none;
     border: none;
@@ -142,14 +200,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease, transform 0.3s ease;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
     margin-left: 4px;
 }
 
 .kpi-chevron span {
     font-size: 20px;
-    transition: transform 0.3s ease;
+    transition: color 0.2s ease;
 }
 
 .strip-left:hover .kpi-chevron {
@@ -161,7 +219,7 @@ body {
 }
 
 .kpi-chevron.open span {
-    transform: rotate(180deg);
+    color: var(--primary);
 }
 
 #kpi-summary-row.hidden-kpi {
@@ -220,8 +278,13 @@ body {
     font-weight: 700;
 }
 
-.kpi-trend.up { color: var(--success); }
-.kpi-trend.down { color: var(--danger); }
+.kpi-trend.up {
+    color: var(--success);
+}
+
+.kpi-trend.down {
+    color: var(--danger);
+}
 
 /* ─── 3. Dual Sidebar Architecture ────────────────── */
 .sidebar {
@@ -245,11 +308,28 @@ body {
 
 #right-sidebar {
     right: 0;
-    width: 30%; /* Ensure twin is visible 70% */
+    width: 30%;
+    /* Ensure twin is visible 70% */
     min-width: 320px;
     border-left: 1px solid var(--surface-dark);
     border-right: none;
     transform: translateX(100%);
+}
+
+/* Mini State for distant chips */
+.machine-chip.mini {
+    min-width: unset;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    scale: 0.8;
+}
+
+.machine-chip.mini .chip-name,
+.machine-chip.mini .chip-info-btn-static,
+.machine-chip.mini .chip-value {
+    display: none !important;
 }
 
 .sidebar.open {
@@ -257,11 +337,38 @@ body {
 }
 
 .sidebar-header {
-    padding: 24px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-bottom: 2px solid var(--surface-dark);
+}
+
+.sidebar-header.compact {
+    padding-bottom: 20px;
+}
+
+.sidebar-header-top-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 1px solid var(--surface-dark);
+    align-items: center;
+    width: 100%;
+}
+
+/* Specific layout for same-row title and close button */
+.sidebar-header.same-row .sidebar-header-top-row {
+    justify-content: space-between;
+}
+
+.sidebar-header.same-row .sidebar-header-title {
+    margin-top: 0;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+}
+
+.header-nav-container {
+    display: flex;
+    align-items: center;
 }
 
 .sidebar-header-titles {
@@ -284,6 +391,7 @@ body {
     color: var(--text-main);
     text-transform: uppercase;
     letter-spacing: -0.5px;
+    margin-top: 4px; /* Slight push down as requested */
 }
 
 .sidebar-content {
@@ -293,6 +401,22 @@ body {
     display: flex;
     flex-direction: column;
     gap: 24px;
+}
+
+/* Premium Scrollbar */
+.sidebar-content::-webkit-scrollbar {
+    width: 3px;
+}
+.sidebar-content::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px;
+}
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: var(--surface-dark);
+    border-radius: 10px;
+}
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
 }
 
 .sidebar-nav-list {
@@ -317,6 +441,123 @@ body {
 .sidebar-nav-item:hover {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-main);
+}
+
+.sidebar-back-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.sidebar-back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--primary);
+}
+
+.chip-value {
+    display: none;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-top: 0;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.chip-value.visible {
+    display: block;
+}
+
+.chip-opt-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chip-opt-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.chip-opt-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Gemba Tour Bar Premium Styling */
+#gemba-tour-bar {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 2000;
+}
+
+.gemba-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gemba-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+.gemba-btn.gemba-stop {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.gemba-btn.gemba-stop:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.gemba-label {
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 12px;
+    min-width: 200px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .sidebar-nav-item.active {
@@ -513,72 +754,108 @@ body {
 
 /* ─── 3D Machine Chips ────────────────────────────────── */
 .machine-chip {
-    background: #111111;
-    border: 1px solid #30363d;
-    min-width: 140px;
+    background: transparent;
+    border: none;
+    min-width: unset;
+    border-radius: 50%; /* Make clickable area a circle around the dot */
+    overflow: visible;
     padding: 0;
-    pointer-events: auto;
-    cursor: pointer;
-    transform: translate(-50%, -100%); /* Center horizontally and sit above anchor */
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.machine-chip:hover {
-    border-color: var(--primary);
-    transform: scale(1.05);
+    pointer-events: none;
+    /* Use localized transitions to prevent position floating (drifting) */
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
 }
 
 .machine-chip.active {
     border-color: var(--primary);
-    box-shadow: 0 0 15px rgba(0, 166, 81, 0.3);
+    box-shadow: 0 0 20px rgba(0, 166, 81, 0.25);
 }
+
+/* Ensure child elements with interaction still work if needed */
+.chip-info-btn-static {
+    pointer-events: auto;
+}
+
 
 .chip-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    background: #1a1f26;
+    justify-content: center;
+    padding: 6px; /* Reduced from 10px */
+    background: transparent;
+    white-space: nowrap;
 }
 
 .chip-status-dot {
-    width: 8px;
-    height: 8px;
+    font-family: 'Material Symbols Outlined' !important;
+    font-size: 16px; /* Reduced from 24px */
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; /* Reduced from 44px as per user request */
+    height: 30px;
+    background: linear-gradient(135deg, #2a1e19, #1c1411);
     border-radius: 50%;
-    background: #616161;
-    transition: background 0.3s, box-shadow 0.3s;
+    
+    /* Scaled Skeuomorphic Emboss Effect */
+    box-shadow: 
+        /* Outer depth */
+        0 2px 4px rgba(0, 0, 0, 0.5), 
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        /* Brightness on top-left edge */
+        inset 1px 1px 2px rgba(255, 255, 255, 0.05),
+        /* Inner shadow for depth */
+        inset -1px -1px 2px rgba(0, 0, 0, 0.4);
+        
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: glow-pulse 3s infinite ease-in-out;
+}
+
+@keyframes glow-pulse {
+    0% { transform: scale(1); box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 1px 1px 2px rgba(255,255,255,0.05); }
+    50% { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 1px 1px 3px rgba(255,255,255,0.1); }
+    100% { transform: scale(1); box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 1px 1px 2px rgba(255,255,255,0.05); }
+}
+
+.machine-chip.hovered .chip-status-dot,
+.machine-chip:hover .chip-status-dot {
+    transform: scale(1.15) translateY(-2px);
+    border-color: var(--primary);
+    background: linear-gradient(135deg, #322520, #221815);
 }
 
 .chip-status-dot.running {
-    background: var(--success);
-    box-shadow: 0 0 6px var(--success);
+    color: var(--success);
+    border-color: rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.15), 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.chip-status-dot.warning, .chip-status-dot.idle {
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15), 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.chip-status-dot.alarm, .chip-status-dot.down {
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.15), 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .chip-name {
     flex: 1;
-    font-size: 10px;
+    font-size: 8px; /* Reduced from 10px */
     font-weight: 800;
     color: #f0f6fc;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
     white-space: nowrap;
 }
 
-.chip-info-btn {
-    background: none;
-    border: none;
-    color: #8b949e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    cursor: pointer;
-    transition: color 0.2s;
-}
 
-.chip-info-btn:hover {
-    color: var(--text-main);
-}
+
 
 /* Sidebar Section Titles & Rows */
 .sidebar-section-title {
@@ -729,4 +1006,434 @@ body {
     padding: 0 12px;
     white-space: nowrap;
     letter-spacing: 0.5px;
+}
+
+/* ─── Energy Sidebar Premium UI ─── */
+.energy-toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+}
+
+.energy-toggle-container:hover {
+    border-color: rgba(236, 91, 19, 0.4);
+    background: rgba(236, 91, 19, 0.05);
+}
+
+.energy-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.energy-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--primary);
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.energy-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
+    border-color: rgba(236, 91, 19, 0.3);
+}
+
+.energy-card:hover::before {
+    opacity: 1;
+    width: 4px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.card-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+}
+
+.card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.card-progress-bg {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.card-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #ff8c4a);
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Premium Toggle Switch */
+.switch-box {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+}
+
+.switch-box input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider-round {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--surface-dark);
+    transition: .4s;
+    border-radius: 34px;
+    border: 1px solid var(--border);
+}
+
+.slider-round:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 4px;
+    bottom: 3px;
+    background-color: var(--text-dim);
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider-round {
+    background-color: rgba(236, 91, 19, 0.2);
+    border-color: var(--primary);
+}
+
+input:checked + .slider-round:before {
+    transform: translateX(22px);
+    background-color: var(--primary);
+}
+
+.data-select {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--surface-dark) !important;
+    border: 1px solid rgba(236, 91, 19, 0.2) !important;
+    color: var(--text-main) !important;
+    padding: 12px 16px !important;
+    padding-right: 40px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    width: 100%;
+}
+
+.data-select option {
+    background: var(--surface-dark);
+    color: var(--text-main);
+    padding: 10px;
+}
+
+.custom-select-wrapper {
+    position: relative;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.custom-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--primary);
+    font-size: 18px !important;
+    transition: transform 0.3s ease;
+}
+
+.data-select:hover {
+    border-color: var(--primary) !important;
+    background: rgba(236, 91, 19, 0.05) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.data-select:focus {
+    outline: none;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px rgba(236, 91, 19, 0.2), 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.custom-select-wrapper:focus-within .custom-select-arrow {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+/* ─── Unified Energy Chips ─── */
+.chip-unified-value {
+    display: none;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #2a1e19, #1c1411);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(236, 91, 19, 0.4);
+    box-shadow: 
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.machine-chip:hover .chip-unified-value {
+    transform: scale(1.1) translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(236, 91, 19, 0.3);
+}
+
+/* ─── Premium Energy Sidebar Cards ─── */
+.energy-card.premium {
+    cursor: pointer;
+    border-left: 3px solid rgba(236, 91, 19, 0.3);
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.energy-card.premium:hover {
+    border-left-color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+}
+
+.card-val-group {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.card-unit {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+/* ─── Unified Asset & Maintenance Styles ─── */
+.health-meter-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.health-meter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.health-score-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-score-tag {
+    font-size: 10px;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+.health-score-main {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.health-score-value {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-main);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.health-score-total {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+.health-progress-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.health-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #ff8c4a);
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.rul-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.rul-icon {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    font-size: 64px !important;
+    opacity: 0.05;
+    color: var(--primary);
+    transform: rotate(-15deg);
+}
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    margin-bottom: 20px;
+}
+
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 12px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.task-item:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(236, 91, 19, 0.2);
+    transform: translateX(4px);
+}
+
+.task-icon-box {
+    width: 36px;
+    height: 36px;
+    background: rgba(236, 91, 19, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+}
+
+.task-info {
+    flex: 1;
+}
+
+.task-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.task-unit {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.task-timing {
+    text-align: right;
+}
+
+.task-due {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--warning);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.task-status {
+    font-size: 9px;
+    font-weight: 900;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.maintenance-report-btn {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(236, 91, 19, 0.3);
+}
+
+.maintenance-report-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(236, 91, 19, 0.4);
+    filter: brightness(1.1);
+}
+
+.maintenance-report-btn:active {
+    transform: translateY(0);
 }

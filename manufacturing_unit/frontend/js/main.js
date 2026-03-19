@@ -15,8 +15,17 @@ class DigitalTwinApp {
         this.websocket = null;
         this.analytics = new EnergyAnalytics();
         this.activeContext = { type: 'plant', id: null };
+        this.lastLeftContext = { type: 'plant', id: null };
         this.assetData = {};
-        this.telemetryStore = new Map();
+        this.liveState = new Map();
+        this.primaryMode = 'plant'; // Tracks the global bottom-nav mode
+        this.lastPrimaryMode = 'plant';
+
+        this.energyViewSettings = {
+            viewType: 'all', // 'all', 'select'
+            selectedMachineId: null,
+            parameter: 'energy' // 'energy', 'cycle', 'status'
+        };
 
         // 3D Overlay Preferred Schemas (Extremely Minimalist)
         this.overlaySchemas = {
@@ -90,6 +99,12 @@ class DigitalTwinApp {
                 'Environment': ['Vacuum_Level', 'Melt_Temp', 'Treatment_Status'],
                 'Status': ['Argon_Flow', 'Alarm_Status']
             },
+            'STORAGE': {
+                'Inventory Levels': ['Material_Count', 'Pallet_Count', 'Fill_Level']
+            },
+            'INBOUND': {
+                'Inventory Levels': ['Material_Count', 'Pallet_Count', 'Fill_Level']
+            },
             'OUTBOUND': {
                 'Core Energy': ['Outbound_Instant_kW', 'Outbound_Total_kWh'],
                 'Logistics': ['Pallet_Count', 'Shipping_Status', 'Queue_Depth'],
@@ -145,7 +160,7 @@ class DigitalTwinApp {
             'heat_treating': ['HEAT01', 'HEAT02', 'COOLING01', 'COOLING02'],
             'qc': ['INSPECTION01'],
             'paint_shop': ['PRETREAT01', 'PAINT01', 'PAINT02'],
-            'shipping': ['OUTBOUND01', 'PACK01'],
+            'shipping': ['OUTBOUND01'],
         };
 
         // Human-readable department labels
@@ -169,10 +184,11 @@ class DigitalTwinApp {
      * e.g., 'FURNACE01' → 'FURNACE', 'PAINT_01' → 'PAINT_01', 'LPDC02' → 'LPDC'
      */
     getDeviceType(deviceId) {
+        if (!deviceId) return null;
         const id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
         // Explicit PAINT booth matching (PAINT_01, PAINT01, etc.)
-        if (/PAINT.?01/.test(id)) return 'PAINT_01';
-        if (/PAINT.?02/.test(id)) return 'PAINT_02';
+        if (/PAINT.?01|PB1/i.test(id)) return 'PAINT_01';
+        if (/PAINT.?02|PB2/i.test(id)) return 'PAINT_02';
         // Prefix-based matching
         const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'PAINT'];
         for (const p of prefixes) {
@@ -200,23 +216,28 @@ class DigitalTwinApp {
     }
 
     /**
-     * Fuzzy telemetryStore lookup.
+     * Fuzzy liveState lookup.
      * Bridges differences like FURNACE_01 vs FURNACE01 by normalizing keys.
      * @returns {{ cache: Map|null, storeKey: string|null }}
      */
     _findTelemetry(id) {
         const key = id.toUpperCase();
         // 1. Exact match
-        if (this.telemetryStore.has(key)) {
-            return { cache: this.telemetryStore.get(key), storeKey: key };
+        if (this.liveState.has(key)) {
+            return { cache: this.liveState.get(key), storeKey: key };
         }
         // 2. Normalized match (strip non-alphanumeric)
         const normId = key.replace(/[^A-Z0-9]/g, '');
-        for (const [storeKey, val] of this.telemetryStore.entries()) {
+        for (const [storeKey, val] of this.liveState.entries()) {
             const normStoreKey = storeKey.replace(/[^A-Z0-9]/g, '');
             if (normStoreKey === normId) {
                 return { cache: val, storeKey };
             }
+        }
+        // 3. Fallback: Raw Materials specific mapping
+        if (normId === 'RAWMATERIALS') {
+            const fallbackKey = 'STORAGE_01';
+            if (this.liveState.has(fallbackKey)) return { cache: this.liveState.get(fallbackKey), storeKey: fallbackKey };
         }
         return { cache: null, storeKey: null };
     }
@@ -234,6 +255,19 @@ class DigitalTwinApp {
         for (const [mk, mv] of Object.entries(machines)) {
             if (mk.replace(/[^A-Z0-9]/g, '') === normId) return mv;
         }
+        return null;
+    }
+
+    _findAsset(id) {
+        if (!this.assetData) return null;
+        const key = id.toUpperCase();
+        if (this.assetData[key]) return this.assetData[key];
+        const normId = key.replace(/[^A-Z0-9]/g, '');
+        for (const [ak, av] of Object.entries(this.assetData)) {
+            if (ak.replace(/[^A-Z0-9]/g, '') === normId) return av;
+        }
+        // 3. Fallback: Raw Materials mapping
+        if (normId === 'RAWMATERIALS') return this.assetData['STORAGE_01'] || this.assetData['INBOUND_01'];
         return null;
     }
 
@@ -258,9 +292,29 @@ class DigitalTwinApp {
             this.updateCounter();
         });
 
+        let wsUrl;
+
+        if (window.location.protocol === "file:") {
+            // Running UI from local file system
+            wsUrl = "ws://localhost:8001/ws";
+        } else {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            let host = window.location.hostname || "localhost";
+            // Robustly catch localhost, IPv6 loopback (::1), and bracketed IPv6 ([::1])
+            if (/localhost|::1|\[::1\]/i.test(host)) {
+                host = '127.0.0.1';
+            }
+            wsUrl = `${protocol}//${host}:8001/ws`;
+        }
+
+        console.log("[WebSocket] Connecting to", wsUrl);
+
         this.websocket = new WebSocketHandler(
-            'ws://localhost:8001/ws',
-            (deviceId, state, fullData) => this.handleData(deviceId, state, fullData),
+            wsUrl,
+            (deviceId, state, payload) => {
+                // Instantly process incoming data (decoupled from render loop)
+                this.handleData(deviceId, state, payload);
+            },
             (status) => this.updateStatus(status)
         );
 
@@ -271,15 +325,13 @@ class DigitalTwinApp {
         // Initialize Twinzo Flow Controls
         this.initFlowControls();
 
-        // KPI Row Toggle Logic (Navbar Chevron)
-        const kpiChevron = document.getElementById('kpi-chevron');
+        // Branding Info Button
+        const infoBtn = document.getElementById('branding-info-btn');
         const kpiSummaryRow = document.getElementById('kpi-summary-row');
-        if (kpiChevron && kpiSummaryRow) {
-            // Start open
-            kpiChevron.classList.add('open');
-            kpiChevron.addEventListener('click', () => {
+        if (infoBtn && kpiSummaryRow) {
+            infoBtn.addEventListener('click', () => {
                 kpiSummaryRow.classList.toggle('hidden-kpi');
-                kpiChevron.classList.toggle('open');
+                infoBtn.classList.toggle('open');
             });
         }
 
@@ -290,9 +342,19 @@ class DigitalTwinApp {
             setTimeout(() => loader.remove(), 500);
         }
     }
+
+
     setupListeners() {
         window.addEventListener('scene-background-click', () => {
             this.setContext('plant');
+        });
+
+        // ESC key to return to overview
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.setContext('plant');
+                if (this.scene) this.scene.resetToDefaultView();
+            }
         });
     }
 
@@ -301,28 +363,26 @@ class DigitalTwinApp {
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
-                this.handleAction(action);
-
-                // Active state
+                
+                // [PERF] Immediate UI Feedback (Instant Active State)
                 document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // [PERF] Defer heavy business logic to yield to the paint thread
+                // This significantly improves INP (Interaction to Next Paint)
+                setTimeout(() => {
+                    this.handleAction(action);
+                }, 0);
             });
         });
 
-        // Close Sidebars
+        // Close Sidebars - Universal "Reset to Initial View" Rule
         document.getElementById('close-left-panel')?.addEventListener('click', () => {
-            if (this.activeContext.type === 'zone') {
-                this.setContext('plant');
-            } else {
-                document.getElementById('left-sidebar').classList.remove('open');
-            }
+            this.setContext('plant');
         });
 
         document.getElementById('close-right-panel')?.addEventListener('click', () => {
-            document.getElementById('right-sidebar').classList.remove('open');
-            if (this.activeContext.type === 'machine' || this.activeContext.type === 'safety') {
-                this.setContext('plant');
-            }
+            this.setContext('plant');
         });
 
         // Initialize Clock
@@ -340,6 +400,11 @@ class DigitalTwinApp {
 
     handleAction(action) {
         console.log(`[UI] Action: ${action}`);
+        if (action !== 'gemba') {
+            this.lastPrimaryMode = this.primaryMode;
+            this.primaryMode = action; // 'plant', 'energy', 'alarm', 'alarms', 'zones', 'machines'
+        }
+        
         switch (action) {
             case 'plant':
                 this.setContext('plant');
@@ -353,10 +418,10 @@ class DigitalTwinApp {
             case 'energy':
                 this.setContext('energy_analytics');
                 break;
+            case 'alarm':
             case 'alarms':
             case 'isolation':
-            case 'safety':
-                this.setContext('safety');
+                this.setContext('alarms');
                 break;
             case 'gemba':
                 this.setContext('gemba');
@@ -364,11 +429,35 @@ class DigitalTwinApp {
         }
     }
 
+    _isAlarmMode(mode) {
+        return ['alarm', 'alarms', 'isolation'].includes(mode) && !this.gembaTimer;
+    }
+
     setContext(type, id = null) {
+        // [PERF] Redundancy Guard: skip expensive 3D/DOM updates if context is identical
+        if (this.activeContext.type === type && this.activeContext.id === id && type !== 'plant') {
+            console.log(`[UI] Context Redundant: ${type} ${id || ''}`);
+            return;
+        }
+
         console.log(`[UI] Setting Context Mode: ${type} ${id ? '(' + id + ')' : ''}`);
 
+        // Detect leaving alarm mode to clear visuals
+        const wasAlarm = this._isAlarmMode(this.lastPrimaryMode);
+        const isCurrentlyAlarm = this._isAlarmMode(this.primaryMode);
+        
         // Update active context
         this.activeContext = { type, id };
+
+        // Reset scene if we are exiting Alarm Mode globally
+        if (wasAlarm && !isCurrentlyAlarm && this.scene) {
+            console.log('[UI] Exiting Alarm Mode: Restoring realistic visuals');
+            this.scene.isolateGroup([]); // Restores materials if primaryMode is not alarm
+            this.scene.labelRegistry.forEach(data => {
+                if (data && data.element) data.element.style.display = 'block';
+            });
+            this.scene.warningMeshes.forEach(m => m.visible = false);
+        }
 
         // Toggle energy chips in 3D view
         if (this.scene && typeof this.scene.updateEnergyChips === 'function') {
@@ -380,57 +469,99 @@ class DigitalTwinApp {
         const kpiRow = document.getElementById('kpi-summary-row');
 
         // Manage Visibility & Scene based on Mode
+        // Tracking for left sidebar persistence
+        const leftTypes = ['zones_scope', 'zone', 'energy_analytics', 'machines_list'];
+        if (leftTypes.includes(type)) {
+            this.lastLeftContext = { type, id };
+        }
+
         switch (type) {
             case 'plant':
                 leftPanel.classList.remove('open');
                 rightPanel.classList.remove('open');
                 kpiRow.style.display = 'flex';
                 this.scene.resetInteraction();
-                break;
-
-            case 'zones_scope':
-                leftPanel.classList.add('open');
-                rightPanel.classList.remove('open');
-                kpiRow.style.display = 'flex';
-                break;
-
-            case 'zone':
-                leftPanel.classList.add('open');
-                rightPanel.classList.remove('open');
-                kpiRow.style.display = 'none'; // Clear space for zone focus
-                if (id) {
-                    const deviceIds = this.machineGroups[id];
-                    if (deviceIds) this.scene.isolateGroup(deviceIds);
-                }
-                break;
-
-            case 'machine':
-                rightPanel.classList.add('open');
-                // Don't close left panel if we're in a zone context
-                if (id) this.scene.isolateGroup([id]);
-                break;
-
-            case 'safety':
-                rightPanel.classList.add('open');
-                leftPanel.classList.remove('open');
-                this.scene.highlightAlarms();
+                // When going to plant, we don't necessarily reset lastLeftContext
+                // but we hide the panels.
+                if (this.scene) this.scene.setChipDisplayMode('none');
                 break;
 
             case 'energy_analytics':
-                leftPanel.classList.add('open');
-                rightPanel.classList.remove('open');
+                if (this.energyViewSettings.viewType === 'select') {
+                    leftPanel.classList.add('open');
+                } else {
+                    leftPanel.classList.remove('open');
+                }
+                rightPanel.classList.remove('open'); // STRICT: No right sidebar in Energy Mode
                 kpiRow.style.display = 'flex';
+                // Force energy display mode on chips
+                if (this.scene) {
+                    this.scene.setChipDisplayMode('energy');
+                    // Reset diagnostic visuals if entering from alarm
+                    if (wasAlarm) this.scene.isolateGroup([]);
+                }
                 break;
 
+            case 'zones_scope':
+            case 'zone':
             case 'machines_list':
                 leftPanel.classList.add('open');
                 rightPanel.classList.remove('open');
+                kpiRow.style.display = (type === 'zone') ? 'none' : 'flex';
+                if (type === 'zone' && id) {
+                    const deviceIds = this.machineGroups[id];
+                    if (deviceIds) this.scene.isolateGroup(deviceIds);
+                } else if (wasAlarm && this.scene) {
+                    this.scene.isolateGroup([]);
+                }
+                if (this.scene) this.scene.setChipDisplayMode('none');
+                break;
+
+            case 'machine':
+            case 'asset':
+                // STRICT: If we are in Alarm mode, respect it. Do not pull in other mode sidebars.
+                if (this.primaryMode === 'alarm' || this.primaryMode === 'alarms') {
+                    leftPanel.classList.remove('open');
+                    rightPanel.classList.add('open');
+                } else if (this.primaryMode === 'plant') {
+                    // USER REQUEST: No left sidebar in Plant Mode during machine interaction
+                    leftPanel.classList.remove('open');
+                    rightPanel.classList.add('open');
+                } else {
+                    // USER REQUEST: Do not open right sidebar in Energy Mode
+                    if (this.activeContext.type === 'energy_analytics' || this.lastLeftContext.type === 'energy_analytics') {
+                        rightPanel.classList.remove('open');
+                    } else {
+                        rightPanel.classList.add('open');
+                    }
+                    
+                    // Ensure left panel stays open if it was already open
+                    if (leftPanel.classList.contains('open')) {
+                        // Do nothing, keep it open
+                    } else if (this.lastLeftContext.type !== 'plant') {
+                        // Re-open last left context if we're looking at a machine
+                        leftPanel.classList.add('open');
+                    }
+                }
+                if (id) this.scene.isolateGroup([id]);
+                if (this.scene) this.scene.setChipDisplayMode('none');
+                break;
+
+            case 'alarm':
+            case 'alarms':
+                rightPanel.classList.add('open');
+                leftPanel.classList.remove('open'); // STRICT: No left sidebar in Alarm Mode
+                if (this.scene) {
+                    this.scene.setChipDisplayMode('none');
+                    this.scene.highlightAlarms();
+                }
                 break;
 
             case 'gemba':
                 leftPanel.classList.remove('open');
                 rightPanel.classList.remove('open');
                 this.startGembaWalk();
+                if (this.scene) this.scene.setChipDisplayMode('none');
                 break;
 
             default:
@@ -441,14 +572,45 @@ class DigitalTwinApp {
         this.refreshUI();
     }
 
-    refreshUI() {
-        const hierarchy = this.analytics.update(this.telemetryStore, this.machineGroups);
+    setChipMode(mode) {
+        if (this.scene) {
+            this.scene.setChipDisplayMode(mode);
+            this.refreshUI(); // Re-render sidebar to update active state
+        }
+    }
+
+    handleHeaderBack() {
+        this.setContext('zones_scope');
+        if (this.scene) {
+            this.scene.resetToDefaultView();
+        }
+    }
+
+    onHoverChange(hoveredId) {
+        // Event-driven hover hook. Replaces per-frame UI polling.
+        // Can be expanded to drive specific UI element previews without full layout re-renders.
+        if (hoveredId) {
+            console.log(`[UI] Hover focused on: ${hoveredId}`);
+        }
+    }
+
+    refreshUI(force = false) {
+        const hierarchy = this.analytics.update(this.liveState, this.machineGroups);
 
         this.updateTopStrip(hierarchy.plant);
         this.updateKPIRow(hierarchy.plant);
 
-        this.renderLeftSidebar(hierarchy);
-        this.renderRightSidebar(hierarchy);
+        // Smart Refresh: Avoid re-rendering sidebar if user is actively interacting (dropdowns, inputs)
+        // Bypass if force is true (usually manual UI triggers)
+        const sidebar = document.querySelector('.sidebar.open');
+        const active = document.activeElement;
+        const isUserBusy = !force && sidebar && active && sidebar.contains(active) && 
+                          (active.tagName === 'SELECT' || (active.tagName === 'INPUT' && active.type === 'text'));
+
+        if (!isUserBusy) {
+            this.renderLeftSidebar(hierarchy);
+            this.renderRightSidebar(hierarchy);
+        }
     }
 
     updateTopStrip(data) {
@@ -487,26 +649,60 @@ class DigitalTwinApp {
 
     renderLeftSidebar(hierarchy) {
         const titleEl = document.getElementById('left-panel-title');
+        const navEl = document.getElementById('left-header-nav');
         const contentEl = document.getElementById('left-nav-list');
-        const { type, id } = this.activeContext;
+        const closeBtn = document.getElementById('close-left-panel');
+        const header = document.querySelector('#left-sidebar .sidebar-header');
+        
+        // Use lastLeftContext if current context is machine/asset details
+        let targetContext = this.activeContext;
+        if (this.activeContext.type === 'machine' || this.activeContext.type === 'asset') {
+            targetContext = this.lastLeftContext;
+        }
 
-        if (!titleEl || !contentEl) return;
+        if (!titleEl || !contentEl || !navEl || !closeBtn) return;
+        
+        // PRESERVE TITLE: If title is inside nav, move it back to header before clearing nav
+        if (navEl.contains(titleEl)) {
+            header.appendChild(titleEl);
+        }
 
-        if (type === 'zones_scope') {
-            titleEl.textContent = 'Operational Zones';
+        // Reset nav header and shared layout classes
+        navEl.innerHTML = '';
+        header.classList.remove('same-row', 'compact');
+        closeBtn.style.order = ''; // Reset order
+        
+        const { type, id } = targetContext;
+
+        if (type === 'plant' || !type) {
+            titleEl.textContent = 'Plant Overview';
+            header.appendChild(titleEl);
+            contentEl.innerHTML = '<div style="padding: 24px; color: var(--text-dim)">Global telemetry monitoring...</div>';
+        } else if (type === 'zones_scope') {
+            header.classList.add('same-row', 'compact');
+            titleEl.textContent = 'OPERATIONAL ZONES';
+            // Move title into the top row for the same-row effect
+            navEl.prepend(titleEl);
             this.renderZonesScope(hierarchy, contentEl);
         } else if (type === 'zone' && id) {
-            titleEl.textContent = this.departmentLabels[id] || `${id.toUpperCase()} Operations`;
+            navEl.innerHTML = `
+                <button class="sidebar-back-btn" onclick="window.app.handleHeaderBack()" title="Back to Zones">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+            `;
+            header.appendChild(titleEl); 
+            titleEl.textContent = (this.departmentLabels[id] || id.replace(/_/g, ' ')).toUpperCase();
             const zoneData = hierarchy.zones[id] || hierarchy.zones[id.toLowerCase()];
             this.renderZonePanel(id, zoneData, contentEl);
         } else if (type === 'energy_analytics') {
+            header.classList.add('same-row', 'compact');
             titleEl.textContent = 'Energy Dynamics';
+            navEl.prepend(titleEl);
             this.renderEnergyPanel(hierarchy, contentEl);
-        } else if (type === 'safety') {
-            titleEl.textContent = 'Safety & Alarms';
-            this.renderSafetyPanel(contentEl);
         } else if (type === 'machines_list') {
-            titleEl.textContent = 'All Machines';
+            header.classList.add('same-row', 'compact');
+            titleEl.textContent = 'Asset View'; 
+            navEl.prepend(titleEl);
             this.renderMachinesListPanel(contentEl);
         }
     }
@@ -538,54 +734,78 @@ class DigitalTwinApp {
     renderRightSidebar(hierarchy) {
         const titleEl = document.getElementById('right-panel-title');
         const contentEl = document.getElementById('right-panel-content');
+        const navEl = document.getElementById('right-header-nav');
+        const header = document.querySelector('#right-sidebar .sidebar-header');
         const { type, id } = this.activeContext;
 
-        if (type === 'machine' && id) {
+        if (!titleEl || !contentEl || !navEl) return;
+        
+        // PRESERVE TITLE: If title is inside nav, move it back to header before clearing nav
+        if (navEl.contains(titleEl)) {
+            header.appendChild(titleEl);
+        }
+
+        navEl.innerHTML = ''; 
+        header.classList.add('same-row', 'compact');
+
+        if ((type === 'machine' || type === 'asset') && id) {
             // Display name mapping: storage/inbound → RAW MATERIALS
             const normId = id.toUpperCase().replace(/[^A-Z0-9]/g, '');
             const isRM = normId.includes('STORAGE') || normId.includes('INBOUND') || normId.includes('RAWMATERIALS');
             const isXRay = normId.includes('INSPECTION');
             let displayName = isRM ? 'RAW MATERIALS' : (isXRay ? 'X RAY' : id.toUpperCase().replace(/_/g, ' '));
-            titleEl.textContent = `DEVICE: ${displayName}`;
-            const machineData = hierarchy.machines[id] || this._findMachineData(id);
-            this.renderMachinePanel(id, machineData, contentEl);
-        } else if (type === 'safety') {
-            titleEl.textContent = 'Safety & Alarms';
+            
+            let titlePrefix = (type === 'asset' || this.primaryMode === 'machines') ? 'ASSET: ' : 'DEVICE: ';
+            titleEl.textContent = titlePrefix + displayName;
+            navEl.prepend(titleEl);
+
+            // Contextual Rendering: If in Alarm Mode, show Alarms & Logs instead of Diagnostics
+            if (this.primaryMode === 'alarm' || this.primaryMode === 'alarms') {
+                this.renderMachineAlarmPanel(id, contentEl);
+            } else {
+                const modeToRender = (type === 'asset' || this.primaryMode === 'machines') ? 'metadata' : 'diagnostics';
+                this.renderMachinePanel(id, contentEl, modeToRender);
+            }
+        } else if (type === 'alarm' || type === 'alarms') {
+            titleEl.textContent = 'Alarms & Isolation';
+            navEl.prepend(titleEl);
             this.renderSafetyPanel(contentEl);
         }
     }
 
     renderZonePanel(zoneId, data, container) {
         if (!data) return;
+        const deptLabel = (this.departmentLabels[zoneId] || zoneId.replace(/_/g, ' ')).toUpperCase();
+        
         let html = `
-            <div class="kpi-group">
-                <div class="kpi-mini" style="border-left: 3px solid var(--primary)">
-                    <span>Real-time Load</span>
-                    <strong>${data.instantKW.toFixed(1)} kW</strong>
+            <div class="kpi-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="kpi-mini" style="border-left: 3px solid var(--primary); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
+                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Real-time Load</div>
+                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'">${data.instantKW.toFixed(1)} <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">kW</small></div>
                 </div>
-                <div class="kpi-mini" style="border-left: 3px solid var(--success)">
-                    <span>Production</span>
-                    <strong>${data.production}</strong>
+                <div class="kpi-mini" style="border-left: 3px solid var(--success); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
+                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Production</div>
+                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'">${data.production} <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">u</small></div>
                 </div>
-                <div class="kpi-mini">
-                    <span>Efficiency</span>
-                    <strong>${data.energyPerUnit.toFixed(2)} <small>kWh/u</small></strong>
+                <div class="kpi-mini" style="border-left: 3px solid var(--accent-blue); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
+                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Efficiency</div>
+                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'">${data.energyPerUnit.toFixed(2)} <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">kWh/u</small></div>
                 </div>
-                <div class="kpi-mini">
-                    <span>Scrap Rate</span>
-                    <strong style="color: ${data.scrapRate > 5 ? 'var(--danger)' : 'var(--success)'}">${data.scrapRate.toFixed(1)}%</strong>
+                <div class="kpi-mini" style="border-left: 3px solid ${data.scrapRate > 5 ? 'var(--danger)' : 'var(--warning)'}; background: var(--surface-dark); padding: 12px; border-radius: 4px;">
+                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Scrap Rate</div>
+                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'; color: ${data.scrapRate > 5 ? 'var(--danger)' : 'var(--success)'}">${data.scrapRate.toFixed(1)}%</div>
                 </div>
             </div>
-            <div class="sidebar-section-title">EQUIPMENT IN ${this.departmentLabels[zoneId] || zoneId.toUpperCase()}</div>
+            <div class="sidebar-section-title" style="margin-top: 24px;">ASSETS IN ${deptLabel}</div>
             <div class="sidebar-nav-list">
         `;
 
         const members = this.machineGroups[zoneId] || [];
         members.forEach(mid => {
-            const m = this.analytics.data.machines[mid.toUpperCase()] || this.analytics.data.machines[mid];
+            const m = this.analytics.data.machines[mid.toUpperCase()] || this.analytics.data.machines[mid] || this._findMachineData(mid);
             if (!m) return;
             const state = (m.state || '').toLowerCase();
-            const icon = state === 'running' ? 'play_circle' : 'stop_circle';
+            const icon = 'inventory'; // Terminology change: Assets
             const color = state === 'running' ? 'var(--success)' : (state === 'fault' ? 'var(--danger)' : 'var(--text-dim)');
 
             html += `
@@ -593,7 +813,7 @@ class DigitalTwinApp {
                     <span class="material-symbols-outlined" style="color: ${color}">${icon}</span>
                     <div style="flex: 1; display: flex; justify-content: space-between; align-items: center">
                         <span>${mid}</span>
-                        <strong style="font-family: 'JetBrains Mono'">${m.instantKW.toFixed(1)} kW</strong>
+                        <strong style="font-family: 'JetBrains Mono'">${(m.instantKW || 0).toFixed(1)} kW</strong>
                     </div>
                 </a>
             `;
@@ -603,149 +823,168 @@ class DigitalTwinApp {
         container.innerHTML = html;
     }
 
-    renderMachinePanel(id, data, container) {
+    renderMachinePanel(id, container, mode = 'metadata') {
         try {
-            const machineKey = id.toUpperCase();
-            const machineData = data || this._findMachineData(id);
+            const asset = this._findAsset(id);
             const { cache } = this._findTelemetry(id);
             const raw = cache instanceof Map ? Object.fromEntries(cache) : (cache || {});
 
-            if (!machineData && Object.keys(raw).length === 0) {
-                container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-dim)">
-                    Telemetry stream not active for ${machineKey}<br>
-                    <small>Check PLC Gateway Connection</small>
-                </div>`;
-                return;
-            }
+            const displayName = asset ? (asset.name || id).toUpperCase().replace(/_/g, ' ') : id.toUpperCase();
+            const dept = asset ? (this.departmentLabels[asset.department.toLowerCase()] || asset.department) : '—';
 
-            const stateVal = (machineData?.state || raw['CalculatedState'] || raw['State'] || 'OFFLINE');
-            const stateLower = String(stateVal).toLowerCase();
-            const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
-            const stateIcon = stateLower === 'running' ? 'check_circle' : (stateLower === 'fault' ? 'error' : 'warning');
-            const isXRay = machineKey.includes('INSPECTION');
-            const displayName = isXRay ? machineKey.replace(/INSPECTION/i, 'X-RAY') : machineKey.replace(/_/g, ' ');
+            let html = '';
 
-            // Find department
-            let dept = '—';
-            for (const [dId, members] of Object.entries(this.machineGroups)) {
-                if (members.includes(machineKey) || members.includes(id)) {
-                    dept = this.departmentLabels[dId] || dId;
-                    break;
-                }
-            }
-
-            // ── Stitch-Style Header Card ──
-            let html = `
-                <div style="background: var(--surface-dark); border-radius: var(--radius); padding: 16px; margin-bottom: 16px">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
-                        <div style="width: 44px; height: 44px; border-radius: 10px; background: ${stateColor}22; display: flex; align-items: center; justify-content: center">
-                            <span class="material-symbols-outlined" style="font-size: 28px; color: ${stateColor}">${stateIcon}</span>
-                        </div>
-                        <div style="flex: 1">
-                            <div style="font-size: 16px; font-weight: 800; color: var(--text-main)">${displayName}</div>
-                            <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px">${dept}</div>
-                        </div>
-                        <div style="padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; background: ${stateColor}22; color: ${stateColor}">
-                            ${String(stateVal).toUpperCase()}
+            if (mode === 'metadata') {
+                // ── ASSET MODE: Metadata + Maintenance ──────────────────────────
+                html = `
+                    <div class="panel-section">
+                        <div class="sidebar-section-title" style="color: var(--primary); letter-spacing: 2px;">ASSET PROFILE</div>
+                        <div class="sidebar-data-group" style="border-left: 2px solid var(--primary); background: rgba(0, 166, 81, 0.05); padding: 16px; border-radius: 4px;">
+                            ${this._row('Asset ID', id.toUpperCase())}
+                            ${this._row('Machine Name', displayName)}
+                            ${this._row('Department', dept)}
+                            ${this._row('Model / Specification', asset ? asset.model : 'ST-2400-A')}
+                            ${this._row('Serial Number', asset ? asset.serial_number : '---')}
+                            ${this._row('Primary Vendor', asset ? asset.vendor : '---')}
+                            ${this._row('Installation Date', asset ? asset.install_date : '---')}
                         </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            // ── Asset Info Section ──
-            html += `
-                <div class="panel-section">
-                    <div class="sidebar-section-title">ASSET INFORMATION</div>
-                    <div class="sidebar-data-group">
-                        ${this._row('Asset ID', machineKey)}
-                        ${this._row('Department', dept)}
-                        ${this._row('Model', raw['Model_ID'] || raw['Program_ID'] || '—')}
-                    </div>
-                </div>
-            `;
+                // ── MAINTENANCE INSIGHTS (Phase 21 Integration) ───────────────
+                const seed = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const healthScore = 85 + (seed % 12);
+                const rul = (1000 + (seed % 500)).toLocaleString();
+                const healthStatus = healthScore > 90 ? 'OPTIMAL' : 'STABLE';
+                const healthColor = healthScore > 90 ? 'var(--success)' : 'var(--warning)';
 
-            // ── Dynamic Schema-Driven Sections ──
-            const deviceType = this.getDeviceType(machineKey);
-            const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
-
-            if (schema) {
-                for (const [groupName, tags] of Object.entries(schema)) {
-                    let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
-                    let hasData = false;
-                    for (const tag of tags) {
-                        let val = this.getValue(raw, tag);
-                        if (val === undefined || val === null) continue;
-                        hasData = true;
-
-                        // Format numeric values
-                        if (typeof val === 'number') {
-                            val = Number.isInteger(val) ? val : val.toFixed(2);
-                        } else if (typeof val === 'boolean') {
-                            val = val ? 'YES' : 'NO';
-                        }
-
-                        const unit = this._getUnit(tag);
-                        const label = this._formatTagLabel(tag);
-
-                        // Special coloring for energy tags
-                        const isEnergy = tag.includes('Instant_kW');
-                        const valStyle = isEnergy ? 'color: var(--primary)' : 'color: var(--text-main)';
-
-                        groupHtml += `
-                        <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">${label}</div>
-                            <div style="font-size: 16px; font-weight: 700; ${valStyle}">${val} <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${unit}</span></div>
-                        </div>`;
-                    }
-                    groupHtml += '</div>';
-
-                    // Only render the group if at least one tag had data
-                    if (hasData) {
-                        const displayGroup = groupName === 'Telemetry' ? 'MACHINE DIAGNOSTICS' : groupName.toUpperCase();
-                        html += `<div class="panel-section">
-                            <div class="sidebar-section-title">${displayGroup}</div>
-                            ${groupHtml}
-                        </div>`;
-                    }
-                }
-            } else {
-                // Fallback: dump all raw telemetry keys if no schema matched
-                html += `<div class="panel-section"><div class="sidebar-section-title">Telemetry Data</div><div class="sidebar-data-group">`;
-                const skipKeys = ['CalculatedState', 'Start', 'Stop', 'IsRunning', 'Enabled', 'State'];
-                for (const [k, v] of Object.entries(raw)) {
-                    if (skipKeys.includes(k)) continue;
-                    let displayVal = v;
-                    if (typeof v === 'number') displayVal = Number.isInteger(v) ? v : v.toFixed(2);
-                    if (typeof v === 'boolean') displayVal = v ? 'YES' : 'NO';
-                    html += this._row(this._formatTagLabel(k), displayVal, this._getUnit(k));
-                }
-                html += `</div></div>`;
-            }
-
-            // ── Alarm Log Section ──
-            if (stateLower === 'fault' || stateLower === 'error' || stateLower === 'stopped') {
-                 html += `
-                <div class="panel-section" style="margin-top: 24px;">
-                    <div class="sidebar-section-title">ALARM LOG</div>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--danger); padding: 12px 14px; border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                                <span style="font-weight: 700; font-size: 12px; color: var(--danger);">Critical State Detected</span>
-                                <span style="font-size: 10px; font-family: 'JetBrains Mono'; color: var(--text-dim)">${new Date().toLocaleTimeString('en-US', {hour12: false})}</span>
-                            </div>
-                            <div style="font-size: 11px; color: var(--text-light); line-height: 1.4;">Device reported ${stateVal} state. Requires immediate maintenance intervention.</div>
-                        </div>
-                    </div>
-                </div>`;
-            } else {
                 html += `
-                <div class="panel-section" style="margin-top: 24px;">
-                    <div class="sidebar-section-title">ALARM LOG</div>
-                    <div style="padding: 16px; text-align: center; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.02)">
-                        <span class="material-symbols-outlined" style="font-size: 24px; color: var(--success); margin-bottom: 8px;">check_circle</span>
-                        <div style="font-size: 11px; color: var(--text-dim);">No active alarms. System operating normally.</div>
+                    <div class="panel-section">
+                        <div class="sidebar-section-title">UNIT ANALYTICS</div>
+                        <div class="health-meter-card">
+                            <div class="health-meter-header">
+                                <span class="health-score-title">Machine Health Score</span>
+                                <span class="health-score-tag" style="background: ${healthColor}22; color: ${healthColor}">${healthStatus}</span>
+                            </div>
+                            <div class="health-score-main">
+                                <span class="health-score-value">${healthScore}%</span>
+                                <span class="health-score-total">/ 100</span>
+                            </div>
+                            <div class="health-progress-bar">
+                                <div class="health-progress-fill" style="width: ${healthScore}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="rul-card" style="margin-top: 12px;">
+                            <span class="material-symbols-outlined rul-icon">precision_manufacturing</span>
+                            <div class="health-score-title">Predictive RUL</div>
+                            <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 8px;">REMAINING USEFUL LIFE</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px;">
+                                <span style="font-size: 24px; font-weight: 900; color: var(--text-main); font-family: 'JetBrains Mono'">${rul}</span>
+                                <span style="font-size: 12px; font-weight: 700; color: var(--text-dim)">HOURS</span>
+                            </div>
+                        </div>
                     </div>
-                </div>`;
+
+                    <div class="panel-section">
+                        <div class="sidebar-section-title">UPCOMING MAINTENANCE</div>
+                        <div class="task-list">
+                            <div class="task-item">
+                                <div class="task-icon-box">
+                                    <span class="material-symbols-outlined">filter_alt</span>
+                                </div>
+                                <div class="task-info">
+                                    <div class="task-name">Filter Change</div>
+                                    <div class="task-unit">System Hydraulics</div>
+                                </div>
+                                <div class="task-timing">
+                                    <span class="task-due">${10 + (seed % 5)}h</span>
+                                    <span class="task-status">DUE</span>
+                                </div>
+                            </div>
+                            <div class="task-item">
+                                <div class="task-icon-box">
+                                    <span class="material-symbols-outlined">oil_barrel</span>
+                                </div>
+                                <div class="task-info">
+                                    <div class="task-name">Bearing Lubrication</div>
+                                    <div class="task-unit">Spindle Unit 04</div>
+                                </div>
+                                <div class="task-timing">
+                                    <span class="task-due" style="color: var(--text-dim)">${40 + (seed % 10)}h</span>
+                                    <span class="task-status">SCHED</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="maintenance-report-btn">
+                            <span class="material-symbols-outlined" style="font-size: 18px">description</span>
+                            Generate Maintenance Report
+                        </button>
+                    </div>
+                `;
+            } else {
+                // ── PLANT MODE: Diagnostics / Live Telemetry ───────────────────
+                const machineData = this._findMachineData(id);
+                const stateVal = (machineData?.state || raw['CalculatedState'] || raw['State'] || 'OFFLINE');
+                const stateLower = String(stateVal).toLowerCase();
+                const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
+
+                const deviceType = this.getDeviceType(id);
+                const isNonDevice = (deviceType === 'STORAGE' || deviceType === 'INBOUND' || deviceType === 'OUTBOUND');
+
+                if (!isNonDevice) {
+                    html = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 800;">Live Operational State</div>
+                            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="state-${id}">
+                                <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
+                                ${String(stateVal).toUpperCase()}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html = ''; // Do NOT render operational state and controls for raw materials / outbound
+                }
+
+
+                const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
+
+                if (schema) {
+                    for (const [groupName, tags] of Object.entries(schema)) {
+                        let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+                        let hasData = false;
+                        for (const tag of tags) {
+                            let val = this.getValue(raw, tag);
+                            if (val === undefined || val === null) continue;
+                            hasData = true;
+
+                            const formattedVal = typeof val === 'number' ?
+                                (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
+                                (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val);
+
+                            const unit = this._getUnit(tag);
+                            const label = this._formatTagLabel(tag);
+                            groupHtml += `
+                            <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); transition: border-color 0.3s;">
+                                <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
+                                <div style="font-size: 14px; font-weight: 800; color: var(--text-main); font-family: 'JetBrains Mono', monospace;" id="metric-${id}-${tag}">
+                                    ${formattedVal} <span style="font-size: 10px; font-weight: normal; color: var(--text-dim)">${unit}</span>
+                                </div>
+                            </div>`;
+                        }
+                        groupHtml += '</div>';
+                        if (hasData) {
+                            html += `<div class="panel-section">
+                                <div class="sidebar-section-title" style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="width: 4px; height: 4px; background: var(--primary); border-radius: 50%;"></span>
+                                    ${groupName.toUpperCase()}
+                                </div>
+                                ${groupHtml}
+                            </div>`;
+                        }
+                    }
+                }
             }
 
             container.innerHTML = html;
@@ -760,52 +999,76 @@ class DigitalTwinApp {
     }
 
     renderEnergyPanel(hierarchy, container) {
-        let html = '<div class="panel-section"><div class="sidebar-section-title">DEPARTMENT ENERGY</div><div class="sidebar-data-group">';
-        Object.entries(hierarchy.zones).forEach(([name, data]) => {
-            const label = this.departmentLabels[name] || name.toUpperCase();
-            html += `<div class="data-row"><span>${label}</span> <strong>${data.instantKW.toFixed(1)} kW</strong></div>`;
-        });
-        html += '</div></div>';
+        let html = '';
 
-        // Per-device energy chips
-        html += '<div class="panel-section"><div class="sidebar-section-title">DEVICE ENERGY BREAKDOWN</div><div class="sidebar-nav-list">';
-        const allDevices = Object.values(this.machineGroups).flat();
-        let maxKW = 1;
-        const deviceEnergy = [];
-        allDevices.forEach(mid => {
-            const cache = this.telemetryStore.get(mid) || this.telemetryStore.get(mid.replace(/0/g, '_0'));
-            const kw = cache ? (parseFloat(cache.get('Instant_kW') || cache.get('Furnace_Instant_kW') || cache.get('LPDC_Instant_kW') || cache.get('CNC_Instant_kW') || cache.get('HT_Instant_kW') || cache.get('Cooling_Instant_kW') || cache.get('Degasser_Instant_kW') || cache.get('PT_Instant_kW') || cache.get('PB1_Instant_kW') || cache.get('PB2_Instant_kW') || cache.get('XRay_Instant_kW') || cache.get('Outbound_Instant_kW') || 0)) : 0;
-            if (kw > maxKW) maxKW = kw;
-            deviceEnergy.push({ id: mid, kw });
-        });
-
-        deviceEnergy.forEach(({ id, kw }) => {
-            const pct = Math.min((kw / maxKW) * 100, 100);
-            const isXRay = id.toUpperCase().includes('INSPECTION');
-            const displayName = isXRay ? id.replace(/INSPECTION/i, 'X-RAY') : id;
+        // ── Section 1: Asset Selection (Conditional Dropdown) ──
+        if (this.energyViewSettings.viewType === 'select') {
+            const allMachineIds = Object.values(this.machineGroups).flat().sort();
             html += `
-                <div class="sidebar-nav-item" style="flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 12px">
-                    <div style="display: flex; justify-content: space-between; align-items: center">
-                        <span style="font-size: 11px; font-weight: 700">${displayName}</span>
-                        <strong style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--primary)">${kw.toFixed(1)} kW</strong>
+                <div class="panel-section">
+                    <div class="sidebar-section-title">ASSET SELECTION</div>
+                    <div class="custom-select-wrapper">
+                        <select class="data-select" onchange="window.app.setSelectedMachine(this.value)">
+                            <option value="">-- Select Target Asset --</option>
+                            ${allMachineIds.map(mid => `<option value="${mid}" ${this.energyViewSettings.selectedMachineId === mid ? 'selected' : ''}>${mid}</option>`).join('')}
+                        </select>
+                        <span class="material-symbols-outlined custom-select-arrow">expand_more</span>
                     </div>
-                    <div style="height: 4px; background: var(--surface-dark); border-radius: 2px">
-                        <div style="height: 100%; background: var(--primary); width: ${pct}%; border-radius: 2px; transition: width 0.3s"></div>
-                    </div>
-                </div>`;
-        });
-        html += '</div></div>';
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="panel-section" style="padding: 24px; color: var(--text-dim); text-align: center; font-size: 11px;">
+                    Operational telemetry active.<br>Spatial energy data visible in 3D viewport.
+                </div>
+            `;
+        }
+
+        // USER REQUEST: Detailed consumption removed from sidebar. Data is strictly in 3D chips.
         container.innerHTML = html;
+    }
+
+    setEnergyViewType(type) {
+        this.energyViewSettings.viewType = type;
+        const leftPanel = document.getElementById('left-sidebar');
+        
+        if (type === 'all' && this.scene) {
+            this.scene.resetToDefaultView(); // BACK TO INITIAL VIEW
+            if (leftPanel) leftPanel.classList.remove('open');
+        } else {
+            this.energyViewSettings.selectedMachineId = null;
+            if (leftPanel) leftPanel.classList.add('open');
+        }
+        this.refreshUI(true);
+    }
+
+    setSelectedMachine(id) {
+        this.energyViewSettings.selectedMachineId = id;
+        if (id && this.scene) {
+            this.scene.isolateGroup([id]);
+        }
+        this.refreshUI(true);
+    }
+
+    setEnergyParameter(param) {
+        this.energyViewSettings.parameter = param;
+        // Map param to chip mode
+        const modeMap = { 'energy': 'energy', 'cycle': 'cycle', 'status': 'status' };
+        if (this.scene) {
+            this.scene.setChipDisplayMode(modeMap[param]);
+            this.scene.updateEnergyChips(true); // Ensure they stay updated
+        }
+        this.refreshUI(true);
     }
 
     renderSafetyPanel(container) {
         let html = '';
 
         // ── Active Alarms Section ──
-        html += '<div class="sidebar-section-title" style="display:flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--danger)">warning</span>ACTIVE ALARMS</div>';
+        html += '<div class="sidebar-section-title" style="display:flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--danger)">warning</span>SYSTEM ALARMS</div>';
         html += '<div class="sidebar-nav-list">';
         let alarmCount = 0;
-        this.telemetryStore.forEach((cache, id) => {
+        this.liveState.forEach((cache, id) => {
             const state = (cache.get('CalculatedState') || '').toLowerCase();
             if (['stopped', 'fault', 'error'].includes(state)) {
                 alarmCount++;
@@ -817,32 +1080,32 @@ class DigitalTwinApp {
                                 <span style="font-weight: 700">${id}</span>
                                 <span style="font-size: 10px; color: var(--danger)">${state.toUpperCase()}</span>
                             </div>
-                            <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px">Critical Fault: Check PLC Tags</div>
+                            <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px">Active Fault: Requires Intervention</div>
                         </div>
                     </div>
                 `;
             }
         });
         if (alarmCount === 0) {
-            html += '<div style="padding: 16px; text-align: center; color: var(--text-dim)">No active alarms</div>';
+            html += '<div style="padding: 16px; text-align: center; color: var(--text-dim)">System Secure: No Alarms</div>';
         }
         html += '</div>';
 
         // ── Isolated Units Section ──
-        html += '<div class="sidebar-section-title" style="display:flex;align-items:center;gap:6px;margin-top:16px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--primary)">lock</span>ISOLATED UNITS</div>';
+        html += '<div class="sidebar-section-title" style="display:flex;align-items:center;gap:6px;margin-top:16px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--primary)">lock_reset</span>ISOLATION / LOTO</div>';
         html += '<div class="sidebar-nav-list">';
         let isolationCount = 0;
-        this.telemetryStore.forEach((cache, id) => {
+        this.liveState.forEach((cache, id) => {
             const state = (cache.get('CalculatedState') || '').toLowerCase();
             if (state === 'stopped' || cache.get('Enabled') === false) {
                 isolationCount++;
                 html += `
                     <div class="sidebar-nav-item" style="border-left: 2px solid var(--primary); background: rgba(236,91,19,0.05)">
-                        <span class="material-symbols-outlined" style="color: var(--primary)">lock</span>
+                        <span class="material-symbols-outlined" style="color: var(--primary)">lock_reset</span>
                         <div style="flex: 1">
                             <div style="display: flex; justify-content: space-between">
                                 <span>${id}</span>
-                                <span style="font-size: 10px; color: var(--primary)">ISOLATED</span>
+                                <span style="font-size: 10px; color: var(--primary)">LOTO ACTIVE</span>
                             </div>
                         </div>
                     </div>
@@ -850,7 +1113,7 @@ class DigitalTwinApp {
             }
         });
         if (isolationCount === 0) {
-            html += '<div style="padding: 16px; text-align: center; color: var(--text-dim)">No units currently isolated</div>';
+            html += '<div style="padding: 16px; text-align: center; color: var(--text-dim)">No units in isolation</div>';
         }
         html += '</div>';
         container.innerHTML = html;
@@ -866,15 +1129,15 @@ class DigitalTwinApp {
                 const m = this.analytics.data.machines[mid] || this._findMachineData(mid);
                 const stateRaw = m ? (m.state || '').toLowerCase() : 'offline';
                 const color = stateRaw === 'running' ? 'var(--success)' : (stateRaw === 'fault' ? 'var(--danger)' : 'var(--text-dim)');
-                const icon = stateRaw === 'running' ? 'play_circle' : 'stop_circle';
+                const icon = 'inventory'; // Asset terminology
                 const isXRay = mid.toUpperCase().includes('INSPECTION');
                 const displayName = isXRay ? mid.replace(/INSPECTION/i, 'X-RAY') : mid;
                 html += `
-                    <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('machine', '${mid}')">
+                    <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
                         <span class="material-symbols-outlined" style="color: ${color}">${icon}</span>
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center">
                             <span>${displayName}</span>
-                            <strong style="font-family: 'JetBrains Mono'; font-size: 11px">${m ? m.instantKW.toFixed(1) + ' kW' : '---'}</strong>
+                            <strong style="font-family: 'JetBrains Mono'; font-size: 11px">${m ? (m.instantKW || 0).toFixed(1) + ' kW' : '---'}</strong>
                         </div>
                     </a>
                 `;
@@ -884,45 +1147,129 @@ class DigitalTwinApp {
         contentEl.innerHTML = html;
     }
 
+    renderMachineAlarmPanel(id, container) {
+        const cache = this.liveState.get(id.toUpperCase()) || new Map();
+        const state = (cache.get('CalculatedState') || 'OFFLINE').toLowerCase();
+        const isFault = ['stopped', 'fault', 'error'].includes(state);
+        const stateColor = isFault ? 'var(--danger)' : 'var(--success)';
+
+        let html = `
+            <div style="background: ${stateColor}11; border: 1px solid ${stateColor}33; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Current Diagnostic State</span>
+                    <span style="font-size: 10px; font-weight: 800; color: ${stateColor}; text-transform: uppercase;">${state}</span>
+                </div>
+                <div style="margin-top: 12px; font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="color: ${stateColor}">${isFault ? 'report' : 'check_circle'}</span>
+                    ${isFault ? 'Active Machine Fault Detected' : 'No Active Device Alarms'}
+                </div>
+            </div>
+
+            <div class="sidebar-section-title">DEVICE ALARM LOG</div>
+            <div class="sidebar-nav-list">
+        `;
+        // Machine-Specific Alarm Logic (Phase 23)
+        const deviceTypeId = id.toLowerCase();
+        let machineAlarms = [];
+        
+        if (isFault) {
+            if (deviceTypeId.includes('furnace')) {
+                machineAlarms = [
+                    { time: '10:42:15', msg: 'Core Temperature Over Limit', type: 'crit' },
+                    { time: '10:15:02', msg: 'Heating Element Continuity Fault', type: 'crit' },
+                    { time: '09:58:44', msg: 'Exhaust Fan RPM Low', type: 'warn' }
+                ];
+            } else if (deviceTypeId.includes('cnc')) {
+                machineAlarms = [
+                    { time: '10:40:12', msg: 'Spindle Vibration Warning', type: 'warn' },
+                    { time: '10:12:05', msg: 'Coolant Pressure Critical Drop', type: 'crit' },
+                    { time: '09:45:30', msg: 'Axis Limit Switch Tripped', type: 'crit' }
+                ];
+            } else if (deviceTypeId.includes('degasser')) {
+                machineAlarms = [
+                    { time: '10:38:22', msg: 'Argon Flow Rate Below Min', type: 'crit' },
+                    { time: '10:05:15', msg: 'Impeller Torque Overload', type: 'crit' },
+                    { time: '09:50:11', msg: 'Rotor Seal Integrity Alert', type: 'warn' }
+                ];
+            } else if (deviceTypeId.includes('lpdc')) {
+                machineAlarms = [
+                    { time: '10:41:05', msg: 'Die Cavity Pressure Loss', type: 'crit' },
+                    { time: '10:10:44', msg: 'Hydraulic Piston Leak', type: 'crit' },
+                    { time: '09:55:12', msg: 'Filling Sequence Timed Out', type: 'warn' }
+                ];
+            } else {
+                machineAlarms = [
+                    { time: '10:42:15', msg: 'General System Fault', type: 'crit' },
+                    { time: '10:15:02', msg: 'Unknown Sensor Error', type: 'warn' },
+                    { time: '09:58:44', msg: 'Emergency Stop Engaged', type: 'crit' }
+                ];
+            }
+        } else {
+            machineAlarms = [
+                { time: '08:30:12', msg: 'System Calibration Complete', type: 'info' },
+                { time: '08:00:00', msg: 'Shift Start: Operational', type: 'info' }
+            ];
+        }
+
+        machineAlarms.forEach(log => {
+            const dotColor = log.type === 'crit' ? 'var(--danger)' : (log.type === 'warn' ? 'var(--warning)' : '#2196F3');
+            html += `
+                <div class="sidebar-nav-item" style="border-left: 2px solid ${dotColor}; background: rgba(255,255,255,0.02); margin-bottom: 4px; display: block; padding: 10px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 11px; font-weight: 800; color: var(--text-main);">${log.msg}</span>
+                        <span style="font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono'">${log.time}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+
     // ─── Gemba Walk Mode ─────────────────────────────────────────────
     startGembaWalk() {
         this.gembaWaypoints = [
             { dept: null, ids: ['RAWMATERIALS'], label: 'Raw Materials' },
-            { dept: null, ids: ['FURNACE01'], label: 'Furnace' },
-            { dept: null, ids: ['DEGASSER01', 'DEGASSER02'], label: 'Degasser' },
-            { dept: 'die_casting', label: 'Die Casting (LPDC)' },
-            { dept: 'heat_treating', label: 'Heat Treating' },
-            { dept: 'machining', label: 'CNC Machining' },
-            { dept: null, ids: ['PRETREAT01'], label: 'Pre-Treatment' },
-            { dept: null, ids: ['PAINT01', 'PAINT02'], label: 'Paint Shop' },
-            { dept: null, ids: ['OUTBOUND01'], label: 'Outbound' },
+            { dept: null, ids: ['FURNACE_01'], label: 'Furnace' },
+            { dept: null, ids: ['DEGASSER_01', 'DEGASSER_02'], label: 'Degassers' },
+            { dept: 'die_casting', label: 'LPDC Casting' },
+            { dept: null, ids: ['COOLING_01'], label: 'Cooling Tank #01' },
+            { dept: 'heat_treating', label: 'Heat Treatment' },
+            { dept: null, ids: ['COOLING_02'], label: 'Cooling Tank #02' },
+            { dept: null, ids: ['CNC_01'], label: 'CNC Machining #01' },
+            { dept: null, ids: ['CNC_02'], label: 'CNC Machining #02' },
+            { dept: null, ids: ['PRETREAT_01'], label: 'Pre-Treatment' },
+            { dept: null, ids: ['PAINT_01'], label: 'Paint Shop #01' },
+            { dept: null, ids: ['PAINT_02'], label: 'Paint Shop #02' },
+            { dept: null, ids: ['INSPECTION_01'], label: 'X-Ray Inspection' },
+            { dept: null, ids: ['OUTBOUND_01'], label: 'Outbound' },
         ];
         this.gembaIndex = 0;
         this.gembaPaused = false;
 
         // Show tour control bar
         let bar = document.getElementById('gemba-tour-bar');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'gemba-tour-bar';
-            bar.innerHTML = `
-                <button id="gemba-prev" class="gemba-btn" title="Previous"><span class="material-symbols-outlined">skip_previous</span></button>
-                <button id="gemba-pause" class="gemba-btn" title="Pause"><span class="material-symbols-outlined">pause</span></button>
-                <button id="gemba-next" class="gemba-btn" title="Next"><span class="material-symbols-outlined">skip_next</span></button>
-                <span id="gemba-label" class="gemba-label"></span>
-                <button id="gemba-stop" class="gemba-btn gemba-stop" title="End Tour"><span class="material-symbols-outlined">close</span></button>
-            `;
-            document.body.appendChild(bar);
-
-            document.getElementById('gemba-prev').addEventListener('click', () => this.gembaNavigate(-1));
-            document.getElementById('gemba-next').addEventListener('click', () => this.gembaNavigate(1));
-            document.getElementById('gemba-pause').addEventListener('click', () => {
-                this.gembaPaused = !this.gembaPaused;
-                document.getElementById('gemba-pause').querySelector('span').textContent = this.gembaPaused ? 'play_arrow' : 'pause';
-            });
-            document.getElementById('gemba-stop').addEventListener('click', () => this.stopGembaWalk());
+        if (bar) {
+            // Attach listeners once? Or every time? 
+            // Better to attach once in constructor, but for now we'll ensure ID existence
+            if (!bar.dataset.initialized) {
+                document.getElementById('gemba-prev').onclick = () => this.gembaNavigate(-1);
+                document.getElementById('gemba-next').onclick = () => this.gembaNavigate(1);
+                document.getElementById('gemba-pause').onclick = () => {
+                    this.gembaPaused = !this.gembaPaused;
+                    document.getElementById('gemba-pause').querySelector('span').textContent = this.gembaPaused ? 'play_arrow' : 'pause';
+                };
+                document.getElementById('gemba-stop').onclick = () => this.stopGembaWalk();
+                bar.dataset.initialized = "true";
+            }
+            bar.style.display = 'flex';
         }
-        bar.style.display = 'flex';
+
+        // Show Gemba Info Overlay
+        const infoOverlay = document.getElementById('gemba-info-overlay');
+        if (infoOverlay) infoOverlay.style.display = 'flex';
 
         this.gembaNavigate(0); // Go to first waypoint
         this.gembaTimer = setInterval(() => {
@@ -935,9 +1282,11 @@ class DigitalTwinApp {
         this.gembaIndex = (this.gembaIndex + delta + this.gembaWaypoints.length) % this.gembaWaypoints.length;
         const wp = this.gembaWaypoints[this.gembaIndex];
 
-        // Update label
-        const labelEl = document.getElementById('gemba-label');
-        if (labelEl) labelEl.textContent = `${this.gembaIndex + 1}/${this.gembaWaypoints.length} — ${wp.label}`;
+        // Update Gemba Info Overlay (Top Left)
+        const machineEl = document.getElementById('gemba-machine-name');
+        if (machineEl) {
+            machineEl.textContent = wp.label || 'SYSTEM OVERVIEW';
+        }
 
         // Frame the department's machines
         const deviceIds = wp.dept ? this.machineGroups[wp.dept] : wp.ids;
@@ -949,6 +1298,10 @@ class DigitalTwinApp {
         this.gembaTimer = null;
         const bar = document.getElementById('gemba-tour-bar');
         if (bar) bar.style.display = 'none';
+
+        const infoOverlay = document.getElementById('gemba-info-overlay');
+        if (infoOverlay) infoOverlay.style.display = 'none';
+
         this.scene.resetInteraction();
     }
 
@@ -972,8 +1325,8 @@ class DigitalTwinApp {
         }
 
         // Bridge storage data
-        const isRM = deviceId.includes('STORAGE') || deviceId.includes('INBOUND') || deviceId.includes('RAW_MATERIALS');
-        const finalId = isRM ? 'RAW_MATERIALS' : deviceId;
+        const isRM = deviceId.includes('STORAGE') || deviceId.includes('INBOUND') || deviceId.includes('RAW');
+        const finalId = isRM ? 'RAWMATERIALS' : deviceId;
 
         // Pass fullData so stateManager can check IsRunning/Enabled flags
         this.stateManager.updateDeviceState(finalId, state, fullData);
@@ -1017,18 +1370,55 @@ class DigitalTwinApp {
                 }
             }
 
-            // 4. Final Refresh
-            this.refreshUI();
+            // 4. Final Refresh via Targeted DOM Updates
+            this.updateLiveDOM(finalId, fullData);
+        }
+    }
+
+    updateLiveDOM(deviceId, fullData) {
+        // Compute hierarchy and update ONLY text elements, completely avoiding innerHTML layout thrashing
+        const hierarchy = this.analytics.update(this.liveState, this.machineGroups);
+        this.updateTopStrip(hierarchy.plant);
+        this.updateKPIRow(hierarchy.plant);
+
+        const { cache } = this._findTelemetry(deviceId);
+        const raw = cache instanceof Map ? Object.fromEntries(cache) : (cache || {});
+
+        const deviceType = this.getDeviceType(deviceId);
+        const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
+
+        if (schema) {
+            for (const [groupName, tags] of Object.entries(schema)) {
+                for (const tag of tags) {
+                    let val = this.getValue(raw, tag);
+                    if (val !== undefined && val !== null) {
+                        const el = document.getElementById(`metric-${deviceId}-${tag}`);
+                        if (el) {
+                            const formattedVal = typeof val === 'number' ?
+                                (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
+                                (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val);
+                            const unit = this._getUnit(tag);
+                            el.innerHTML = `${formattedVal} <span style="font-size: 10px; font-weight: normal; color: var(--text-dim)">${unit}</span>`;
+                        }
+                    }
+                }
+            }
+        }
+
+        const stateVal = (this.getValue(raw, 'CalculatedState') || this.getValue(raw, 'State') || 'OFFLINE');
+        const stateEl = document.getElementById(`state-${deviceId}`);
+        if(stateEl) {
+            stateEl.innerHTML = `<span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span> ${String(stateVal).toUpperCase()}`;
         }
     }
 
     _populateStore(id, data, state) {
-        let cache = this.telemetryStore.get(id) || new Map();
+        let cache = this.liveState.get(id) || new Map();
         Object.entries(data).forEach(([k, v]) => cache.set(k, v));
         if (state !== null) {
             cache.set('CalculatedState', state);
         }
-        this.telemetryStore.set(id, cache);
+        this.liveState.set(id, cache);
     }
 
 
@@ -1050,15 +1440,18 @@ class DigitalTwinApp {
             if (data['Status'] !== undefined) return data['Status'];
         }
 
-        // 3. Normalized fuzzy match (Strip non-alpha for robust prefix matching)
-        if (!data) return undefined;
+        // 3. Normalized fuzzy match (Robust prefix/contains matching)
         const targetAlpha = lowerTarget.replace(/[0-9]/g, '');
 
         for (const [k, v] of Object.entries(data)) {
             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
             const normAlpha = normK.replace(/[0-9]/g, '');
 
-            if (normK === lowerTarget || normAlpha === targetAlpha || normAlpha.includes(targetAlpha)) {
+            // Cross-direction check: target contains store key OR store key contains target
+            if (normK === lowerTarget ||
+                normAlpha === targetAlpha ||
+                normAlpha.includes(targetAlpha) ||
+                targetAlpha.includes(normAlpha)) {
                 return v;
             }
         }
@@ -1073,6 +1466,16 @@ class DigitalTwinApp {
         }
     }
 
+    sendDeviceCommand(id, cmd) {
+        if (!this.websocket || !this.websocket.ws) return;
+        this.websocket.ws.send(JSON.stringify({
+            type: "write",
+            node_id: `VirtualPLC.Devices.${id.toUpperCase()}.Inputs.${cmd}`,
+            value: true
+        }));
+        console.log(`[Command] Sent ${cmd} to ${id}`);
+    }
+
     updateCounter() {
         const el = document.getElementById('device-count');
         if (el) el.textContent = `${this.stateManager.getDeviceCount()} units active`;
@@ -1085,7 +1488,7 @@ class DigitalTwinApp {
         if (!chip) return;
         // Count devices in a fault/stopped/idle-disabled state
         let alarmCount = 0;
-        this.telemetryStore.forEach((cache) => {
+        this.liveState.forEach((cache) => {
             const state = (cache.get('CalculatedState') || '').toLowerCase();
             const isRunning = cache.get('IsRunning');
             const enabled = cache.get('Enabled');

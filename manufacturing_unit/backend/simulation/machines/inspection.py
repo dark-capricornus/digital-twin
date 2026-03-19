@@ -1,6 +1,9 @@
 from typing import Dict, Any, List
 import random
-from .base_machine import BaseMachine, MachineState
+try:
+    from .base_machine import BaseMachine, MachineState
+except ImportError:
+    from simulation.machines.base_machine import BaseMachine, MachineState
 
 class InspectionMachine(BaseMachine):
     """
@@ -77,7 +80,7 @@ class InspectionMachine(BaseMachine):
             f"{self.id}.ok_count": self.processed_count - self.reject_count,
             f"{self.id}.ng_count": self.reject_count,
             f"{self.id}.inspection_cycle_time": self.cycle_time,
-            f"{self.id}.progress": round(self.progress, 2),
+            f"{self.id}.progress": float(int(float(self.progress) * 100) / 100.0),
         }
 
     def _calculate_power(self) -> float:

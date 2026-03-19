@@ -16,9 +16,14 @@ class SceneManager {
 
         this.meshRegistry = new Map(); // Used only for raycasting
         this.nodeRegistry = new Map(); // Used for device lookup (Groups + Meshes)
+        this.normNodeRegistry = new Map(); // [PERF] Pre-calculated normalized names
         this.labelRegistry = new Map();
         this.warningMeshes = new Map(); // Map of deviceId -> warning mesh instance
         this.hoveredDeviceId = null;
+        this.hoverTimeout = null;
+        this.pendingHoverId = null;
+        this.hitGroup = null;
+        this.hitBoxMeshes = [];
 
         // Manual mapping overrides for known discrepancies where fuzzy search fails
         this.manualMap = {
@@ -62,14 +67,15 @@ class SceneManager {
             'rawmaterials': 'storage_01001',
             'outbound_01': 'outbound_01',
             'outbound01': 'outbound_01',
+            'outbound_02': null, // Explicitly exclude to prevent deep scan spam
+            'outbound02': null,
             'pretreat_01': 'pretreat_01',
             'pretreat01': 'pretreat_01',
-            'pack_01': 'vertical_convey_01', // Fallback to nearest convey
-            'pack01': 'vertical_convey_01',
         };
 
         this.overlayLayouts = new Map();
         this.persistentValues = new Map();
+        this.chipDisplayMode = 'none'; // 'none', 'energy', 'cycle', etc.
 
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
@@ -78,16 +84,150 @@ class SceneManager {
         this.setupInteraction();
     }
 
+    setChipDisplayMode(mode) {
+        this.chipDisplayMode = mode;
+        
+        // Force immediate redraw of all labels using latest cached data
+        this.labelRegistry.forEach((obj, id) => {
+            const data = this.persistentValues.get(id);
+            if (data && obj.element) {
+                this.updateDeviceLabel(id, data);
+            }
+        });
+    }
+
+    /**
+     * Manually set camera position based on angles and distance
+     * @param {number} thetaDeg - Horizontal Angle (Azimuth) in degrees
+     * @param {number} phiDeg - Vertical Angle (Polar) in degrees
+     * @param {number} distance - Zoom Level (Distance)
+     */
+    computeOrthoFrustum(viewSize, canvasWidth, canvasHeight) {
+        const aspect = canvasWidth / canvasHeight;
+        return {
+            left: -aspect * viewSize / 2,
+            right: aspect * viewSize / 2,
+            top: viewSize / 2,
+            bottom: -viewSize / 2
+        };
+    }
+
+    updateFrustum() {
+        if (!this.camera || !this.renderer) return;
+        const canvas = this.renderer.domElement;
+        const frustum = this.computeOrthoFrustum(this.viewSize, canvas.clientWidth, canvas.clientHeight);
+        
+        this.camera.left = frustum.left;
+        this.camera.right = frustum.right;
+        this.camera.top = frustum.top;
+        this.camera.bottom = frustum.bottom;
+        
+        this.camera.updateProjectionMatrix();
+    }
+
+    identifyCameraParameters() {
+        if (!this.camera || !this.controls) return null;
+        
+        const position = this.camera.position;
+        const target = this.controls.target;
+        
+        const offset = new THREE.Vector3().subVectors(position, target);
+        const distance = offset.length();
+        
+        // Prevent division by zero or NaN propagation
+        if (distance < 0.0001 || isNaN(distance)) {
+            return {
+                hAngle: 0,
+                vAngle: 0,
+                distance: isNaN(distance) ? 0 : distance,
+                zoom: isNaN(this.camera.zoom) ? 1 : this.camera.zoom
+            };
+        }
+        
+        // Calculate Angles
+        // Azimuthal (Horizontal) - Angle in XZ plane
+        const hRad = Math.atan2(offset.x, offset.z);
+        let hAngle = THREE.MathUtils.radToDeg(hRad);
+        if (isNaN(hAngle)) hAngle = 0;
+        
+        // Polar (Vertical) - Angle from XZ plane towards Y axis
+        // Use clamping to prevent NaN from floating point precision errors
+        const verticalRatio = Math.max(-1, Math.min(1, offset.y / distance));
+        const vRad = Math.asin(verticalRatio);
+        let vAngle = THREE.MathUtils.radToDeg(vRad);
+        if (isNaN(vAngle)) vAngle = 0;
+        
+        return {
+            hAngle: parseFloat(hAngle.toFixed(1)),
+            vAngle: parseFloat(vAngle.toFixed(1)),
+            distance: parseFloat(distance.toFixed(1)),
+            zoom: parseFloat(this.camera.zoom.toFixed(2))
+        };
+    }
+
+    getCameraConfig() {
+        if (!this.camera || !this.controls) return null;
+        const params = this.identifyCameraParameters();
+        return {
+            position: { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z },
+            zoom: this.camera.zoom,
+            angles: {
+                horizontalAngle: params ? params.hAngle : 0,
+                verticalAngle: params ? params.vAngle : 0
+            },
+            frustum: {
+                left: this.camera.left,
+                right: this.camera.right,
+                top: this.camera.top,
+                bottom: this.camera.bottom
+            },
+            near: this.camera.near,
+            far: this.camera.far
+        };
+    }
+
+    setCameraView(position, target, zoom = 1) {
+        if (!this.controls || !this.camera) return;
+
+        this.camera.position.copy(position);
+        this.controls.target.copy(target);
+        this.camera.zoom = zoom;
+        
+        this.camera.updateProjectionMatrix();
+        this.controls.update();
+
+        console.log('[Scene] Camera Config:', this.getCameraConfig());
+    }
+
     init() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0d1117);
 
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 50000);
-        // Default overview: elevated front-left isometric (matches user's factory overview photo)
-        this.defaultCameraPos = new THREE.Vector3(35, 55, 50);
-        this.defaultTarget = new THREE.Vector3(5, 0, -2);
-        this.camera.position.copy(this.defaultCameraPos);
+        this.viewSize = 40;
+        const aspect = window.innerWidth / window.innerHeight;
+        this.camera = new THREE.OrthographicCamera(
+            -aspect * this.viewSize / 2,
+             aspect * this.viewSize / 2,
+             this.viewSize / 2,
+            -this.viewSize / 2,
+            0.1,
+            10000
+        );
 
+        // Screen-Matched Industrial Pseudo-Isometric View (from User Screenshot)
+        this.defaultTarget = new THREE.Vector3(-6.84, -4.58, 10.27);
+        // Derived from H:45, V:27.9, Dist:1280.6
+        this.defaultPosition = new THREE.Vector3(793.43, 594.61, 810.54); 
+        this.defaultZoom = 1.13;
+
+        // Force strictly vertical orientation to fix "bending" artifact
+        this.camera.up.set(0, 1, 0); 
+        this.camera.position.copy(this.defaultPosition);
+        this.camera.lookAt(this.defaultTarget);
+        this.camera.zoom = this.defaultZoom;
+        this.camera.updateProjectionMatrix();
+
+        // Use standard depth buffer for Orthographic stability
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -99,38 +239,149 @@ class SceneManager {
         this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
         this.labelRenderer.domElement.style.position = 'absolute';
         this.labelRenderer.domElement.style.top = '0px';
-        this.labelRenderer.domElement.style.pointerEvents = 'none'; // CRITICAL: Renderer layer must not block WebGL
+        this.labelRenderer.domElement.style.pointerEvents = 'none';
         this.container.appendChild(this.labelRenderer.domElement);
-        console.log('[Scene] CSS2DRenderer initialized and attached.');
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.target.copy(this.defaultTarget);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.zoomSpeed = 0.8;
-        this.controls.minDistance = 5;   // Max zoom in
-        this.controls.maxDistance = 120; // Max zoom out
+        this.controls.zoomSpeed = 1.2;
+        this.controls.minZoom = 0.01;
+        this.controls.maxZoom = 100;
+        this.controls.update();
 
-        // HDRI & Natural Metallic Reflections (SSR-like glossiness)
+        // HDRI & Lights
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
         this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
         dirLight.position.set(20, 40, 20);
         dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 200;
-        dirLight.shadow.camera.left = -60;
-        dirLight.shadow.camera.right = 60;
-        dirLight.shadow.camera.top = 60;
-        dirLight.shadow.camera.bottom = -60;
-        dirLight.shadow.bias = -0.001;
         this.scene.add(dirLight);
 
         window.addEventListener('resize', () => this.onWindowResize());
+        this._setupCoordinateTracker();
     }
+
+    _setupCoordinateTracker() {
+        // 1. Coordinate Tracker (Bottom Right)
+        this.coordsOverlay = document.createElement('div');
+        this.coordsOverlay.id = 'scene-coords-overlay';
+        this.coordsOverlay.style.cssText = `
+            position: absolute;
+            bottom: 85px;
+            right: 20px;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(19, 146, 236, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            display: none; 
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+        `;
+        this.container.appendChild(this.coordsOverlay);
+
+        // 2. Energy Toggle Overlay (Bottom Center)
+        this.energyControlsOverlay = document.createElement('div');
+        this.energyControlsOverlay.id = 'energy-controls-overlay';
+        this.energyControlsOverlay.style.cssText = `
+            position: absolute;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(236, 91, 19, 0.4);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: white;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            width: auto;
+            min-width: 280px;
+        `;
+        
+        // Initialize static structure once
+        this.energyControlsOverlay.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <span id="energy-toggle-label-select" style="font-size: 10px; font-weight: 800; white-space: nowrap;">SINGLE ASSET MODE</span>
+                <label class="switch-box" style="margin: 0; flex-shrink: 0;">
+                    <input type="checkbox" id="energy-view-toggle-input">
+                    <span class="slider-round"></span>
+                </label>
+            </div>
+        `;
+
+        this.container.appendChild(this.energyControlsOverlay);
+
+        // Wire event
+        const toggleInput = this.energyControlsOverlay.querySelector('#energy-view-toggle-input');
+        if (toggleInput) {
+            toggleInput.addEventListener('change', (e) => {
+                if (window.app) {
+                    window.app.setEnergyViewType(e.target.checked ? 'select' : 'all');
+                }
+            });
+        }
+    }
+
+    _updateCoordinateTracker() {
+        if (!this.coordsOverlay || !this.energyControlsOverlay || !this.controls || !this.camera) return;
+        
+        // Visibility control: Only in energy_analytics mode
+        const isEnergyMode = window.app && window.app.activeContext && window.app.activeContext.type === 'energy_analytics';
+        this.coordsOverlay.style.display = isEnergyMode ? 'block' : 'none';
+        this.energyControlsOverlay.style.display = isEnergyMode ? 'flex' : 'none';
+        
+        if (!isEnergyMode) return;
+
+        const params = this.identifyCameraParameters();
+        const target = this.controls.target;
+        
+        const safeX = isNaN(target.x) ? "0.00" : target.x.toFixed(2);
+        const safeY = isNaN(target.y) ? "0.00" : target.y.toFixed(2);
+        const safeZ = isNaN(target.z) ? "0.00" : target.z.toFixed(2);
+        
+        // Update Static Elements state via JS selection to avoid innerHTML thrashing
+        const viewType = window.app.energyViewSettings.viewType;
+        const toggleInput = this.energyControlsOverlay.querySelector('#energy-view-toggle-input');
+        const labelSelect = this.energyControlsOverlay.querySelector('#energy-toggle-label-select');
+
+        if (toggleInput && toggleInput.checked !== (viewType === 'select')) {
+            toggleInput.checked = (viewType === 'select');
+        }
+        if (labelSelect) labelSelect.style.color = (viewType === 'select' ? 'var(--primary)' : 'var(--text-dim)');
+
+        // Update Right Coordinates (Fewer updates, but still necessary for tracking)
+        if (!params) {
+            this.coordsOverlay.innerHTML = '<span style="color:#ef4444">CAM ERR</span>';
+            return;
+        }
+
+        this.coordsOverlay.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px;">
+                <span><small style="color:var(--primary)">X:</small>${safeX}</span>
+                <span><small style="color:var(--primary)">Y:</small>${safeY}</span>
+                <span><small style="color:var(--primary)">Z:</small>${safeZ}</span>
+                <span><small style="color:var(--primary)">Z:</small>${params.zoom || "1.0"}</span>
+                <span><small style="color:var(--primary)">H:</small>${params.hAngle}°</span>
+                <span><small style="color:var(--primary)">V:</small>${params.vAngle}°</span>
+                <span><small style="color:var(--primary)">D:</small>${params.distance}</span>
+                <span><small style="color:var(--primary)">S:</small>${this.viewSize}</span>
+            </div>
+        `;
+    }
+
 
     setupInteraction() {
         this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
@@ -143,102 +394,181 @@ class SceneManager {
 
         this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        this.raycaster.setFromCamera(this.pointer, this.camera);
-
-        // Raycast against the whole model to avoid missing sub-meshes with duplicate names
-        if (!this.model) return;
-        const intersects = this.raycaster.intersectObjects([this.model], true);
+        const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
 
         if (intersects.length > 0) {
-            let clickedObject = intersects[0].object;
-            let deviceId = null;
-
-            let current = clickedObject;
-            while (current) {
-                // Check for registered label parentage first (High Precision)
-                const foundId = Array.from(this.labelRegistry.keys()).find(id => {
-                    const labelObject = this.labelRegistry.get(id);
-                    return labelObject && labelObject.parent === current;
-                });
-                if (foundId) {
-                    deviceId = foundId;
-                    break;
-                }
-
-                // SUB-MESH NAME MATCHING
-                const normCurrent = current.name.toLowerCase().trim();
-
-                // CRITICAL: Disable Floor/Ground/Warehouse clicks
-                if (normCurrent.includes('floor') || normCurrent.includes('ground') || normCurrent.includes('warehouse') || normCurrent.includes('plane') || normCurrent.includes('plant') || normCurrent === 'pack_01' || normCurrent === 'pack01') {
-                    deviceId = null;
-                    this.resetInteraction();
-                    return;
-                }
-
-                // HIGH PRECISION: Check if this node is EXPLICITLY null-mapped (e.g. floor)
-                const isExplicitlyNull = Object.entries(this.manualMap).some(([id, target]) => {
-                    return target === null && normCurrent.includes(id.toLowerCase());
-                });
-                if (isExplicitlyNull) {
-                    deviceId = null;
-                    break;
-                }
-
-                if (normCurrent.length > 2) {
-                    // 1. Direct Manual Map Match (Perfect Hit)
-                    const directMatch = Object.keys(this.manualMap).find(id => {
-                        const target = this.manualMap[id];
-                        return target && normCurrent === target.toLowerCase();
-                    });
-
-                    if (directMatch) {
-                        deviceId = directMatch;
-                        break;
-                    }
-
-                    // 2. Direct ID Match
-                    const idMatch = Object.keys(this.manualMap).find(id => normCurrent === id.toLowerCase());
-                    if (idMatch) {
-                        deviceId = idMatch;
-                        break;
-                    }
-                }
-                current = current.parent;
-            }
-
+            const deviceId = intersects[0].object.userData.deviceId;
             if (deviceId) {
-                console.log(`[Interaction] Resolved Device: ${deviceId} from Mesh: ${clickedObject.name}`);
                 this.selectDevice(deviceId);
             }
-        } else {
-            // Background click - doing nothing to prevent bad UX (sudden camera resets)
-            console.log('[Interaction] Background click detected, ignoring reset.');
         }
     }
+
+    /**
+     * Generates invisible hit-box meshes for each machine group to ensure 
+     * stable raycasting (no gaps or internal mesh interference).
+     */
+    _updateHitZones() {
+        // Clean up existing group
+        if (this.hitGroup) {
+            this.scene.remove(this.hitGroup);
+            this.hitGroup.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        }
+        
+        this.hitGroup = new THREE.Group();
+        this.hitGroup.name = 'InteractionHitZones';
+        this.scene.add(this.hitGroup);
+        
+        this.hitBoxMeshes = [];
+        const processedNodes = new Set();
+        
+        console.log('[Scene] Updating hit zones for manualMap:', Object.keys(this.manualMap).length);
+
+        for (const [id, targetName] of Object.entries(this.manualMap)) {
+            if (!targetName) continue;
+            
+            const node = this.nodeRegistry.get(targetName.toLowerCase());
+            if (!node || processedNodes.has(node)) continue;
+            processedNodes.add(node);
+
+            // Calculate world-space bounding box
+            const box = new THREE.Box3().setFromObject(node);
+            if (box.isEmpty()) continue;
+
+            // Expand box slightly (Padding) to prevent flickering at edges and improve "stickiness"
+            box.expandByScalar(0.15);
+
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+
+            // Create invisible proxy mesh
+            const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00, 
+                visible: false, 
+                transparent: true, 
+                opacity: 0 
+            }); 
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(center);
+            mesh.userData.deviceId = id;
+            mesh.name = `HitZone_${id}`;
+            
+            this.hitGroup.add(mesh);
+            this.hitBoxMeshes.push(mesh);
+        }
+        console.log(`[Scene] Generated ${this.hitBoxMeshes.length} unique hit zones.`);
+    }
+
+    /**
+     * Resolves a machine/device ID from a 3D object by traversing upwards
+     * and checking against manual mapping and node registry.
+     */
+    _resolveDeviceIdFromObject(object) {
+        if (!object) return null;
+
+        let current = object;
+        while (current) {
+            // Check if this node is floor/plant/ignore
+            const normCurrent = current.name.toLowerCase().trim();
+            if (normCurrent.includes('floor') || normCurrent.includes('ground') || normCurrent.includes('warehouse') || normCurrent.includes('plant') || normCurrent.includes('plane')) {
+                return null; // Ignore plant-level elements strictly
+            }
+
+            // Check for manual mapping or ID match
+            const matchedId = Object.keys(this.manualMap).find(id => {
+                const target = this.manualMap[id];
+                return target && (normCurrent === target.toLowerCase() || normCurrent === id.toLowerCase());
+            });
+
+            if (matchedId) {
+                return matchedId;
+            }
+            current = current.parent;
+        }
+        return null;
+    }
+
 
     onPointerMove(event) {
         this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        this.raycaster.setFromCamera(this.pointer, this.camera);
-        if (!this.model) return;
-        const intersects = this.raycaster.intersectObjects([this.model], true);
-        this.renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+    }
 
-        // Hover tracking for label pruning
+    /**
+     * Specialized Hover Handler (Synchronous)
+     * Executed within the render loop to ensure interaction happens on stable state.
+     */
+    handleHover() {
+        if (!this.raycaster || !this.camera || !this.hitBoxMeshes.length) return;
+
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+
+        // Raycast against stable hit zones only
+        const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
+        
+        let hoveredId = null;
         if (intersects.length > 0) {
-            let current = intersects[0].object;
-            let foundId = null;
-            while (current) {
-                foundId = Array.from(this.labelRegistry.keys()).find(id => {
-                    const labelObject = this.labelRegistry.get(id);
-                    return labelObject && labelObject.parent === current;
+            hoveredId = intersects[0].object.userData.deviceId;
+        }
+
+        // --- Hover Persistence: Prevent drop between frames ---
+        if (!hoveredId && this.hoveredDeviceId) {
+            // Keep the previous hover if nothing is hit this frame
+            return;
+        }
+
+        // IMPORTANT: Stabilize cursor to match the current stable or pending hover state
+        const isHovering = hoveredId || (this.pendingHoverId && this.pendingHoverId !== null);
+        this.renderer.domElement.style.cursor = isHovering ? 'pointer' : 'default';
+
+        // --- Robust Hover Debouncing System ---
+        if (this.hoveredDeviceId !== hoveredId) {
+            // Already pending this exact state? Skip to avoid resetting cooldown
+            if (this.pendingHoverId === hoveredId) return;
+
+            clearTimeout(this.hoverTimeout);
+            this.pendingHoverId = hoveredId;
+
+            // Stability: Wait longer (250ms) to clear hover, but switch machines faster (40ms)
+            const delay = hoveredId === null ? 250 : 40;
+            
+            this.hoverTimeout = setTimeout(() => {
+                const oldId = this.hoveredDeviceId;
+                this.hoveredDeviceId = hoveredId;
+                this.pendingHoverId = null;
+                this.checkZoom();
+                
+                // --- Visual Feedback Integration ---
+                this.labelRegistry.forEach(data => {
+                    if (data && data.element) data.element.classList.remove('hovered');
                 });
-                if (foundId) break;
-                current = current.parent;
-            }
-            this.hoveredDeviceId = foundId;
-        } else {
-            this.hoveredDeviceId = null;
+                
+                if (this.hoveredDeviceId) {
+                    const label = this.labelRegistry.get(this.hoveredDeviceId);
+                    if (label && label.element) {
+                        label.element.classList.add('hovered');
+                    }
+                }
+
+                if (oldId !== hoveredId) {
+                    console.log(`[Scene] Hover state: ${hoveredId || 'none'}`);
+                    // Trigger UI update only on actual change
+                    if (window.app && typeof window.app.onHoverChange === 'function') {
+                        window.app.onHoverChange(hoveredId);
+                    }
+                }
+            }, delay);
+        } else if (this.pendingHoverId !== hoveredId) {
+            // Cancel any pending transitions if we are back to the current stable ID
+            clearTimeout(this.hoverTimeout);
+            this.pendingHoverId = hoveredId;
         }
     }
 
@@ -251,6 +581,132 @@ class SceneManager {
         }
 
         this.activeDeviceId = id;
+        this.focusOnMachine(id);
+    }
+
+    /**
+     * Resets interaction state and returns camera to department/plant overview.
+     */
+    resetInteraction() {
+        this.activeDeviceId = null;
+        this.isolateGroup([]); // Restore all materials and frame overview
+        this.resetToDefaultView();
+
+        // Ensure chips are visible after exiting alarm mode
+        this.labelRegistry.forEach(data => {
+            if (data && data.element) data.element.style.display = 'block';
+        });
+
+        // Hide all warning meshes by default unless telemetry dictates otherwise
+        this.warningMeshes.forEach(m => m.visible = false);
+    }
+
+    /**
+     * Smoothly glides the camera back to the calibrated plant isometric view.
+     */
+    resetToDefaultView() {
+        if (!this.camera || !this.controls || !this.defaultPosition) return;
+        this.animateCamera(this.defaultPosition, this.defaultTarget, this.defaultZoom);
+    }
+
+    /**
+     * Focuses the camera on a specific machine, maintaining constant scale.
+     */
+    focusOnMachine(id) {
+        const mesh = this.findMesh(id);
+        if (!mesh) return;
+
+        // Step 1: Detect Focus Target (Anchor or Mesh Center)
+        let targetLookAt = new THREE.Vector3();
+        const anchorName = `${id}_FocusAnchor`.toLowerCase();
+        const anchor = this.nodeRegistry.get(anchorName) || (this.model ? this.model.getObjectByName(anchorName) : null);
+        
+        if (anchor) {
+            anchor.getWorldPosition(targetLookAt);
+        } else {
+            const box = new THREE.Box3().setFromObject(mesh);
+            if (box.isEmpty()) return;
+            box.getCenter(targetLookAt);
+        }
+
+        // USER REQUIREMENT: Smooth Forward/Backward movement (isometric translation)
+        // Instead of rotating to a front-facing view, we use the EXACT isometric offset of the main view.
+        const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
+        const cameraTargetPosition = targetLookAt.clone().add(isometricOffset);
+
+        // Transition at high detail zoom (3.5) for the "forward" glide sensation
+        const inspectionZoom = 3.5;
+        this.animateCamera(cameraTargetPosition, targetLookAt, inspectionZoom);
+    }
+
+    /**
+     * Smoothly animates the camera to a target position, target lookAt, and target zoom.
+     */
+    animateCamera(targetPosition, targetLookAt, targetZoom = null) {
+        if (!targetPosition || !targetLookAt || !this.camera || !this.controls) return;
+        
+        // Safety check for NaN
+        if (isNaN(targetPosition.x) || isNaN(targetLookAt.x)) {
+            console.error('[Scene] Invalid animation target:', targetPosition, targetLookAt);
+            return;
+        }
+
+        const duration = 2.5; // Seconds (Balanced for responsive yet smooth UX)
+        const startPos = this.camera.position.clone();
+        const startTarget = this.controls.target.clone();
+        const startZoom = this.camera.zoom;
+        const endZoom = targetZoom !== null ? targetZoom : startZoom;
+        
+        // Disable controls during animation to prevent state conflict
+        this.controls.enabled = false;
+        
+        // If start and end are same, re-enable and skip
+        if (startPos.distanceTo(targetPosition) < 0.01 && 
+            startTarget.distanceTo(targetLookAt) < 0.01 && 
+            Math.abs(startZoom - endZoom) < 0.001) {
+            this.controls.enabled = true;
+            return;
+        }
+
+        const startTime = performance.now();
+
+        const animate = (currentTime) => {
+            const elapsed = (currentTime - startTime) / 1000;
+            const t = Math.min(elapsed / duration, 1);
+            
+            // Ease in-out cubic
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+            // Update state
+            this.camera.position.lerpVectors(startPos, targetPosition, ease);
+            this.controls.target.lerpVectors(startTarget, targetLookAt, ease);
+            this.camera.zoom = THREE.MathUtils.lerp(startZoom, endZoom, ease);
+            
+            // Stabilize orientation
+            this.camera.up.set(0, 1, 0); 
+            
+            // Critical Updates: Ensure all matrices are valid
+            this.camera.updateMatrixWorld(true);
+            this.camera.updateProjectionMatrix();
+            this.controls.update();
+
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Ensure final state is exact and stable
+                this.camera.position.copy(targetPosition);
+                this.controls.target.copy(targetLookAt);
+                this.camera.zoom = endZoom;
+                this.camera.up.set(0, 1, 0);
+                this.camera.updateMatrixWorld(true);
+                this.camera.updateProjectionMatrix();
+                this.controls.update();
+                this.controls.enabled = true; // Re-enable controls
+                console.log('[Scene] Animation Complete. Config:', this.getCameraConfig());
+            }
+        };
+
+        requestAnimationFrame(animate);
     }
 
     /**
@@ -284,50 +740,70 @@ class SceneManager {
 
         // Reset to original materials if null/all
         if (!deviceIds || deviceIds.length === 0) {
-            this.model.traverse((node) => {
-                if (node.isMesh && node.userData.originalMaterial) {
-                    node.material = node.userData.originalMaterial;
-                    node.userData.isGhosted = false;
-                }
-            });
+            const isAlarmMode = window.app && window.app._isAlarmMode(window.app.primaryMode);
+            
+            if (isAlarmMode) {
+                this.highlightAlarms();
+            } else {
+                this.model.traverse((node) => {
+                    if (node.isMesh && node.userData.originalMaterial) {
+                        node.material = node.userData.originalMaterial;
+                        node.userData.isGhosted = false;
+                    }
+                });
+            }
             return;
         }
 
-        // Get actual Three.js meshes/groups for these IDs
+        // [PERF] Pre-calculate the active set to turn O(N*M) traversal into O(N)
         const activeNodes = deviceIds.map(id => this.findMesh(id)).filter(Boolean);
+        const activeMeshesSet = new Set();
+        activeNodes.forEach(root => {
+            root.traverse(n => {
+                if (n.isMesh) activeMeshesSet.add(n);
+            });
+        });
+
+        const isAlarmMode = window.app && window.app._isAlarmMode(window.app.primaryMode);
 
         this.model.traverse((node) => {
             if (node.isMesh) {
-                // Save original material on first pass
-                if (!node.userData.originalMaterial) {
-                    node.userData.originalMaterial = node.material;
+                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
+
+                const isActive = activeMeshesSet.has(node);
+                
+                // Warning meshes ignore ghosting
+                if (node.name.toLowerCase().includes('warning')) return;
+
+                // [Phase 23] Find if this mesh belongs to a machine in fault
+                let belongsToFault = false;
+                if (isAlarmMode) {
+                    for (const [mid, mName] of Object.entries(this.manualMap)) {
+                        if (mName && node.name.toLowerCase().includes(mName.toLowerCase())) {
+                            const cache = window.app.telemetryStore.get(mid.toUpperCase());
+                            const state = (cache?.get('CalculatedState') || '').toLowerCase();
+                            if (['fault', 'error', 'stopped'].includes(state)) belongsToFault = true;
+                            break;
+                        }
+                    }
                 }
 
-                // Is this node part of the active group?
-                const isActive = activeNodes.some(activeNode => node === activeNode || this._isDescendant(node, activeNode));
-
-                // Warning meshes ignore ghosting
-                if (node.name.toLowerCase().includes('warning') || node.material.emissiveIntensity > 0) return;
-
-                if (isActive) {
-                    // Restore full material
+                if (isActive || (isAlarmMode && belongsToFault)) {
+                    // Restore original texture for focused OR faulty machines
                     node.material = node.userData.originalMaterial;
                     node.userData.isGhosted = false;
-                } else {
-                    // Industrial Solid Isolation (No Transparency)
-                    if (!node.userData.ghostMaterial) {
-                        node.userData.ghostMaterial = new THREE.MeshStandardMaterial({
-                            color: 0x222222,
-                            roughness: 1,
-                            metalness: 0,
-                            transparent: false,
-                            depthWrite: true
-                        });
-                    }
-                    node.material = node.userData.ghostMaterial;
-                    node.userData.isGhosted = true;
 
-                    // Disable emissive if any
+                    // Add emissive glow ONLY for fault machines, NOT for focused healthy ones
+                    if (isAlarmMode && belongsToFault) {
+                        node.material = node.userData.originalMaterial.clone();
+                        node.material.emissive = new THREE.Color(0xff0000);
+                        node.material.emissiveIntensity = 0.6;
+                    } else if (node.material.emissive) {
+                        node.material.emissive.setHex(0x000000);
+                    }
+                } else {
+                    // Gray out / Ghost everything else
+                    this._ghostNode(node, isAlarmMode);
                     if (node.material.emissive) {
                         node.material.emissive.setHex(0x000000);
                     }
@@ -338,8 +814,12 @@ class SceneManager {
         // Hide ALL labels in Zone/Plant view for Twinzo clean look
         this.labelRegistry.forEach(label => label.element.style.display = 'none');
 
-        // Frame the active group
-        this.frameGroup(activeNodes);
+        // Frame the active group or focus if single machine
+        if (deviceIds.length === 1) {
+            this.focusOnMachine(deviceIds[0]);
+        } else {
+            this.frameGroup(activeNodes);
+        }
 
         // Dashboard Logic (Level 2)
         window.dispatchEvent(new CustomEvent('ui-level-change', { detail: { level: 2 } }));
@@ -365,52 +845,104 @@ class SceneManager {
         const size = new THREE.Vector3();
         groupBounds.getSize(size);
 
+        // Optimal Zonal Zoom Calculation (Orthographic)
         const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = this.camera.fov * (Math.PI / 180);
-        let cameraDistance = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraDistance *= 1.4; // Comfortable framing with slight padding
-        cameraDistance = Math.min(cameraDistance, 35); // Cap for very large objects
-        cameraDistance = Math.max(cameraDistance, 8);  // Min for very small objects
+        const padding = 1.1; // Tighter fit for better detail (Reduced from 1.3)
+        
+        // Based on frustumSize = 1000 in constructor/resize
+        const frustumBase = 1000; 
+        const aspect = window.innerWidth / window.innerHeight;
+        
+        // Calculate zoom to fit world maxDim into world-space frustum
+        let targetZoom = (frustumBase * aspect) / (maxDim * padding);
+        
+        // Clamp zoom for zones to keep a high-level department overview
+        targetZoom = Math.max(0.8, Math.min(targetZoom, 2.5)); // Increased max from 1.8 to 2.5
 
-        // Camera offset: elevated front-right 45° angle for full device view
-        const offset = new THREE.Vector3(0.6, 0.7, 0.8).normalize().multiplyScalar(cameraDistance);
-        const targetPos = center.clone().add(offset);
+        // Use the EXACT isometric angle for the gliding effect
+        const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
+        const cameraTargetPosition = center.clone().add(isometricOffset);
 
-        this.camera.position.copy(targetPos);
-        this.controls.target.copy(center);
-        this.controls.update();
+        console.log(`[Scene] Zonal Focus: Framing ${nodes.length} nodes at zoom ${targetZoom.toFixed(2)}`);
+        this.animateCamera(cameraTargetPosition, center, targetZoom);
+    }
+
+    frameAllMachines() {
+        if (!this.model) return;
+        const machineNodes = [];
+        // Frame everything in the manualMap that isn't null
+        Object.keys(this.manualMap).forEach(id => {
+            if (this.manualMap[id]) {
+                const node = this.findMesh(id);
+                if (node) machineNodes.push(node);
+            }
+        });
+
+        if (machineNodes.length > 0) {
+            this.frameGroup(machineNodes);
+        }
     }
 
     resetInteraction() {
         this.activeDeviceId = null;
         this.isolateGroup(null);
         // Reset camera to default overview position
-        this.camera.position.copy(this.defaultCameraPos);
-        this.controls.target.copy(this.defaultTarget);
-        this.controls.update();
-        
+        this.resetToDefaultView();
+
         // Show labels in overview
         this.labelRegistry.forEach(label => label.element.style.display = 'block');
     }
 
+    /**
+     * Diagnostic View: Highlights machines in fault state and hides standard UI labels.
+     */
     highlightAlarms() {
+        if (!this.model) return;
+
+        // Hide ALL machine-chip labels for a clean diagnostic look
+        this.labelRegistry.forEach(data => {
+            if (data && data.element) data.element.style.display = 'none';
+        });
+
         this.model.traverse((node) => {
-            if (node.isMesh && node.userData.originalMaterial) {
-                const deviceId = Object.keys(this.manualMap).find(id => {
-                    const target = this.manualMap[id];
-                    return target && node.name.toLowerCase().includes(target.toLowerCase());
-                });
+            if (node.isMesh) {
+                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
 
-                const cache = window.app ? window.app.telemetryStore.get(deviceId?.toUpperCase()) : null;
-                const state = cache ? (cache.get('CalculatedState') || '').toLowerCase() : '';
-                const isAlarm = ['fault', 'error', 'stopped'].includes(state);
+                // Find if this mesh belongs to a machine in fault
+                let belongsToFault = false;
+                let machineId = null;
 
-                if (isAlarm) {
+                if (window.app && window.app.telemetryStore) {
+                    for (const [mid, mName] of Object.entries(this.manualMap)) {
+                        if (mName && node.name.toLowerCase().includes(mName.toLowerCase())) {
+                            machineId = mid;
+                            break;
+                        }
+                    }
+
+                    if (machineId) {
+                        const cache = window.app.telemetryStore.get(machineId.toUpperCase());
+                        const state = (cache?.get('CalculatedState') || '').toLowerCase();
+                        if (['fault', 'error', 'stopped'].includes(state)) {
+                            belongsToFault = true;
+                        }
+                    }
+                }
+
+                if (belongsToFault) {
+                    // [Phase 23] Preserve textures even in global alarm mode
                     node.material = node.userData.originalMaterial.clone();
-                    node.material.emissive = new THREE.Color(0xef4444);
-                    node.material.emissiveIntensity = 0.5;
+                    node.material.emissive = new THREE.Color(0xff0000);
+                    node.material.emissiveIntensity = 0.6;
+                    node.userData.isGhosted = false;
                 } else {
-                    this._ghostNode(node);
+                    this._ghostNode(node, true);
+                }
+
+                // Sync 3D Warning Mesh visibility with fault state
+                if (machineId) {
+                    const wMesh = this.warningMeshes.get(machineId);
+                    if (wMesh) wMesh.visible = belongsToFault;
                 }
             }
         });
@@ -419,12 +951,10 @@ class SceneManager {
     updateEnergyChips(show) {
         this.labelRegistry.forEach((data, id) => {
             const div = data.element;
-            let energyPill = div.querySelector('.energy-pill');
-            const header = div.querySelector('.chip-header');
+            const valueEl = div.querySelector('.chip-value');
             
-            if (!show) {
-                if (energyPill) energyPill.style.display = 'none';
-                if (header) header.style.display = 'flex'; // Restore normal label
+            if (!show || this.chipDisplayMode === 'none') {
+                if (valueEl) valueEl.classList.remove('visible');
                 return;
             }
             
@@ -433,19 +963,27 @@ class SceneManager {
             
             // Read from robust analytics store
             const machineData = app.analytics.data.machines[id.toUpperCase()] || app.analytics.data.machines[id.toUpperCase().replace(/_0/g, '0')] || null;
-            const kw = machineData ? machineData.instantKW : 0;
-            
-            if (!energyPill) {
-                energyPill = document.createElement('div');
-                energyPill.className = 'energy-pill';
-                // Stitch-style blue chip styling for metrics
-                energyPill.style.cssText = 'background: rgba(19, 146, 236, 0.95); color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; font-family: "Inter", sans-serif; letter-spacing: 0.5px; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.4); backdrop-filter: blur(4px);';
-                div.insertBefore(energyPill, div.firstChild);
+            if (!machineData) return;
+
+            let label = 'INSTANT kW';
+            let value = machineData.instantKW;
+            let unit = '';
+
+            if (this.chipDisplayMode === 'cycle') {
+                label = 'CYCLE TIME';
+                value = machineData.cycleTime || 0;
+                unit = ' s';
+            } else if (this.chipDisplayMode === 'status') {
+                label = 'STATUS';
+                value = machineData.isRunning ? 'RUNNING' : (machineData.state || 'OFFLINE').toUpperCase();
+                unit = '';
             }
             
-            energyPill.textContent = `${kw.toFixed(1)} kW`;
-            energyPill.style.display = 'block';
-            if (header) header.style.display = 'none'; // Hide normal label when showing energy
+            if (valueEl) {
+                const displayVal = typeof value === 'number' ? value.toFixed(1) + unit : value;
+                valueEl.innerHTML = `<span style="color:var(--primary); font-size:9px; display:block; margin-bottom:2px;">${label}</span>${displayVal}`;
+                valueEl.classList.add('visible');
+            }
         });
     }
 
@@ -460,17 +998,32 @@ class SceneManager {
         // We could add sprite markers here if we had isolation data
     }
 
-    _ghostNode(node) {
-        if (!node.userData.ghostMaterial) {
-            node.userData.ghostMaterial = new THREE.MeshStandardMaterial({
-                color: 0x222222,
-                roughness: 1,
-                metalness: 0,
-                transparent: false,
-                depthWrite: true
-            });
+    _ghostNode(node, isDiagnostic = false) {
+        if (isDiagnostic) {
+            if (!node.userData.ghostMaterial) {
+                node.userData.ghostMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x222222,
+                    roughness: 1,
+                    metalness: 0,
+                    transparent: false,
+                    depthWrite: true
+                });
+            }
+            node.material = node.userData.ghostMaterial;
+        } else {
+            // High-end Transparent Ghosting for Energy/Zones
+            if (!node.userData.standardGhostMaterial) {
+                node.userData.standardGhostMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x888888,
+                    roughness: 0.5,
+                    metalness: 0,
+                    transparent: true,
+                    opacity: 0.15,
+                    depthWrite: false
+                });
+            }
+            node.material = node.userData.standardGhostMaterial;
         }
-        node.material = node.userData.ghostMaterial;
         node.userData.isGhosted = true;
     }
 
@@ -481,9 +1034,16 @@ class SceneManager {
         this.scene.add(this.model);
 
         let baseWarningMesh = null;
+        let totalNodes = 0;
+        let unnamedNodes = 0;
+        let prunedNodes = 0;
 
         this.model.traverse(c => {
-            if (!c.name) return;
+            totalNodes++;
+            if (!c.name) {
+                unnamedNodes++;
+                return;
+            }
             const normName = c.name.toLowerCase();
 
             // Template Detection: The warning mesh 'error' is needed for cloning
@@ -493,20 +1053,20 @@ class SceneManager {
                     baseWarningMesh.visible = false;
                 }
                 c.visible = false;
-                if (c.parent) c.parent.remove(c);
+                c.matrixAutoUpdate = false;
                 return;
             }
 
             // Purge embedded dashboards/screens/placards from GLB (Architectural Requirement)
             const uiKeywords = [
-                'screen', 'dashboard', 'intelligence', 'monitor', 'kpi', 
-                'display', 'panel', 'ui', 'placard', 'sticker', 'board', 
+                'screen', 'dashboard', 'intelligence', 'monitor', 'kpi',
+                'display', 'panel', 'ui', 'placard', 'sticker', 'board',
                 'info', 'text', 'label', 'data', 'overlay', 'chip'
             ];
             const isEmbeddedUI = uiKeywords.some(kw => normName.includes(kw));
-            
+
             if (isEmbeddedUI) {
-                console.log(`[Scene] Pruning embedded internal visual: ${c.name}`);
+                prunedNodes++;
                 c.visible = false;
                 c.matrixAutoUpdate = false; // Freeze it
                 return;
@@ -515,6 +1075,7 @@ class SceneManager {
             // Track all nodes (groups and meshes) for ID resolution
             if (!this.nodeRegistry.has(normName) || c.isMesh) {
                 this.nodeRegistry.set(normName, c);
+                this.normNodeRegistry.set(normName.replace(/[^a-z0-9]/g, ''), c);
             }
 
             // Track meshes explicitly for raycasting and visual updates
@@ -559,7 +1120,8 @@ class SceneManager {
             console.warn('[Scene] No warning mesh found in GLB. Animation will be skipped.');
         }
 
-        console.log('[Scene] Model loaded. Nodes registered:', this.nodeRegistry.size, 'Meshes:', this.meshRegistry.size);
+        console.log(`[Scene] Model loaded. Total nodes in GLB: ${totalNodes} (Unnamed: ${unnamedNodes}, Pruned: ${prunedNodes})`);
+        console.log('[Scene] Registered for interaction:', this.nodeRegistry.size, 'Meshes:', this.meshRegistry.size);
         console.log('[Scene] All node names:', [...this.nodeRegistry.keys()].sort().join(', '));
 
         // Dismiss loading screen once model is ready
@@ -568,6 +1130,10 @@ class SceneManager {
             loadingScreen.classList.add('hidden');
             setTimeout(() => loadingScreen.remove(), 700);
         }
+        
+        // Finalize scene metadata and hit zones
+        this.model.updateMatrixWorld(true);
+        this._updateHitZones();
 
         this.resetInteraction();
         return gltf;
@@ -608,15 +1174,22 @@ class SceneManager {
 
         // 2. Normalized fuzzy search with priority
         const normId = id.replace(/[^a-z0-9]/g, '');
+        
+        // 2.1 [PERF] Fast Normalized Match
+        if (this.normNodeRegistry.has(normId)) {
+            const match = this.normNodeRegistry.get(normId);
+            this.manualMap[id] = match.name.toLowerCase();
+            return match;
+        }
+
         let bestMatch = null;
         let bestPriority = -1;
 
-        for (const [name, node] of this.nodeRegistry.entries()) {
-            const normName = name.replace(/[^a-z0-9]/g, '');
-
-            if (normName === normId || normName.includes(normId) || normId.includes(normName)) {
+        // 3. Normalized fuzzy search with priority
+        for (const [normName, node] of this.normNodeRegistry.entries()) {
+            if (normName.includes(normId) || normId.includes(normName)) {
                 let priority = 0;
-                // Perfect alpha-numeric match
+                // Perfect alpha-numeric match (redundant if 2.1 worked, but good for sub-containment)
                 if (normName === normId) priority = 5;
                 // Prefer objects that actually have geometry (children or are meshes)
                 else if (node.isMesh) priority = 3;
@@ -638,6 +1211,7 @@ class SceneManager {
         }
 
         // 4. Fallback: traverse everything manually to catch unnamed sub-groups just in case
+        if (!this.model) return null; // Safety Guard: Skip deep scan if model is not loaded
         console.warn(`[Scene] No node found for ${id} in registry. Attempting deep scan...`);
         let deepMatch = null;
         this.model.traverse(c => {
@@ -682,8 +1256,9 @@ class SceneManager {
     }
 
     updateDeviceLabel(rawId, data, preferred = null) {
+        if (!this.model) return; // Safety Guard: Skip update if model is not loaded
         if (!rawId || !data) return;
-        
+
         // Strict ID Unification: Strip symbols, underscores, and spaces
         let id = rawId.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -693,14 +1268,21 @@ class SceneManager {
             console.log(`[Trace] updateDeviceLabel for OUTBOUND_02. Raw: ${rawId}, ID: ${id}`);
         }
 
-        // Strict Unification: Storage and Inbound are RAW MATERIALS
-        const isRawMaterials = id.includes('storage') || id.includes('inbound') || id.includes('rawmaterials');
+        // Strict Unification: Storage and Inbound are RAWMATERIALS
+        const isRawMaterials = id.includes('storage') || id.includes('inbound') || id.includes('raw');
         if (isRawMaterials) {
-            id = 'rawmaterials';
+            id = 'RAWMATERIALS';
+        } else {
+            id = id.toUpperCase();
         }
 
+        // State lookup logic (Unified for Storage/Raw Materials)
+        const stateLookupId = id; // Already unified to RAWMATERIALS if applicable
+        const stateColor = window.app && window.app.stateManager ? window.app.stateManager.getDeviceState(stateLookupId) : null;
+        const hex = stateColor ? '#' + stateColor.color.toString(16).padStart(6, '0') : null;
+
         let labelId = id;
-        const assetInfo = window.app && window.app.assetData ? window.app.assetData[id] : null;
+        const assetInfo = window.app && typeof window.app._findAsset === 'function' ? window.app._findAsset(id) : null;
         let displayName = (assetInfo && assetInfo.name ? assetInfo.name : id).toUpperCase().replace(/_/g, ' ');
 
         // HIGH PRIORITY MANUAL REFINEMENTS
@@ -709,6 +1291,11 @@ class SceneManager {
         if (id.toLowerCase().includes('storage') || id.toLowerCase().includes('inbound')) displayName = 'RAW MATERIALS';
 
         let mesh = this.findMesh(id);
+        // FORCE: Raw materials always anchor to the main storage bin mesh
+        if (id === 'RAWMATERIALS') {
+            mesh = this.nodeRegistry.get('storage_01001') || mesh;
+        }
+
         if (!mesh) {
             console.warn(`[Scene] No mesh found for device: ${id}`);
             return;
@@ -723,37 +1310,62 @@ class SceneManager {
         if (!label) {
             const div = document.createElement('div');
             div.className = 'machine-chip';
-            div.style.pointerEvents = 'none'; // CRITICAL: Stop chips from blocking machine clicks
+            div.style.pointerEvents = 'auto'; // Make entire chip clickable
+            div.style.cursor = 'pointer';
+            // Retrieve icon directly from asset metadata (assets.json)
+            // This fixes the overlap by ensuring ONLY defined machines get labels.
+            let iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : '';
+            
+            // If no explicit icon is defined for this ID, skip label creation.
+            // This prevents "ghost" icons for un-unified or internal IDs.
+            if (!iconName) return;
+
             div.innerHTML = `
                 <div class="chip-header">
-                    <span class="chip-status-dot"></span>
-                    <span class="chip-name">${displayName}</span>
-                    <button class="chip-info-btn"><span class="material-symbols-outlined" style="font-size:14px">info</span></button>
+                    <span class="chip-status-dot material-symbols-outlined">${iconName}</span>
                 </div>
+                <!-- Unified Value Display (Directly replaces dot in Energy Mode) -->
+                <div class="chip-unified-value"></div>
+                <!-- The value container for energy view -->
+                <div class="chip-value"></div>
             `;
 
-            div.onclick = null; // Clicks pass through to machine
+            div.onclick = (event) => {
+                event.stopPropagation(); 
+                // [PERF] Yield to the browser's paint thread to improve INP
+                setTimeout(() => {
+                    window.app.setContext('machine', id);
+                }, 0);
+            };
 
             label = new CSS2DObject(div);
 
-            // Precision World-Space Anchoring (Improved Stability)
+            // Precision World-Space Anchoring
             const box = new THREE.Box3().setFromObject(mesh);
-            const topY = box.max.y + 0.5;
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            
+            // USER REQUEST: Position icons just above machines to avoid "ghostly" floating
+            const suffixMatch = id.match(/_?(\d+)$/);
+            const index = suffixMatch ? parseInt(suffixMatch[1]) : 0;
+
+            // Base offset 0.5 (reduced from 3.5) + cascading step (index * 0.5)
+            const stepOffset = index > 0 ? (index - 1) * 0.5 : 0;
+            const verticalOffset = 0.5 + stepOffset;
+
             const worldTopCenter = new THREE.Vector3(
-                (box.max.x + box.min.x) / 2,
-                topY,
-                (box.max.z + box.min.z) / 2
+                center.x,
+                box.max.y + verticalOffset,
+                center.z
             );
 
-            // Save world position BEFORE worldToLocal mutates the vector
+            // Save world position BEFORE
             const warningWorldPos = worldTopCenter.clone();
 
-            // Convert World Center to Mesh Local Space (MUTATES worldTopCenter)
-            const localPos = mesh.worldToLocal(worldTopCenter);
-            label.position.copy(localPos);
+            label.position.copy(worldTopCenter);
 
-            mesh.add(label);
-            this.labelRegistry.set(id, { element: div, parent: label.parent, object: label });
+            this.scene.add(label);
+            this.labelRegistry.set(id, { element: div, parent: this.scene, object: label });
 
             // Attach Warning Mesh at WORLD coordinates (scene root)
             // Adding to scene root avoids all parent transform issues
@@ -761,7 +1373,7 @@ class SceneManager {
                 const warningClone = this.baseWarningMesh.clone();
 
                 // Direct world-space scale (no parent compensation needed)
-                const targetSize = 1.2;
+                const targetSize = 0.8; // User Request: 22px equivalent (~0.8 units)
                 warningClone.scale.set(targetSize, targetSize, targetSize);
 
                 // Force upright in world space
@@ -798,13 +1410,16 @@ class SceneManager {
             dotEl.className = `chip-status-dot ${isRunning ? 'running' : 'stopped'}`;
         }
 
-        const stateColor = window.app && window.app.stateManager ? window.app.stateManager.getDeviceState(id) : null;
-        if (stateColor) {
-            const hex = '#' + stateColor.color.toString(16).padStart(6, '0');
+        if (stateColor && hex) {
             const dotIndicator = element.querySelector('.chip-status-dot');
             if (dotIndicator) {
-                dotIndicator.style.backgroundColor = hex;
-                dotIndicator.style.boxShadow = `0 0 8px ${hex}`;
+                // Remove background/box-shadow as user wants no background
+                dotIndicator.style.backgroundColor = 'transparent';
+                dotIndicator.style.boxShadow = 'none';
+                
+                // Set icon color and glow dynamically based on state
+                dotIndicator.style.color = hex;
+                dotIndicator.style.textShadow = `0 0 15px ${hex}`;
             }
         }
 
@@ -821,6 +1436,35 @@ class SceneManager {
             element.classList.add('active');
         } else {
             element.classList.remove('active');
+        }
+
+        // ── Dynamic Value Display ──
+        const valueEl = element.querySelector('.chip-value');
+        const unifiedEl = element.querySelector('.chip-unified-value');
+        const headerEl = element.querySelector('.chip-header');
+
+        if (this.chipDisplayMode === 'energy') {
+            if (headerEl) headerEl.style.display = 'none';
+            if (valueEl) valueEl.classList.remove('visible');
+            
+            if (unifiedEl) {
+                const kw = this.getValue(data, 'Instant_kW') || 0;
+                unifiedEl.textContent = `${parseFloat(kw).toFixed(1)} kW`;
+                unifiedEl.style.display = 'block';
+                // Premium "Header" look for the energy value
+                unifiedEl.style.background = 'linear-gradient(135deg, #2a1e19, #1c1411)';
+                unifiedEl.style.borderRadius = '12px';
+                unifiedEl.style.padding = '4px 10px';
+                unifiedEl.style.color = 'var(--primary)';
+                unifiedEl.style.fontWeight = '900';
+                unifiedEl.style.fontSize = '12px';
+                unifiedEl.style.border = '1px solid rgba(236, 91, 19, 0.4)';
+                unifiedEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+            }
+        } else {
+            if (headerEl) headerEl.style.display = 'flex';
+            if (unifiedEl) unifiedEl.style.display = 'none';
+            if (valueEl) valueEl.classList.remove('visible'); // Default to hidden for cleaner look
         }
     }
 
@@ -865,51 +1509,26 @@ class SceneManager {
 
     checkZoom() {
         if (!this.camera) return;
-        const cameraPos = this.camera.position;
 
         this.labelRegistry.forEach((data, id) => {
             if (!data) return;
-            const label = data.object || data; // unpack label from object or fallback
-            if (!label || typeof label.getWorldPosition !== 'function') return;
-
+            const label = data.object || data;
             const element = data.element || label.element;
 
-            const worldPos = new THREE.Vector3();
-            label.getWorldPosition(worldPos);
-            const dist = cameraPos.distanceTo(worldPos);
-
-            // Visibility Thresholds & Pruning Logic (Using label.visible for 3D engine)
-            const isContextuallyActive = (id === this.activeDeviceId || id === this.hoveredDeviceId);
-            const distLimit = isContextuallyActive ? 1500 : 0; 
-            const isMini = dist > 120;
-
-            if (dist > distLimit) {
-                label.visible = false;
-                if (element) element.style.display = 'none'; // Keep DOM element hidden too
-            } else {
-                label.visible = true;
-                if (element) {
-                    element.style.display = 'block';
-                    element.classList.toggle('mini', isMini && id !== this.activeDeviceId);
-                }
-            }
-
-            // Always show active device chip
-            if (id === this.activeDeviceId) {
-                label.visible = true; // Ensure 3D object is visible
-                if (element) {
-                    element.style.display = 'block';
-                    element.classList.remove('mini');
-                }
+            // USER REQUIREMENT: Labels must be strictly anchored and independent of camera movement
+            label.visible = true;
+            if (element) {
+                element.style.display = 'block';
+                element.classList.remove('mini');
             }
         });
     }
 
     onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
+        // MUST update renderer size BEFORE updating camera frustum to prevent stretching
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.updateFrustum();
     }
 
     start() {
@@ -920,8 +1539,19 @@ class SceneManager {
             requestAnimationFrame(loop);
             const elapsedTime = clock.getElapsedTime();
 
+            // --- Event-Driven Pipeline ---
+            // Removed synchronous data processing from render loop
+            // Data is now processed asynchronously as it arrives in main.js  
+
             this.controls.update();
+
+            // Hover logic decoupled from data updates
+            if (window.app) {
+                this.handleHover();
+            }
+
             this.checkZoom();
+            this._updateCoordinateTracker();
 
             // Animate Warning Meshes (Static Orientation, Pulse Scale)
             this.warningMeshes.forEach(wMesh => {

@@ -1,12 +1,7 @@
-import os
-import sys
 import logging
 from typing import Dict, Any, List, Optional
 
-# --- Add parent backend dir to path for direct execution ---
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from simulation.machines.base_machine import BaseMachine as Machine
+from .machines.base_machine import BaseMachine as Machine
 # but we access queue_in/out lists.
 
 logger = logging.getLogger("Orchestrator")
@@ -145,12 +140,13 @@ class ProductionOrchestrator:
                 else:
                     self.wip["xray_passed"] += 1
 
-        if hasattr(self.m_inspect, 'queue_reject'):
-            rejects = list(self.m_inspect.queue_reject)
-            self.m_inspect.queue_reject.clear()
-            if rejects:
-                self.wip["scrap_parts"] += len(rejects)
-                self.kpis["total_scrap"] += len(rejects)
+        if self.m_inspect is not None:
+            reject_queue = getattr(self.m_inspect, 'queue_reject', None)
+            if reject_queue:
+                rejects_count = len(reject_queue)
+                self.wip["scrap_parts"] += rejects_count
+                self.kpis["total_scrap"] += rejects_count
+                reject_queue.clear()
 
         # 11. QC (Packing) - Removed, parts go straight to Outbound
                     

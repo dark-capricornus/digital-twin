@@ -22,6 +22,9 @@ class WebSocketHandler {
 
     connect() {
         try {
+            if (this.ws) {
+                this.ws.close();
+            }
             this.ws = new WebSocket(this.url);
 
             this.ws.onopen = () => {

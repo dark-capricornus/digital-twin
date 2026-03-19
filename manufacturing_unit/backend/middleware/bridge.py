@@ -4,13 +4,23 @@ import json
 import asyncio
 import base64
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from typing import List, Union
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
+from asyncua import Client, ua
+
+# --- Lifecycle and State ---
+MAIN_LOOP = None
+opc_client = Client(url="opc.tcp://127.0.0.1:4840/freeopcua/server/")
+
 
 # --- Fix Path for Imports ---
-# Add the current directory to sys.path so standalone bridge can find sparkplug_b_pb2
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Calculate the project root absolute path (which is 4 levels up: bridge.py -> middleware -> backend -> manufacturing_unit -> root)
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Try to import Sparkplug B decoder
 try:
@@ -21,7 +31,7 @@ except ImportError:
     print("WARNING: sparkplug_b_pb2 not found. Sparkplug B messages will be sent as Base64.")
 
 # --- Configuration ---
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "127.0.0.1"
 MQTT_PORT = 1883
 MQTT_TOPIC = "#"  # Subscribe to everything (or use "spBv1.0/#")
 
@@ -33,19 +43,66 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        print(f"[BRIDGE] New WebSocket client connected. Total: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            print(f"[BRIDGE] WebSocket client disconnected. Total: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
+        dead_connections = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
-            except Exception as e:
-                print(f"Error sending to client: {e}")
+            except Exception:
+                dead_connections.append(connection)
+                
+        for conn in dead_connections:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
 
 manager = ConnectionManager()
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Startup ---
+    global MAIN_LOOP
+    MAIN_LOOP = asyncio.get_running_loop()
+    print(f"Starting MQTT Bridge... Loop captured: {MAIN_LOOP}")
+    try:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.loop_start() # Runs in background thread
+    except Exception as e:
+        print(f"Warning: Could not connect to MQTT Broker: {e}")
+        
+    try:
+        await opc_client.connect()
+        print(f"[BRIDGE] Connected to OPC-UA Server at {opc_client.server_url}")
+    except Exception as e:
+        print(f"Warning: Could not connect to OPC UA Server: {e}")
+    
+    yield
+    
+    # --- Shutdown ---
+    mqtt_client.loop_stop()
+    mqtt_client.disconnect()
+    try:
+        await opc_client.disconnect()
+    except:
+        pass
+    print("MQTT Bridge shut down.")
+
+app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware to allow connectivity from frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to specific origins for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- MQTT Client ---
 mqtt_client = mqtt.Client()
@@ -132,24 +189,7 @@ def on_message(client, userdata, msg):
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
 
-# --- Lifecycle ---
-MAIN_LOOP = None
-
-@app.on_event("startup")
-async def startup_event():
-    global MAIN_LOOP
-    MAIN_LOOP = asyncio.get_running_loop()
-    print(f"Starting MQTT Bridge... Loop captured: {MAIN_LOOP}")
-    try:
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        mqtt_client.loop_start() # Runs in background thread
-    except Exception as e:
-        print(f"Warning: Could not connect to MQTT Broker: {e}")
-
-@app.on_event("shutdown")
-def shutdown_event():
-    mqtt_client.loop_stop()
-    mqtt_client.disconnect()
+# The startup and shutdown logic is now handled in the lifespan context manager
 
 # --- Endpoint ---
 @app.websocket("/ws")
@@ -157,11 +197,52 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection open. Client can send "ping"? 
-            # We mostly push, but need to await something to keep socket alive
             data = await websocket.receive_text()
-            # Echo or Ignore
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "write" and msg.get("node_id"):
+                    node_id_str = msg["node_id"]
+                    val = msg.get("value", True)
+                    
+                    # Fix 5: Harden NodeId normalization (Industrial Standard Pathing)
+                    if "Devices" not in node_id_str:
+                        print(f"[BRIDGE][WARN] Normalizing NodeID: {node_id_str} -> VirtualPLC.Devices.{node_id_str}")
+                        node_id_str = f"VirtualPLC.Devices.{node_id_str}"
+                    
+                    # Fix 6: Ensure strict Input-only write model
+                    allowed_tags = ["Start", "Stop", "Trigger", "PourRequest"]
+                    if not any(tag in node_id_str for tag in allowed_tags):
+                        print(f"[BRIDGE][REJECT] Invalid write target: {node_id_str}")
+                        continue
+                    
+                    # Fix 3: Enhanced Debug Logging
+                    print(f"[BRIDGE][WRITE] Target: {node_id_str}, Value: {val}")
+                    
+                    try:
+                        # Convert types
+                        if isinstance(val, bool): variant_type = ua.VariantType.Boolean
+                        elif isinstance(val, int): variant_type = ua.VariantType.Int32
+                        elif isinstance(val, float): variant_type = ua.VariantType.Double
+                        else: variant_type = ua.VariantType.String
+                            
+                        # Resolve Namespace Index dynamically
+                        try:
+                            idx = await opc_client.get_namespace_index("http://digitaltwin.plc")
+                        except:
+                            idx = 2
+                            
+                        node = opc_client.get_node(f"ns={idx};s={node_id_str}")
+                        dv = ua.DataValue(ua.Variant(val, variant_type))
+                        await node.write_value(dv)
+                        print(f"[BRIDGE][WRITE SUCCESS]")
+                    except Exception as e:
+                        print(f"[BRIDGE][WRITE ERROR] Node: {node_id_str}, Error: {e}")
+            except json.JSONDecodeError:
+                pass
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"[BRIDGE] WebSocket error: {e}")
         manager.disconnect(websocket)
 
 # --- Publisher Endpoint ---
@@ -174,7 +255,10 @@ class MqttPublishRequest(BaseModel):
 async def publish_message(request: MqttPublishRequest):
     try:
         if request.encoding == "base64":
-            data = base64.b64decode(request.payload)
+            payload_to_decode = request.payload
+            if not isinstance(payload_to_decode, str):
+                return {"status": "error", "error": "base64 encoding requires a string payload"}
+            data = base64.b64decode(payload_to_decode)
             # Ensure it is bytes
             if isinstance(data, str): data = data.encode('utf-8')
         elif request.encoding == "json":
@@ -190,5 +274,5 @@ async def publish_message(request: MqttPublishRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    # Run server
+    print("[BRIDGE] Starting server on ws://localhost:8001/ws")
     uvicorn.run(app, host="0.0.0.0", port=8001)

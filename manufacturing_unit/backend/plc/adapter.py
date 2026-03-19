@@ -23,11 +23,11 @@ class SimulationAdapter:
         - INDEPENDENT: Individual Start/Stop tags can override per-machine via OPC UA.
         """
         if is_running and not self.plc_running:
-            # Enable and start machine when global PLC starts
+            # Restore auto-start behavior when PLC starts
             self.machine.enabled = True
             self.machine.set_command("start", True)
         elif not is_running and self.plc_running:
-            # Stop machine on global PLC stop
+            # Ensure STOP still works
             self.machine.set_command("stop", True)
 
         self.plc_running = is_running
@@ -214,19 +214,30 @@ class SimulationAdapter:
 
     def set_tag(self, tag_name: str, value: Any):
         """
-        Handle Write from PLC. Minimal explicit path for Option 1.
+        Handle Write from PLC with strict and safe industrial logic.
         """
-        # CHANGED_BY_ANTIGRAVITY: Explicit command forwarding
-        if not value:
-            return
+        # Requirement 1: Log all writes for clear diagnostic flow
+        print(f"[ADAPTER][WRITE] {self.device_id}.{tag_name} = {value}")
 
+        # Requirement 2: Handle commands explicitly with correct mapping
         if tag_name == "Start":
-             self.machine.set_command("start", True)
+            if value:
+                self.machine.set_command("start", True)
+
         elif tag_name == "Stop":
-             self.machine.set_command("stop", True)
-        elif tag_name == "PourRequest" and "LPDC" in self.device_id:
-             self.machine.set_command("pour_request", True)
-             self.machine.set_command("start", True)  # Pour request triggers start
-        elif tag_name == "Trigger" and "CNC" in self.device_id:
-             self.machine.set_command("trigger", True)
-             self.machine.set_command("start_job", True)  # Trigger starts job 
+            if value:
+                self.machine.set_command("stop", True)
+
+        elif tag_name == "Trigger":
+            if value:
+                self.machine.set_command("trigger", True)
+                self.machine.set_command("start_job", True)
+
+        elif tag_name == "PourRequest":
+            if value:
+                self.machine.set_command("pour_request", True)
+                self.machine.set_command("start", True)
+
+        else:
+            # Safely ignore unsupported tags
+            pass

@@ -54,3 +54,6 @@ list_meshes.py
 peek_mqtt.py
 
 postman/
+test_opc_write.py
+test_ws_write.py
+

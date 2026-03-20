@@ -423,6 +423,9 @@ class DigitalTwinApp {
             case 'isolation':
                 this.setContext('alarms');
                 break;
+            case 'maintenance':
+                this.setContext('maintenance');
+                break;
             case 'gemba':
                 this.setContext('gemba');
                 break;
@@ -434,6 +437,11 @@ class DigitalTwinApp {
     }
 
     setContext(type, id = null) {
+        // [Routing Interception] If clicking a generic machine while in Maintenance mode, route it to Maintenance Machine.
+        if ((type === 'machine' || type === 'asset') && this.primaryMode === 'maintenance') {
+            type = 'maintenance_machine';
+        }
+
         // [PERF] Redundancy Guard: skip expensive 3D/DOM updates if context is identical
         if (this.activeContext.type === type && this.activeContext.id === id && type !== 'plant') {
             console.log(`[UI] Context Redundant: ${type} ${id || ''}`);
@@ -561,6 +569,22 @@ class DigitalTwinApp {
                 leftPanel.classList.remove('open');
                 rightPanel.classList.remove('open');
                 this.startGembaWalk();
+                if (this.scene) this.scene.setChipDisplayMode('none');
+                break;
+
+            case 'maintenance':
+                leftPanel.classList.add('open');
+                rightPanel.classList.remove('open');
+                if (this.scene) {
+                    this.scene.isolateGroup([]);
+                    this.scene.setChipDisplayMode('none');
+                }
+                break;
+
+            case 'maintenance_machine':
+                leftPanel.classList.add('open');
+                rightPanel.classList.add('open');
+                if (id) this.scene?.isolateGroup([id]);
                 if (this.scene) this.scene.setChipDisplayMode('none');
                 break;
 
@@ -704,6 +728,11 @@ class DigitalTwinApp {
             titleEl.textContent = 'Asset View'; 
             navEl.prepend(titleEl);
             this.renderMachinesListPanel(contentEl);
+        } else if (type === 'maintenance') {
+            header.classList.add('same-row', 'compact');
+            titleEl.textContent = 'Maintenance Control';
+            navEl.prepend(titleEl);
+            this.renderMaintenanceListPanel(contentEl);
         }
     }
 
@@ -766,6 +795,11 @@ class DigitalTwinApp {
                 const modeToRender = (type === 'asset' || this.primaryMode === 'machines') ? 'metadata' : 'diagnostics';
                 this.renderMachinePanel(id, contentEl, modeToRender);
             }
+        } else if (type === 'maintenance_machine' && id) {
+            let displayName = id.toUpperCase().replace(/_/g, ' ');
+            titleEl.textContent = 'MAINTENANCE: ' + displayName;
+            navEl.prepend(titleEl);
+            this.renderMaintenanceMachinePanel(id, contentEl);
         } else if (type === 'alarm' || type === 'alarms') {
             titleEl.textContent = 'Alarms & Isolation';
             navEl.prepend(titleEl);
@@ -835,94 +869,36 @@ class DigitalTwinApp {
             let html = '';
 
             if (mode === 'metadata') {
-                // ── ASSET MODE: Metadata + Maintenance ──────────────────────────
+                // ── ASSET MODE: Metadata ONLY ──────────────────────────
                 html = `
-                    <div class="panel-section">
-                        <div class="sidebar-section-title" style="color: var(--primary); letter-spacing: 2px;">ASSET PROFILE</div>
-                        <div class="sidebar-data-group" style="border-left: 2px solid var(--primary); background: rgba(0, 166, 81, 0.05); padding: 16px; border-radius: 4px;">
-                            ${this._row('Asset ID', id.toUpperCase())}
-                            ${this._row('Machine Name', displayName)}
-                            ${this._row('Department', dept)}
-                            ${this._row('Model / Specification', asset ? asset.model : 'ST-2400-A')}
-                            ${this._row('Serial Number', asset ? asset.serial_number : '---')}
-                            ${this._row('Primary Vendor', asset ? asset.vendor : '---')}
-                            ${this._row('Installation Date', asset ? asset.install_date : '---')}
-                        </div>
-                    </div>
-                `;
-
-                // ── MAINTENANCE INSIGHTS (Phase 21 Integration) ───────────────
-                const seed = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                const healthScore = 85 + (seed % 12);
-                const rul = (1000 + (seed % 500)).toLocaleString();
-                const healthStatus = healthScore > 90 ? 'OPTIMAL' : 'STABLE';
-                const healthColor = healthScore > 90 ? 'var(--success)' : 'var(--warning)';
-
-                html += `
-                    <div class="panel-section">
-                        <div class="sidebar-section-title">UNIT ANALYTICS</div>
-                        <div class="health-meter-card">
-                            <div class="health-meter-header">
-                                <span class="health-score-title">Machine Health Score</span>
-                                <span class="health-score-tag" style="background: ${healthColor}22; color: ${healthColor}">${healthStatus}</span>
-                            </div>
-                            <div class="health-score-main">
-                                <span class="health-score-value">${healthScore}%</span>
-                                <span class="health-score-total">/ 100</span>
-                            </div>
-                            <div class="health-progress-bar">
-                                <div class="health-progress-fill" style="width: ${healthScore}%"></div>
-                            </div>
-                        </div>
-
-                        <div class="rul-card" style="margin-top: 12px;">
-                            <span class="material-symbols-outlined rul-icon">precision_manufacturing</span>
-                            <div class="health-score-title">Predictive RUL</div>
-                            <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 8px;">REMAINING USEFUL LIFE</div>
-                            <div style="display: flex; align-items: baseline; gap: 6px;">
-                                <span style="font-size: 24px; font-weight: 900; color: var(--text-main); font-family: 'JetBrains Mono'">${rul}</span>
-                                <span style="font-size: 12px; font-weight: 700; color: var(--text-dim)">HOURS</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel-section">
-                        <div class="sidebar-section-title">UPCOMING MAINTENANCE</div>
-                        <div class="task-list">
-                            <div class="task-item">
-                                <div class="task-icon-box">
-                                    <span class="material-symbols-outlined">filter_alt</span>
-                                </div>
-                                <div class="task-info">
-                                    <div class="task-name">Filter Change</div>
-                                    <div class="task-unit">System Hydraulics</div>
-                                </div>
-                                <div class="task-timing">
-                                    <span class="task-due">${10 + (seed % 5)}h</span>
-                                    <span class="task-status">DUE</span>
-                                </div>
-                            </div>
-                            <div class="task-item">
-                                <div class="task-icon-box">
-                                    <span class="material-symbols-outlined">oil_barrel</span>
-                                </div>
-                                <div class="task-info">
-                                    <div class="task-name">Bearing Lubrication</div>
-                                    <div class="task-unit">Spindle Unit 04</div>
-                                </div>
-                                <div class="task-timing">
-                                    <span class="task-due" style="color: var(--text-dim)">${40 + (seed % 10)}h</span>
-                                    <span class="task-status">SCHED</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div style="padding: 16px 8px;">
                         
-                        <button class="maintenance-report-btn">
-                            <span class="material-symbols-outlined" style="font-size: 18px">description</span>
-                            Generate Maintenance Report
-                        </button>
+                        <!-- Asset Profile -->
+                        <div style="margin-bottom: 32px;">
+                            <div style="font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #ec5b13; text-transform: uppercase; margin-bottom: 12px;">ASSET PROFILE</div>
+                            <div style="background: rgba(236,91,19,0.05); border-left: 3px solid #ec5b13; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Asset ID</span>
+                                    <span style="font-size: 11px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${id.toUpperCase()}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Machine Name</span>
+                                    <span style="font-size: 11px; font-weight: 800; color: white;">${displayName}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Department</span>
+                                    <span style="font-size: 11px; font-weight: 800; color: white;">${dept}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Vendor</span>
+                                    <span style="font-size: 11px; font-weight: 800; color: white;">${asset ? asset.vendor : '---'}</span>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 `;
+
             } else {
                 // ── PLANT MODE: Diagnostics / Live Telemetry ───────────────────
                 const machineData = this._findMachineData(id);
@@ -991,6 +967,199 @@ class DigitalTwinApp {
         } catch (err) {
             console.error('[UI] Panel Crash:', err);
             container.innerHTML = `<div style="padding: 20px; color: var(--danger)">Sidebar Error: ${err.message}</div>`;
+        }
+    }
+
+    renderMaintenanceListPanel(contentEl) {
+        let html = '';
+        for (const [deptId, members] of Object.entries(this.machineGroups)) {
+            const label = this.departmentLabels[deptId] || deptId.toUpperCase();
+            html += `<div class="sidebar-section-title" style="margin-top:12px">${label}</div>`;
+            html += '<div class="sidebar-nav-list">';
+            for (const mid of members) {
+                const isXRay = mid.toUpperCase().includes('INSPECTION');
+                const displayName = isXRay ? mid.replace(/INSPECTION/i, 'X-RAY') : mid;
+                // Randomize a 'due' or 'ok' status for demo purposes based on string length
+                const isDue = (mid.length % 3 === 0);
+                const color = isDue ? 'var(--warning)' : 'var(--text-dim)';
+                const icon = 'construction';
+                html += `
+                    <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('maintenance_machine', '${mid}')">
+                        <span class="material-symbols-outlined" style="color: ${color}">${icon}</span>
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center">
+                            <span>${displayName}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 800">${isDue ? 'SERVICE DUE' : 'OPTIMAL'}</span>
+                        </div>
+                    </a>
+                `;
+            }
+            html += '</div>';
+        }
+        contentEl.innerHTML = html;
+    }
+
+    renderMaintenanceMachinePanel(id, container) {
+        // High-Fidelity Refactoring of Image 2 (Dark Theme UI) specifically built into the native right-sidebar
+        const healthScore = 92;
+        const rul = 1248;
+        const energyUnit = (2.1).toFixed(1);
+        const production = 412;
+        const cycleTime = 42;
+        const temp = 68;
+        const pressure = (4.5).toFixed(1);
+
+        let html = `
+            <div style="padding: 8px 4px;">
+                <h3 style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; color: #ec5b13; margin-bottom: 20px; margin-top: 0;">Unit Analytics</h3>
+                
+                <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b;">Machine Health Score</span>
+                        <span style="font-size: 9px; font-weight: 900; color: #10b981; background: rgba(16,185,129,0.1); padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(16,185,129,0.2);">OPTIMAL</span>
+                    </div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span style="font-size: 42px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;">${healthScore}%</span>
+                        <span style="font-size: 12px; color: #64748b; font-weight: 700;">/ 100</span>
+                    </div>
+                    <div style="margin-top: 20px; height: 6px; width: 100%; background: #1e293b; border-radius: 999px; overflow: hidden; border: 1px solid #362e2a;">
+                        <div style="height: 100%; background: #ec5b13; border-radius: 999px; width: ${healthScore}%; box-shadow: 0 0 8px rgba(236,91,19,0.5);"></div>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 24px; border-radius: 12px; margin-bottom: 32px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b;">Predictive RUL</span>
+                        <span class="material-symbols-outlined" style="color: #ec5b13; background: rgba(236,91,19,0.1); padding: 4px; border-radius: 4px; font-size: 16px;">precision_manufacturing</span>
+                    </div>
+                    <div style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin-bottom: 16px;">Remaining Useful Life</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span style="font-size: 32px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;">${rul.toLocaleString()}</span>
+                        <span style="font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase;">Hours</span>
+                    </div>
+                </div>
+
+                <!-- Diagnostics -->
+                <div style="margin-bottom: 32px;">
+                    <h3 style="font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #ec5b13; text-transform: uppercase; margin-bottom: 16px; margin-top: 0;">MACHINE DIAGNOSTICS</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <!-- Energy -->
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px;">
+                            <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Energy/Unit</div>
+                            <div style="font-size: 20px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">${energyUnit} <small style="font-size: 10px; color: #64748b;">kWh</small></div>
+                        </div>
+                        <!-- Production -->
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px;">
+                            <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Production</div>
+                            <div style="font-size: 20px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">${production} <small style="font-size: 10px; color: #64748b;">u</small></div>
+                        </div>
+                        <!-- Cycle Time -->
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px;">
+                            <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Cycle Time</div>
+                            <div style="font-size: 20px; font-weight: 900; color: #ec5b13; font-family: 'JetBrains Mono', monospace;">${cycleTime} <small style="font-size: 10px; color: #64748b;">sec</small></div>
+                        </div>
+                        <!-- Temp -->
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px;">
+                            <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Core Temp</div>
+                            <div style="font-size: 20px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">${temp} <small style="font-size: 10px; color: #64748b;">°C</small></div>
+                        </div>
+                        <!-- Pressure Full Width -->
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">System Pressure</div>
+                                <div style="font-size: 20px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">${pressure} <small style="font-size: 10px; color: #64748b;">Bar</small></div>
+                            </div>
+                            <div style="width: 120px; height: 24px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: 999px; overflow: hidden; position: relative;">
+                                <div style="position: absolute; top: 0; left: 0; height: 100%; width: 75%; background: rgba(16,185,129,0.3);"></div>
+                                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; color: #10b981; text-transform: uppercase; letter-spacing: 1px;">Optimal range</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alarm Log -->
+                <div style="margin-bottom: 32px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <h3 style="font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #ec5b13; text-transform: uppercase; margin: 0;">ALARM LOG</h3>
+                        <button style="font-size: 8px; font-weight: 900; color: #ec5b13; background: none; border: none; cursor: pointer; text-transform: uppercase;">Clear History</button>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Warning Item -->
+                        <div style="display: flex; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-left: 4px solid #f59e0b; border-radius: 8px; overflow: hidden;">
+                            <div style="flex: 1; padding: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span class="material-symbols-outlined" style="color: #f59e0b; font-size: 14px;">warning</span>
+                                        <span style="font-size: 10px; font-weight: 900; color: #fcd34d; text-transform: uppercase; letter-spacing: 1px;">Coolant Level Low</span>
+                                    </div>
+                                    <span style="font-size: 9px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #64748b;">14:22:05</span>
+                                </div>
+                                <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reservoir B-12 at 15% capacity.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Critical Item -->
+                        <div style="display: flex; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-left: 4px solid #ef4444; border-radius: 8px; overflow: hidden;">
+                            <div style="flex: 1; padding: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span class="material-symbols-outlined" style="color: #ef4444; font-size: 14px;">error</span>
+                                        <span style="font-size: 10px; font-weight: 900; color: #fca5a5; text-transform: uppercase; letter-spacing: 1px;">Spindle Torque Spike</span>
+                                    </div>
+                                    <span style="font-size: 9px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #64748b;">13:45:12</span>
+                                </div>
+                                <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Load exceeded 115% threshold for 2.4s.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; color: #ec5b13; margin-bottom: 16px; margin-top: 0;">Upcoming Maintenance</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;">
+                    <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-radius: 12px; cursor: pointer;">
+                        <div style="height: 40px; width: 40px; flex-shrink: 0; background: rgba(236,91,19,0.1); border: 1px solid rgba(236,91,19,0.2); display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                            <span class="material-symbols-outlined" style="color: #ec5b13; font-weight: 900; font-size: 18px;">filter_alt</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="font-size: 12px; font-weight: 900; color: white; margin: 0 0 4px 0;">Filter Change</p>
+                            <p style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">System Hydraulics</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #ec5b13; margin: 0 0 4px 0;">12h</p>
+                            <p style="font-size: 8px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Due</p>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-radius: 12px; cursor: pointer;">
+                        <div style="height: 40px; width: 40px; flex-shrink: 0; background: #1e293b; border: 1px solid #362e2a; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                            <span class="material-symbols-outlined" style="color: #94a3b8; font-weight: bold; font-size: 18px;">opacity</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="font-size: 12px; font-weight: 900; color: white; margin: 0 0 4px 0;">Bearing Lubrication</p>
+                            <p style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Spindle Unit 04</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #94a3b8; margin: 0 0 4px 0;">48h</p>
+                            <p style="font-size: 8px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Sched</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #362e2a;">
+                    <button style="width: 100%; background: #ec5b13; color: white; font-weight: 900; padding: 16px; border-radius: 8px; text-transform: uppercase; font-size: 9px; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#d44d0b'" onmouseout="this.style.background='#ec5b13'">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">assignment_turned_in</span>
+                        Generate Maintenance Report
+                    </button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+        
+        // Frame the machine in the renderer
+        if (this.scene) {
+            this.scene.isolateGroup([id]);
+            this.scene.setChipDisplayMode('none');
         }
     }
 

@@ -1250,11 +1250,12 @@ input:checked + .slider-round:before {
 
 /* ─── Unified Asset & Maintenance Styles ─── */
 .health-meter-card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .health-meter-header {
@@ -1288,42 +1289,44 @@ input:checked + .slider-round:before {
 }
 
 .health-score-value {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 900;
-    color: var(--text-main);
+    color: #1a1a1a;
     font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -1px;
 }
 
 .health-score-total {
     font-size: 14px;
-    color: var(--text-dim);
-    font-weight: 600;
+    color: #cbd5e1;
+    font-weight: 700;
 }
 
 .health-progress-bar {
-    height: 6px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 3px;
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 4px;
     overflow: hidden;
 }
 
 .health-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary), #ff8c4a);
-    border-radius: 3px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 4px;
     transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .rul-card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 16px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .rul-icon {
@@ -1347,18 +1350,20 @@ input:checked + .slider-round:before {
 .task-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    padding: 12px;
-    border-radius: 10px;
-    transition: all 0.3s ease;
+    gap: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.03);
+    padding: 16px;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .task-item:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(236, 91, 19, 0.2);
-    transform: translateX(4px);
+    background: #f8fafc;
+    border-color: rgba(236, 91, 19, 0.15);
+    transform: translateX(6px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .task-icon-box {

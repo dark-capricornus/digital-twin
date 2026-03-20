@@ -213,31 +213,35 @@ class SimulationAdapter:
         return tags
 
     def set_tag(self, tag_name: str, value: Any):
-        """
-        Handle Write from PLC with strict and safe industrial logic.
-        """
-        # Requirement 1: Log all writes for clear diagnostic flow
         print(f"[ADAPTER][WRITE] {self.device_id}.{tag_name} = {value}")
 
-        # Requirement 2: Handle commands explicitly with correct mapping
         if tag_name == "Start":
             if value:
+                # INDUSTRIAL FIX: If machine is STOPPED/FAULTED, we must RESET before starting
+                from backend.simulation.machines.base_machine import MachineState
+                if self.machine.state in [MachineState.STOPPED, MachineState.FAULTED]:
+                    print(f"[ADAPTER][AUTO-RESET] {self.device_id} (Prior state: {self.machine.state.name})")
+                    self.machine.handle_reset_command()
+
+                print(f"[ADAPTER][START] {self.device_id}")
                 self.machine.set_command("start", True)
 
         elif tag_name == "Stop":
             if value:
+                print(f"[ADAPTER][STOP] {self.device_id}")
                 self.machine.set_command("stop", True)
 
-        elif tag_name == "Trigger":
+        elif tag_name == "Trigger" and "CNC" in self.device_id:
             if value:
+                print(f"[ADAPTER][TRIGGER] {self.device_id}")
                 self.machine.set_command("trigger", True)
                 self.machine.set_command("start_job", True)
 
-        elif tag_name == "PourRequest":
+        elif tag_name == "PourRequest" and "LPDC" in self.device_id:
             if value:
+                print(f"[ADAPTER][POUR] {self.device_id}")
                 self.machine.set_command("pour_request", True)
                 self.machine.set_command("start", True)
 
         else:
-            # Safely ignore unsupported tags
-            pass
+            print(f"[ADAPTER][IGNORED] {tag_name}")

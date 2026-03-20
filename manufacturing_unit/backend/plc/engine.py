@@ -93,12 +93,23 @@ logger = logging.getLogger("VirtualPLC")
 
 class SubHandler(object):
     """
-    Subscription Handler to log data changes (writes).
-    This serves as server-side confirmation that a write command reached the Python layer.
+    Subscription Handler to process commands and log data changes.
+    Inherits from object as per asyncua requirements.
     """
+    def __init__(self, plc=None):
+        self.plc = plc
+
     def datachange_notification(self, node, val, data):
         node_id = node.nodeid
-        logger.info(f"[OPC WRITE] {node_id.Identifier} = {val}")
+        # DEEP TRACE: Log EVERY write coming into the server
+        logger.info(f"[OPC TRACE] NodeID: {node_id.Identifier} (Type: {node_id.NodeIdType}), Value: {val}")
+        
+        # INDUSTRIAL FIX: Process commands instantly if they are in the Inputs folder
+        # We check ".Inputs." or ".Control." to support both global and local
+        id_str = str(node_id.Identifier)
+        if self.plc and (".Inputs." in id_str or ".Control." in id_str):
+            logger.info(f"[SUB EVENT] Routing command: {id_str}")
+            self.plc.process_individual_command_event(id_str, val)
 
 # --- 1. Device Architecture (Passive Function Blocks) ---
 # DEPRECATED: Retained effectively as Interface/Legacy support for Phase 2.1
@@ -542,9 +553,71 @@ class VirtualPLC:
                 
         logger.info(f"OPC UA Server structure initialized.")
 
+    def process_individual_command_event(self, identifier: str, val: Any):
+        """
+        Event-driven command processing (triggered by SubHandler).
+        identifier format: VirtualPLC.Devices.<DevID>.Inputs.<Tag>
+        """
+        try:
+            logger.info(f"[EVENT-MATCH] Processing: {identifier} with Value: {val}")
+            
+            # 1. Extract device and tag from path
+            parts = identifier.split('.')
+            
+            # Handle Global Controls via event too
+            if "Control" in identifier:
+                tag = parts[-1]
+                logger.info(f"[GLOBAL EVENT] {tag} = {val}")
+                # Logic for global start/stop is already in _handle_opcua_inputs 
+                # but we can trigger it here too if needed.
+                return
+
+            if len(parts) < 5: 
+                logger.warning(f"[EVENT-WARN] Identifier path too short: {identifier}")
+                return
+            
+            dev_id = parts[2]
+            tag = parts[4]
+            
+            logger.info(f"[EVENT-ROUTE] Device: {dev_id}, Tag: {tag}")
+
+            # Find adapter
+            device = next((d for d in self.devices if d.device_id == dev_id), None)
+            if device is None:
+                logger.warning(f"[EVENT-WARN] No device found for ID: {dev_id}")
+                return
+
+            # Execute if truthy (Edge Trigger)
+            if val:
+                logger.info(f"[COMMAND RECEIVED] {dev_id}.{tag} = {val}")
+                device.set_tag(tag, val)
+                
+                # Small delay and reset is handled via one-shot task to not block notification
+                asyncio.create_task(self._reset_node_after_event(identifier))
+        except Exception as e:
+            logger.error(f"Error processing command event {identifier}: {e}")
+
+    async def _reset_node_after_event(self, identifier: str):
+        """Separate task to reset command node after execution."""
+        try:
+            # Find the node from opcua_nodes map or identifier
+            node = None
+            # Scan map keys
+            for k, n in self.opcua_nodes.items():
+                if n.nodeid.Identifier == identifier:
+                    node = n
+                    break
+            
+            if node:
+                await asyncio.sleep(0.05) # Hold for 50ms total visibility
+                await node.set_value(False)
+                # logger.info(f"[ENGINE][ACK] {identifier} reset")
+        except:
+            pass
+
     async def _handle_opcua_inputs(self):
-        """Read Commands from OPC UA and Apply (Edge Trigger -> Latch)"""
-        # 1. PLC Control
+        """Handle Global PLC Commands and poll individual inputs for redundancy."""
+        # 1. Global PLC Control
         start = await self.cmd_start.get_value()
         stop = await self.cmd_stop.get_value()
         
@@ -553,50 +626,33 @@ class VirtualPLC:
                 logger.info(">>> PLC STARTING via OPC UA <<<")
                 self.power_state = PLCPowerState.STARTING
             
-            # Enable all machines when PLC starts
             for dev in self.devices:
                 if hasattr(dev.machine, 'enabled'):
                     dev.machine.enabled = True
-                    
             await self.cmd_start.set_value(False)
             
         if stop:
             if self.power_state == PLCPowerState.RUNNING:
                 logger.info(">>> PLC STOPPING via OPC UA <<<")
                 self.power_state = PLCPowerState.STOPPING
-                
             await self.cmd_stop.set_value(False)
 
-        # 2. Device Inputs (Process ONLY valid command tags)
+        # 2. Individual Device Inputs (Polled Fallback for high reliability)
         for key, node in self.opcua_nodes.items():
-            # Check for '.' first to avoid malformed keys
-            if '.' not in key:
-                continue
-            
+            # key is "DEV_ID.Tag"
+            if '.' not in key: continue
             dev_id, tag = key.split('.')
             
-            # Filter: Process ONLY valid command tags
-            if tag not in ["Start", "Stop", "Trigger", "PourRequest"]:
-                continue
-
-            val = await node.get_value()
-            
-            # Find adapter
-            device = next((d for d in self.devices if d.device_id == dev_id), None)
-            if device is None:
-                continue
-
-            # Command handling with debug visibility
-            if val:
-                logger.info(f"[COMMAND RECEIVED] {dev_id}.{tag} = {val}")
-                
-                # Send command to adapter
-                device.set_tag(tag, val)
-                
-                # Fix race condition: Small delay before reset
-                await asyncio.sleep(0.05)
-                await node.set_value(False)
-                logger.info(f"[ENGINE][ACK] {dev_id}.{tag} processed and reset")
+            if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
+                try:
+                    val = await node.get_value()
+                    # If TRUE, route to event processor
+                    if val:
+                        logger.info(f"[POLL] Detected active input: {key}")
+                        self.process_individual_command_event(node.nodeid.Identifier, val)
+                except Exception as e:
+                    # Occasional noise during browse; safely ignore
+                    pass
                  
     async def _update_opcua_outputs(self, scan_ms: float):
         """
@@ -789,14 +845,21 @@ async def main_async():
     # 3. LIFECYCLE MANAGEMENT: Start Server Context Here
     async with plc.opcua_server:
         # 4. SUBSCRIPTION - Post-Start to ensure stability
-        # (Wait for server to be fully active before registering callbacks)
         idx = await plc.opcua_server.get_namespace_index("http://digitaltwin.plc")
-        handler = SubHandler()
+        handler = SubHandler(plc=plc)
         plc.cmd_sub = await plc.opcua_server.create_subscription(500, handler)
         
-        # Subscribe to all writable nodes
-        await plc.cmd_sub.subscribe_data_change(plc.cmd_start)
-        await plc.cmd_sub.subscribe_data_change(plc.cmd_stop)
+        # Subscribe to all writable command nodes
+        subscription_nodes = [plc.cmd_start, plc.cmd_stop]
+        
+        # Also subscribe to all device-level Inputs to ensure event-driven execution
+        for key, node in plc.opcua_nodes.items():
+            # Match the category logic: process only the commands
+            if any(tag in key for tag in ["Start", "Stop", "Trigger", "PourRequest"]):
+                subscription_nodes.append(node)
+        
+        await plc.cmd_sub.subscribe_data_change(subscription_nodes)
+        logger.info(f"Subscribed to {len(subscription_nodes)} command nodes for event-driven logic.")
         
         for key, node in plc.opcua_nodes.items():
             tag = key.split('.')[-1]

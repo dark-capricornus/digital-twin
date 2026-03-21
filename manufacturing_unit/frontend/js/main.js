@@ -400,9 +400,12 @@ class DigitalTwinApp {
 
     handleAction(action) {
         console.log(`[UI] Action: ${action}`);
-        if (action !== 'gemba') {
-            this.lastPrimaryMode = this.primaryMode;
-            this.primaryMode = action; // 'plant', 'energy', 'alarm', 'alarms', 'zones', 'machines'
+        
+        this.lastPrimaryMode = this.primaryMode;
+        this.primaryMode = action; // 'plant', 'energy', 'alarm', 'alarms', 'zones', 'machines', 'gemba'
+
+        if (action !== 'gemba' && this.gembaTimer) {
+            this.stopGembaWalk();
         }
         
         switch (action) {
@@ -728,7 +731,7 @@ class DigitalTwinApp {
             titleEl.textContent = 'Asset View'; 
             navEl.prepend(titleEl);
             this.renderMachinesListPanel(contentEl);
-        } else if (type === 'maintenance') {
+        } else if (type === 'maintenance' || type === 'maintenance_machine') {
             header.classList.add('same-row', 'compact');
             titleEl.textContent = 'Maintenance Control';
             navEl.prepend(titleEl);

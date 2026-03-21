@@ -364,11 +364,18 @@ body {
     margin-top: 0;
     font-size: 16px;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: inherit;
 }
 
 .header-nav-container {
     display: flex;
     align-items: center;
+    flex: 1;
+    overflow: hidden;
+    margin-right: 16px;
 }
 
 .sidebar-header-titles {

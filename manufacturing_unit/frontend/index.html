@@ -45,9 +45,14 @@
         </div>
     </header>
 
+    <!-- ─── New Floating Sidebar Trigger ──────────────────── -->
+    <button id="sidebar-trigger" class="sidebar-trigger" title="Toggle Sidebar">
+        <span class="material-symbols-outlined" id="trigger-icon">dashboard</span>
+    </button>
+
     <!-- ─── 2. KPI Summary Row (80px) ──────────────────── -->
     <div id="kpi-summary-row" class="hidden-kpi">
-        <div class="kpi-card" style="border-left-color: var(--accent-blue)">
+        <div class="kpi-card energy-only" style="border-left-color: var(--accent-blue)">
             <span class="kpi-label">Total Load</span>
             <div class="kpi-value-row">
                 <span class="kpi-value" id="plant-kw">---</span>
@@ -71,7 +76,7 @@
                 <span class="kpi-trend up" id="oee-trend">0.0%</span>
             </div>
         </div>
-        <div class="kpi-card" style="border-left-color: var(--accent-blue)">
+        <div class="kpi-card energy-only" style="border-left-color: var(--accent-blue)">
             <span class="kpi-label">Energy / Unit</span>
             <div class="kpi-value-row">
                 <span class="kpi-value" id="plant-epu">---</span>
@@ -148,12 +153,30 @@
         </div>
     </div>
 
-    <!-- ─── Gemba Tour Control Bar (Floating) ─────────────── -->
+    <!-- ─── Gemba Tour Bar (Floating - Twinzo Style) ─────────────── -->
     <div id="gemba-tour-bar" style="display: none;">
-        <button id="gemba-prev" class="gemba-btn" title="Previous"><span class="material-symbols-outlined">skip_previous</span></button>
-        <button id="gemba-pause" class="gemba-btn" title="Pause"><span class="material-symbols-outlined">pause</span></button>
-        <button id="gemba-next" class="gemba-btn" title="Next"><span class="material-symbols-outlined">skip_next</span></button>
-        <button id="gemba-stop" class="gemba-btn gemba-stop" title="End Tour"><span class="material-symbols-outlined">close</span></button>
+        <button id="gemba-start-mode-btn" class="gemba-start-btn">
+            <span class="material-symbols-outlined">play_circle</span>
+            START GEMBA MODE
+        </button>
+        
+        <div id="gemba-nav-controls" style="display: none; align-items: center; width: 100%; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="gemba-prev" class="gemba-btn" title="Previous"><span class="material-symbols-outlined">chevron_left</span></button>
+                <button id="gemba-pause" class="gemba-btn" title="Pause"><span class="material-symbols-outlined">pause</span></button>
+                <button id="gemba-next" class="gemba-btn" title="Next"><span class="material-symbols-outlined">chevron_right</span></button>
+            </div>
+            
+            <!-- Timeline Container -->
+            <div id="gemba-timeline" style="flex: 1; display: flex; align-items: center; gap: 12px; height: 100%; min-width: 300px;">
+                <!-- Dots injected via JS -->
+            </div>
+
+            <button id="gemba-stop" class="gemba-btn gemba-stop" title="End Tour">
+                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                <strong>END</strong>
+            </button>
+        </div>
     </div>
 
     <!-- ─── 5. Bottom Icon Control Bar (72px) ─────────────── -->

@@ -12,34 +12,50 @@
 
 class StateManager {
     constructor() {
-        this.deviceStates = new Map(); // deviceId → { state, color, lastUpdate }
+        this.deviceStates = new Map(); // Processed Source of Truth: deviceId → { state, color, lastUpdate, data }
+        this.stateBuffer = new Map();  // Buffered Raw Updates: deviceId → { state, payload }
         this.listeners = [];
     }
 
     /**
-     * Update device state and compute colour.
-     * @param {string} rawId
-     * @param {string|boolean|number} state  – canonical state from extractState()
-     * @param {object} [fullData]            – full telemetry payload (optional)
+     * Buffer raw state from WebSocket.
+     * [ARCHITECTURE] No direct processing or UI updates here.
      */
-    updateDeviceState(rawId, state, fullData = null) {
-        const deviceId = rawId.toLowerCase();
+    setRawState(rawId, state, payload) {
+        const id = rawId.toLowerCase();
+        this.stateBuffer.set(id, { state, payload, timestamp: Date.now() });
+    }
 
-        // Preserve existing state if new state is null (partial telemetry payload)
-        let resolvedState = state;
-        if (resolvedState === null && this.deviceStates.has(deviceId)) {
-            resolvedState = this.deviceStates.get(deviceId).state;
-        }
+    /**
+     * Process buffered updates into the primary store.
+     * Returns the set of IDs that were updated in this cycle.
+     */
+    consumeBuffer() {
+        if (this.stateBuffer.size === 0) return new Set();
 
-        const color = this.getColorForState(resolvedState, fullData);
+        const updatedIds = new Set();
+        this.stateBuffer.forEach((update, id) => {
+            const color = this.getColorForState(update.state, update.payload);
+            const oldItem = this.deviceStates.get(id);
+            
+            // [ARCHITECTURE] Preservation: Merge payload with previous state to avoid "blinking" on partial updates
+            const mergedData = { ...(oldItem?.data || {}), ...update.payload };
 
-        this.deviceStates.set(deviceId, {
-            state: resolvedState,
-            color,
-            lastUpdate: Date.now()
+            this.deviceStates.set(id, {
+                state: update.state,
+                color,
+                lastUpdate: update.timestamp,
+                data: mergedData
+            });
+            updatedIds.add(id);
+            
+            // Still trigger high-level listeners (like device count) if state changed
+            // But telemetry rendering should now pull from here instead of reacting to this
+            this.listeners.forEach(cb => cb(id, color, update.state));
         });
 
-        this.listeners.forEach(cb => cb(deviceId, color, resolvedState));
+        this.stateBuffer.clear();
+        return updatedIds;
     }
 
     /**

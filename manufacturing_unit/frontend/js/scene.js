@@ -53,6 +53,8 @@ class SceneManager {
             'heat_02': 'heat_02',
             'heat01': 'heat_01',
             'heat02': 'heat_02',
+            'heattreatment_01': 'heat_01',
+            'heattreatment_02': 'heat_02',
             'paint_01': 'paint_01',
             'paint_02': 'paint_02',
             'paint01': 'paint_01',
@@ -67,10 +69,11 @@ class SceneManager {
             'rawmaterials': 'storage_01001',
             'outbound_01': 'outbound_01',
             'outbound01': 'outbound_01',
-            'outbound_02': null, // Explicitly exclude to prevent deep scan spam
+            'outbound_02': null, 
             'outbound02': null,
             'pretreat_01': 'pretreat_01',
             'pretreat01': 'pretreat_01',
+            'pretreatment_01': 'pretreat_01',
         };
 
         this.overlayLayouts = new Map();
@@ -78,7 +81,17 @@ class SceneManager {
         this.chipDisplayMode = 'none'; // 'none', 'energy', 'cycle', etc.
 
         this.raycaster = new THREE.Raycaster();
+        this.hoveredDeviceId = null;
         this.pointer = new THREE.Vector2();
+        this.pointerMoved = false;
+
+        // [PERF] Component State Tracking
+        this.lastCameraZoom = 0;
+        this.lastCameraPos = new THREE.Vector3();
+        this.frameCounter = 0;
+
+        // [PRECISION] Value Interpolation Store
+        this.interpolatedValues = new Map(); // id -> { current, target, element, lastFormatted, unit }
 
         this.init();
         this.setupInteraction();
@@ -165,6 +178,20 @@ class SceneManager {
         };
     }
 
+    getAssetInfo(id) {
+        if (!window.app || !window.app.assets) return null;
+        const normId = id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        // 1. Try exact match first
+        const assets = window.app.assets;
+        if (assets[id.toUpperCase()]) return assets[id.toUpperCase()];
+        if (assets[id]) return assets[id];
+        
+        // 2. Try normalized match (e.g. RAW_MATERIALS -> RAWMATERIALS)
+        for (const [key, val] of Object.entries(assets)) {
+            if (key.replace(/[^A-Z0-9]/g, '') === normId) return val;
+        }
+        return null;
+    }
     getCameraConfig() {
         if (!this.camera || !this.controls) return null;
         const params = this.identifyCameraParameters();
@@ -287,61 +314,16 @@ class SceneManager {
         `;
         this.container.appendChild(this.coordsOverlay);
 
-        // 2. Energy Toggle Overlay (Bottom Center)
-        this.energyControlsOverlay = document.createElement('div');
-        this.energyControlsOverlay.id = 'energy-controls-overlay';
-        this.energyControlsOverlay.style.cssText = `
-            position: absolute;
-            bottom: 85px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(13, 17, 23, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(236, 91, 19, 0.4);
-            border-radius: 8px;
-            padding: 12px 14px;
-            color: white;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1001;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            pointer-events: auto;
-            width: auto;
-            min-width: 280px;
-        `;
-        
-        // Initialize static structure once
-        this.energyControlsOverlay.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <span id="energy-toggle-label-select" style="font-size: 10px; font-weight: 800; white-space: nowrap;">SINGLE ASSET MODE</span>
-                <label class="switch-box" style="margin: 0; flex-shrink: 0;">
-                    <input type="checkbox" id="energy-view-toggle-input">
-                    <span class="slider-round"></span>
-                </label>
-            </div>
-        `;
-
-        this.container.appendChild(this.energyControlsOverlay);
-
-        // Wire event
-        const toggleInput = this.energyControlsOverlay.querySelector('#energy-view-toggle-input');
-        if (toggleInput) {
-            toggleInput.addEventListener('change', (e) => {
-                if (window.app) {
-                    window.app.setEnergyViewType(e.target.checked ? 'select' : 'all');
-                }
-            });
-        }
+        // 2. Energy Toggle Overlay (Bottom Center) - Removed per user request
+        // Energy controls overlay is no longer needed
     }
 
     _updateCoordinateTracker() {
-        if (!this.coordsOverlay || !this.energyControlsOverlay || !this.controls || !this.camera) return;
+        if (!this.coordsOverlay || !this.controls || !this.camera) return;
         
         // Visibility control: Only in energy_analytics mode
         const isEnergyMode = window.app && window.app.activeContext && window.app.activeContext.type === 'energy_analytics';
         this.coordsOverlay.style.display = isEnergyMode ? 'block' : 'none';
-        this.energyControlsOverlay.style.display = isEnergyMode ? 'flex' : 'none';
         
         if (!isEnergyMode) return;
 
@@ -351,16 +333,6 @@ class SceneManager {
         const safeX = isNaN(target.x) ? "0.00" : target.x.toFixed(2);
         const safeY = isNaN(target.y) ? "0.00" : target.y.toFixed(2);
         const safeZ = isNaN(target.z) ? "0.00" : target.z.toFixed(2);
-        
-        // Update Static Elements state via JS selection to avoid innerHTML thrashing
-        const viewType = window.app.energyViewSettings.viewType;
-        const toggleInput = this.energyControlsOverlay.querySelector('#energy-view-toggle-input');
-        const labelSelect = this.energyControlsOverlay.querySelector('#energy-toggle-label-select');
-
-        if (toggleInput && toggleInput.checked !== (viewType === 'select')) {
-            toggleInput.checked = (viewType === 'select');
-        }
-        if (labelSelect) labelSelect.style.color = (viewType === 'select' ? 'var(--primary)' : 'var(--text-dim)');
 
         // Update Right Coordinates (Fewer updates, but still necessary for tracking)
         if (!params) {
@@ -499,6 +471,7 @@ class SceneManager {
     onPointerMove(event) {
         this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        this.pointerMoved = true; // Flag for raycasting throttle
     }
 
     /**
@@ -507,6 +480,10 @@ class SceneManager {
      */
     handleHover() {
         if (!this.raycaster || !this.camera || !this.hitBoxMeshes.length) return;
+        
+        // [PERF] Only raycast if the mouse has actually moved since the last frame
+        if (!this.pointerMoved) return;
+        this.pointerMoved = false; // Reset for next frame
 
         this.raycaster.setFromCamera(this.pointer, this.camera);
 
@@ -575,8 +552,19 @@ class SceneManager {
     selectDevice(id) {
         if (!id) return;
 
-        // Notify main app to set context
+        // View-aware chip click handling
         if (window.app) {
+            const mode = window.app.primaryMode;
+            
+            // In zones mode: focus camera only, no sidebar changes
+            if (mode === 'zones') {
+                this.focusOnMachine(id);
+                this.activeDeviceId = id;
+                return;
+            }
+            
+            // All other modes: use setContext for proper routing
+            // Energy mode is handled in setContext (keeps chips alive)
             window.app.setContext('machine', id);
         }
 
@@ -780,7 +768,7 @@ class SceneManager {
                 if (isAlarmMode) {
                     for (const [mid, mName] of Object.entries(this.manualMap)) {
                         if (mName && node.name.toLowerCase().includes(mName.toLowerCase())) {
-                            const cache = window.app.telemetryStore.get(mid.toUpperCase());
+                            const cache = window.app.liveState.get(mid.toUpperCase());
                             const state = (cache?.get('CalculatedState') || '').toLowerCase();
                             if (['fault', 'error', 'stopped'].includes(state)) belongsToFault = true;
                             break;
@@ -811,8 +799,11 @@ class SceneManager {
             }
         });
 
-        // Hide ALL labels in Zone/Plant view for Twinzo clean look
-        this.labelRegistry.forEach(label => label.element.style.display = 'none');
+        // Hide ALL labels in Zone/Plant view for clean look, but keep them in Energy mode
+        const isEnergyMode = window.app && window.app.primaryMode === 'energy';
+        if (!isEnergyMode) {
+            this.labelRegistry.forEach(label => label.element.style.display = 'none');
+        }
 
         // Frame the active group or focus if single machine
         if (deviceIds.length === 1) {
@@ -948,44 +939,6 @@ class SceneManager {
         });
     }
 
-    updateEnergyChips(show) {
-        this.labelRegistry.forEach((data, id) => {
-            const div = data.element;
-            const valueEl = div.querySelector('.chip-value');
-            
-            if (!show || this.chipDisplayMode === 'none') {
-                if (valueEl) valueEl.classList.remove('visible');
-                return;
-            }
-            
-            const app = window.app;
-            if (!app || !app.analytics) return;
-            
-            // Read from robust analytics store
-            const machineData = app.analytics.data.machines[id.toUpperCase()] || app.analytics.data.machines[id.toUpperCase().replace(/_0/g, '0')] || null;
-            if (!machineData) return;
-
-            let label = 'INSTANT kW';
-            let value = machineData.instantKW;
-            let unit = '';
-
-            if (this.chipDisplayMode === 'cycle') {
-                label = 'CYCLE TIME';
-                value = machineData.cycleTime || 0;
-                unit = ' s';
-            } else if (this.chipDisplayMode === 'status') {
-                label = 'STATUS';
-                value = machineData.isRunning ? 'RUNNING' : (machineData.state || 'OFFLINE').toUpperCase();
-                unit = '';
-            }
-            
-            if (valueEl) {
-                const displayVal = typeof value === 'number' ? value.toFixed(1) + unit : value;
-                valueEl.innerHTML = `<span style="color:var(--primary); font-size:9px; display:block; margin-bottom:2px;">${label}</span>${displayVal}`;
-                valueEl.classList.add('visible');
-            }
-        });
-    }
 
     showIsolationMarkers() {
         this.model.traverse((node) => {
@@ -1262,11 +1215,7 @@ class SceneManager {
         // Strict ID Unification: Strip symbols, underscores, and spaces
         let id = rawId.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        if (id === 'plant' || id === 'pack_01' || id === 'pack01') return; // User request: No 'plant' or 'pack_01' machine-chip label
-
-        if (id === 'outbound02' || id === 'outbound_02') {
-            console.log(`[Trace] updateDeviceLabel for OUTBOUND_02. Raw: ${rawId}, ID: ${id}`);
-        }
+        if (id === 'plant' || id === 'pack01' || id === 'outbound02') return; // Skip devices with no mesh in the scene
 
         // Strict Unification: Storage and Inbound are RAWMATERIALS
         const isRawMaterials = id.includes('storage') || id.includes('inbound') || id.includes('raw');
@@ -1417,9 +1366,9 @@ class SceneManager {
                 dotIndicator.style.backgroundColor = 'transparent';
                 dotIndicator.style.boxShadow = 'none';
                 
-                // Set icon color and glow dynamically based on state
+                // Set icon color dynamically based on state
+                // [PERF] Removed expensive text-shadow glow which caused 150ms+ renderer violations
                 dotIndicator.style.color = hex;
-                dotIndicator.style.textShadow = `0 0 15px ${hex}`;
             }
         }
 
@@ -1438,6 +1387,9 @@ class SceneManager {
             element.classList.remove('active');
         }
 
+        // Cache data for immediate redraw on mode switch
+        this.persistentValues.set(id, data);
+
         // ── Dynamic Value Display ──
         const valueEl = element.querySelector('.chip-value');
         const unifiedEl = element.querySelector('.chip-unified-value');
@@ -1448,10 +1400,27 @@ class SceneManager {
             if (valueEl) valueEl.classList.remove('visible');
             
             if (unifiedEl) {
-                const kw = this.getValue(data, 'Instant_kW') || 0;
-                unifiedEl.textContent = `${parseFloat(kw).toFixed(1)} kW`;
+                const rawKW = this.getValue(data, 'Instant_kW') || 0;
+                const targetKW = parseFloat(rawKW);
+                
+                // Initialize or update interpolation target
+                if (!this.interpolatedValues.has(id)) {
+                    this.interpolatedValues.set(id, { 
+                        current: targetKW, 
+                        target: targetKW, 
+                        element: unifiedEl,
+                        lastFormatted: targetKW.toFixed(2),
+                        unit: 'kW'
+                    });
+                    unifiedEl.textContent = `${targetKW.toFixed(2)} kW`;
+                } else {
+                    const entry = this.interpolatedValues.get(id);
+                    entry.target = targetKW;
+                    entry.element = unifiedEl; 
+                }
+
                 unifiedEl.style.display = 'block';
-                // Premium "Header" look for the energy value
+                // Premium look for energy value
                 unifiedEl.style.background = 'linear-gradient(135deg, #2a1e19, #1c1411)';
                 unifiedEl.style.borderRadius = '12px';
                 unifiedEl.style.padding = '4px 10px';
@@ -1468,9 +1437,7 @@ class SceneManager {
         }
     }
 
-    setLabelMode(id, mode) {
-        // Obsolete: buttons removed in favour of minimalist chip design
-    }
+    setLabelMode(id, mode) {}
 
     setLabelExpanded(id, expanded) {
         const label = this.labelRegistry.get(id);
@@ -1499,7 +1466,7 @@ class SceneManager {
                 slot = row.querySelector('.meta-value');
             }
 
-            if (slot) {
+            if (slot && slot.textContent !== val) {
                 slot.textContent = val;
                 slot.classList.add('value-updated');
                 setTimeout(() => slot.classList.remove('value-updated'), 500);
@@ -1507,17 +1474,52 @@ class SceneManager {
         });
     }
 
-    checkZoom() {
-        if (!this.camera) return;
+    /**
+     * Smoothly lerps telemetry values for 3D labels.
+     * Prevents "jumpy" UI during high-frequency WebSocket streams.
+     */
+    updateInterpolations(deltaTime) {
+        const lerpFactor = Math.min(deltaTime * 8.0, 1.0); // Slightly faster lerp
+        
+        this.interpolatedValues.forEach((data, id) => {
+            if (Math.abs(data.current - data.target) > 0.0001) {
+                data.current += (data.target - data.current) * lerpFactor;
+                
+                // [PERF] Only update DOM if the formatted string has actually changed
+                // This prevents redundant layout thrashing during fine lerp adjustments
+                const formatted = data.current.toFixed(2);
+                if (formatted !== data.lastFormatted) {
+                    data.lastFormatted = formatted;
+                    if (data.element) {
+                        data.element.textContent = `${formatted} ${data.unit}`;
+                    }
+                }
+            } else if (data.current !== data.target) {
+                data.current = data.target;
+                const formatted = data.current.toFixed(2);
+                data.lastFormatted = formatted;
+                if (data.element) {
+                    data.element.textContent = `${formatted} ${data.unit}`;
+                }
+            }
+        });
+    }
 
+    checkZoom(zoomDelta, posDelta) {
+        if (!this.camera) return;
+        
+        // [PERF] Skip expensive DOM visibility iteration if camera state is stable
+        if (zoomDelta < 0.001 && posDelta < 0.01) return;
+        
+        this.lastCameraZoom = this.camera.zoom;
+        this.lastCameraPos.copy(this.camera.position);
+
+        // [PERF] Only apply styles to labels if they aren't already visible/correct
+        // This avoids layout thrashing every single frame
         this.labelRegistry.forEach((data, id) => {
             if (!data) return;
-            const label = data.object || data;
-            const element = data.element || label.element;
-
-            // USER REQUIREMENT: Labels must be strictly anchored and independent of camera movement
-            label.visible = true;
-            if (element) {
+            const element = data.element;
+            if (element && element.style.display !== 'block') {
                 element.style.display = 'block';
                 element.classList.remove('mini');
             }
@@ -1545,26 +1547,38 @@ class SceneManager {
 
             this.controls.update();
 
-            // Hover logic decoupled from data updates
-            if (window.app) {
+            // [PERF] Throttle interactions to improve frame consistency
+            // [PERF] Only raycast every 4 frames AND only if pointer actually moved
+            // This drastically reduces CPU overhead for interaction checks
+            if (window.app && this.pointerMoved && this.frameCounter % 4 === 0) {
                 this.handleHover();
             }
 
-            this.checkZoom();
+            this.frameCounter++;
+            const zoomDelta = Math.abs(this.camera.zoom - this.lastCameraZoom);
+            const posDelta = this.camera.position.distanceTo(this.lastCameraPos);
+            const isMoving = this.pointerMoved || zoomDelta > 0.001 || posDelta > 0.01;
+
+            this.checkZoom(zoomDelta, posDelta);
             this._updateCoordinateTracker();
+
+            // Update Value Interpolations
+            const deltaTime = clock.getDelta();
+            this.updateInterpolations(deltaTime);
 
             // Animate Warning Meshes (Static Orientation, Pulse Scale)
             this.warningMeshes.forEach(wMesh => {
                 if (wMesh.visible) {
                     const scalePulse = 1.0 + Math.sin(elapsedTime * 4.0) * 0.15;
                     wMesh.scale.copy(wMesh.userData.baseScale).multiplyScalar(scalePulse);
-
-                    // No dynamic billboarding logic here as per latest request
                 }
             });
 
             this.renderer.render(this.scene, this.camera);
-            this.labelRenderer.render(this.scene, this.camera);
+            
+            if (isMoving || this.frameCounter % 2 === 0) {
+                this.labelRenderer.render(this.scene, this.camera);
+            }
         };
         loop();
     }

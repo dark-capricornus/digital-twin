@@ -15,6 +15,74 @@ from asyncua import Client, ua
 MAIN_LOOP = None
 opc_client = Client(url="opc.tcp://127.0.0.1:4840/freeopcua/server/")
 
+# --- OPC-UA Polling Cache ---
+_opc_node_cache: dict = {}   # device_id -> {tag_name -> asyncua Node}
+_opc_idx: int = None
+
+
+async def _build_opc_cache():
+    """Browse VirtualPLC.Devices and cache all Status tag nodes."""
+    global _opc_node_cache, _opc_idx
+    try:
+        _opc_idx = await opc_client.get_namespace_index("http://digitaltwin.plc")
+        devices_node = opc_client.get_node(f"ns={_opc_idx};s=VirtualPLC.Devices")
+        dev_nodes = await devices_node.get_children()
+        cache = {}
+        for dev_node in dev_nodes:
+            dev_name = (await dev_node.read_browse_name()).Name
+            tag_nodes = {}
+            # Collect tags from Status (and Inputs for completeness)
+            for folder_name in ("Status",):
+                try:
+                    folder = opc_client.get_node(f"ns={_opc_idx};s=VirtualPLC.Devices.{dev_name}.{folder_name}")
+                    children = await folder.get_children()
+                    for child in children:
+                        tag_name = (await child.read_browse_name()).Name
+                        tag_nodes[tag_name] = child
+                except Exception:
+                    pass
+            if tag_nodes:
+                cache[dev_name] = tag_nodes
+        _opc_node_cache = cache
+        print(f"[BRIDGE][OPC] Cached {len(_opc_node_cache)} devices, "
+              f"{sum(len(v) for v in _opc_node_cache.values())} tags")
+    except Exception as e:
+        print(f"[BRIDGE][OPC] Cache build error: {e}")
+
+
+async def poll_opcua_and_broadcast():
+    """Background task: read all device tags from OPC-UA every 500ms and broadcast."""
+    await asyncio.sleep(3)  # Allow OPC-UA server to stabilise
+    while True:
+        try:
+            if manager.active_connections:
+                if not _opc_node_cache:
+                    await _build_opc_cache()
+                if _opc_node_cache:
+                    batch = {}
+                    for dev_id, tag_nodes in _opc_node_cache.items():
+                        if not tag_nodes:
+                            continue
+                        try:
+                            nodes = list(tag_nodes.values())
+                            values = await opc_client.read_values(nodes)
+                            dev_data = {tag: val for tag, val in zip(tag_nodes.keys(), values)
+                                        if val is not None}
+                            if dev_data:
+                                batch[dev_id] = dev_data
+                        except Exception:
+                            pass
+                    if batch:
+                        await manager.broadcast({
+                            "topic": "opc/batch",
+                            "type": "json",
+                            "payload": batch
+                        })
+        except Exception as e:
+            print(f"[BRIDGE][OPC POLL] Error: {e}")
+            _opc_node_cache.clear()  # Force cache rebuild next cycle
+        await asyncio.sleep(0.5)
+
 
 # --- Fix Path for Imports ---
 # Calculate the project root absolute path (which is 4 levels up: bridge.py -> middleware -> backend -> manufacturing_unit -> root)
@@ -79,9 +147,10 @@ async def lifespan(app: FastAPI):
     try:
         await opc_client.connect()
         print(f"[BRIDGE] Connected to OPC-UA Server at {opc_client.server_url}")
+        asyncio.create_task(poll_opcua_and_broadcast())
     except Exception as e:
         print(f"Warning: Could not connect to OPC UA Server: {e}")
-    
+
     yield
     
     # --- Shutdown ---

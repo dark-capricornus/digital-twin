@@ -147,6 +147,7 @@ body {
     padding: 12px 16px;
     border-radius: 8px;
     min-width: 180px;
+    max-width: 300px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     border-left: 3px solid var(--primary);
 }
@@ -164,6 +165,8 @@ body {
     font-size: 16px;
     font-weight: 800;
     color: var(--primary);
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 /* ─── Responsive Adjustments ────────────────────────── */
@@ -292,18 +295,61 @@ body {
     top: 56px;
     bottom: 72px;
     width: 256px;
-    background: var(--panel-bg);
+    background: #0d0d0d; /* Solid Obsidian */
     z-index: 1500;
     display: flex;
     flex-direction: column;
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-    border-right: 1px solid var(--surface-dark);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    border-right: 1px solid #1c1411;
+    overflow: hidden;
+}
+
+/* Floating Sidebar Trigger */
+.sidebar-trigger {
+    position: fixed;
+    top: 72px; /* Below top strip (56px) + some gap */
+    left: 16px;
+    width: 48px;
+    height: 48px;
+    background: var(--panel-bg);
+    border: 1px solid var(--surface-dark);
+    border-radius: 8px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2000;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-trigger:hover {
+    background: var(--surface-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+.sidebar-trigger span {
+    font-size: 28px;
 }
 
 #left-sidebar {
     left: 0;
     transform: translateX(-100%);
+    width: 320px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2100; /* Above the trigger when open */
+}
+
+#left-sidebar.open {
+    transform: translateX(0) !important;
+}
+
+/* REMOVED LEGACY COLLAPSED LOGIC */
+#left-sidebar.collapsed {
+    display: none !important;
 }
 
 #right-sidebar {
@@ -337,11 +383,12 @@ body {
 }
 
 .sidebar-header {
-    padding: 20px 24px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    border-bottom: 2px solid var(--surface-dark);
+    background: #0d0d0d;
+    border-bottom: 2px solid #1c1411;
 }
 
 .sidebar-header.compact {
@@ -362,12 +409,10 @@ body {
 
 .sidebar-header.same-row .sidebar-header-title {
     margin-top: 0;
-    font-size: 16px;
+    font-size: 18px;
     letter-spacing: 0.5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: inherit;
+    white-space: normal;
+    line-height: 1.2;
 }
 
 .header-nav-container {
@@ -398,13 +443,13 @@ body {
     color: var(--text-main);
     text-transform: uppercase;
     letter-spacing: -0.5px;
-    margin-top: 4px; /* Slight push down as requested */
+    margin-top: 0;
 }
 
 .sidebar-content {
     flex: 1;
     overflow-y: auto;
-    padding: 24px;
+    padding: 12px 24px 24px 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -448,6 +493,72 @@ body {
 .sidebar-nav-item:hover {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-main);
+}
+
+/* ─── Sidebar Mockup Refinements (1:1 FIDELITY) ─────────────────── */
+.sidebar-section-header {
+    font-size: 10px;
+    font-weight: 800;
+    color: #475569; /* Muted slate */
+    margin: 16px 0 12px 0;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-header-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+}
+
+.inventory-item {
+    background: #111111; /* Solid Dark Grey Bar */
+    border: 1px solid rgba(255,255,255,0.02);
+    border-radius: 8px; /* Tighter corners as per photo */
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.inventory-item:hover {
+    background: #161616;
+    transform: translateY(-1px);
+}
+
+.inventory-item span:first-child {
+    font-size: 13px;
+    font-weight: 800;
+    color: #f1f5f9;
+    letter-spacing: 0.5px;
+}
+
+.status-indicator-inline {
+    font-size: 10px;
+    color: #10b981; /* Vibrant Green */
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.model-pill {
+    font-size: 10px;
+    color: #ec5b13; /* Primary Orange */
+    border: 1px solid #ec5b13; /* Outlined */
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: transparent; /* No background */
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
 }
 
 .sidebar-back-btn {
@@ -526,6 +637,33 @@ body {
     z-index: 2000;
 }
 
+.gemba-start-btn {
+    background: var(--primary);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(236, 91, 19, 0.3);
+    transition: all 0.2s;
+}
+
+.gemba-start-btn:hover {
+    transform: scale(1.05);
+    background: #FF7B37;
+    box-shadow: 0 6px 20px rgba(236, 91, 19, 0.4);
+}
+
+.gemba-start-btn span {
+    font-size: 18px;
+}
+
 .gemba-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -550,6 +688,12 @@ body {
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.2);
     color: #ef4444;
+    width: auto;
+    padding: 0 12px;
+    border-radius: 20px;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
 }
 
 .gemba-btn.gemba-stop:hover {
@@ -795,13 +939,13 @@ body {
 
 .chip-status-dot {
     font-family: 'Material Symbols Outlined' !important;
-    font-size: 16px; /* Reduced from 24px */
+    font-size: 13px; /* Increased to ~13px */
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px; /* Reduced from 44px as per user request */
-    height: 30px;
+    width: 24px; /* Increased by 25% from 19px */
+    height: 24px;
     background: linear-gradient(135deg, #2a1e19, #1c1411);
     border-radius: 50%;
     
@@ -853,7 +997,7 @@ body {
 
 .chip-name {
     flex: 1;
-    font-size: 8px; /* Reduced from 10px */
+    font-size: 6px; /* Increased by 25% from 5px */
     font-weight: 800;
     color: #f0f6fc;
     letter-spacing: 0.5px;
@@ -866,10 +1010,10 @@ body {
 
 /* Sidebar Section Titles & Rows */
 .sidebar-section-title {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 800;
     color: var(--text-dim);
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     margin-bottom: 12px;
     display: flex;
@@ -955,55 +1099,118 @@ body {
     color: var(--text-main);
 }
 
-/* ─── Gemba Walk Tour Bar ────────────────────────── */
 #gemba-tour-bar {
     display: none;
     position: fixed;
-    bottom: 84px;
+    bottom: 110px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(28, 20, 17, 0.92);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--surface-dark);
-    border-radius: 24px;
-    padding: 8px 16px;
-    gap: 8px;
+    background: #1c1411;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 40px;
+    padding: 12px 24px;
+    min-width: 600px;
     align-items: center;
+    justify-content: space-between;
     z-index: 3000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .gemba-btn {
-    background: none;
-    border: 1px solid var(--surface-dark);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    color: var(--text-main);
+    width: 44px;
+    height: 44px;
+    color: white;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 .gemba-btn:hover {
-    background: var(--surface-dark);
-    color: var(--primary);
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
     border-color: var(--primary);
 }
 
-.gemba-btn span {
-    font-size: 20px;
-}
-
 .gemba-stop {
-    border-color: var(--danger);
-    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    width: auto;
+    padding: 0 18px;
+    height: 44px;
+    border-radius: 22px;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1px;
 }
 
 .gemba-stop:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: #ef4444;
+    color: white;
+}
+
+.gemba-dot {
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    position: relative;
+}
+
+.gemba-dot.active {
+    background: var(--primary);
+    transform: scale(1.8);
+    box-shadow: 0 0 12px var(--primary);
+}
+
+.gemba-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    width: 12px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-50%);
+}
+
+.gemba-dot:last-child::after {
+    display: none;
+}
+
+.gemba-mini-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-dim);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gemba-mini-btn:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.gemba-mini-btn span {
+    font-size: 18px;
 }
 
 .gemba-label {
@@ -1208,12 +1415,12 @@ input:checked + .slider-round:before {
 /* ─── Unified Energy Chips ─── */
 .chip-unified-value {
     display: none;
-    font-size: 11px;
+    font-size: 9px; /* Increased by 25% from 7px */
     font-weight: 800;
     color: #fff;
     background: linear-gradient(135deg, #2a1e19, #1c1411);
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 5px 10px;
+    border-radius: 12px;
     border: 1px solid rgba(236, 91, 19, 0.4);
     box-shadow: 
         0 4px 10px rgba(0, 0, 0, 0.4),
@@ -1446,6 +1653,53 @@ input:checked + .slider-round:before {
     filter: brightness(1.1);
 }
 
-.maintenance-report-btn:active {
-    transform: translateY(0);
+/* Flicker-Free Targeted Updates */
+.val-text {
+    transition: color 0.3s ease;
+    display: inline-block;
+    font-variant-numeric: tabular-nums; /* Prevents jumping during number changes */
+}
+
+/* Optional: Slight highlight when value arrives for the first time or changes significantly */
+.val-updated {
+    animation: val-flash 0.8s ease-out;
+}
+
+@keyframes val-flash {
+    0% { color: var(--primary); transform: scale(1.05); }
+    100% { color: var(--text-main); transform: scale(1); }
+}
+
+/* [USER] Operational Status Labels */
+.status-label-alarming {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 900;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    text-transform: uppercase;
+}
+
+.status-label-healthy {
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 900;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    text-transform: uppercase;
+}
+
+.status-label-warning {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 900;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    text-transform: uppercase;
 }

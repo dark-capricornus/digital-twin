@@ -39,6 +39,8 @@ class WebSocketHandler {
 
             this.ws.onmessage = (event) => {
                 try {
+                    // [DEBUG] Log raw incoming telemetry for precision verification
+                    console.log('[WebSocket] Raw Data:', event.data);
                     const data = JSON.parse(event.data);
                     this.handleMessage(data);
                 } catch (error) {

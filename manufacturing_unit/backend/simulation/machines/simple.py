@@ -204,38 +204,56 @@ class SimpleMachine(BaseMachine):
             f"{self.id}.accumulating": self.accumulating,
         }
         
+        # [ARCHITECTURE] Alias tags BOTH with and without prefix for robustness
+        def add_tag(key, val):
+            tags[f"{self.id}.{key}"] = val
+            tags[key] = val
+
         # Role Tags
         if self.role == "casting":
-            tags[f"{self.id}.pressure_psi"] = round(self.pressure_psi, 1)
-            tags[f"{self.id}.pressure_setpoint"] = 60.0
-            tags[f"{self.id}.riser_pressure"] = round(self.pressure_psi * 0.95, 1)
-            tags[f"{self.id}.holding_pressure"] = 45.0 if self.cycle_status == "HOLDING" else 0.0
-            tags[f"{self.id}.holding_furnace_temp"] = round(getattr(self, 'holding_furnace_temp', 730.0), 1)
-            tags[f"{self.id}.die_top_temp"] = round(getattr(self, 'die_top_temp', 450.0), 1)
-            tags[f"{self.id}.die_bottom_temp"] = round(getattr(self, 'die_bottom_temp', 420.0), 1)
-            tags[f"{self.id}.fill_time"] = self.cycle_time * 0.2
-            tags[f"{self.id}.solidification_time"] = self.cycle_time * 0.5
-            tags[f"{self.id}.shot_count"] = self.shot_count
-            tags[f"{self.id}.model_id"] = "WHEEL_V1_SPORT"
+            add_tag("pressure_psi", round(self.pressure_psi, 1))
+            add_tag("pressure_setpoint", 60.0)
+            add_tag("riser_pressure", round(self.pressure_psi * 0.95, 1))
+            add_tag("holding_pressure", 45.0 if self.cycle_status == "HOLDING" else 0.0)
+            add_tag("holding_furnace_temp", round(getattr(self, 'holding_furnace_temp', 730.0), 1))
+            add_tag("die_top_temp", round(getattr(self, 'die_top_temp', 450.0), 1))
+            add_tag("die_bottom_temp", round(getattr(self, 'die_bottom_temp', 420.0), 1))
+            add_tag("fill_time", self.cycle_time * 0.2)
+            add_tag("solidification_time", self.cycle_time * 0.5)
+            add_tag("shot_count", self.shot_count)
+            add_tag("model_id", "WHEEL_V1_SPORT")
             
         elif self.role == "machining":
-            tags[f"{self.id}.spindle_rpm"] = round(self.spindle_rpm, 1)
-            tags[f"{self.id}.program_id"] = "PRG_8821_OP10"
-            tags[f"{self.id}.good_count"] = self.good_count
-            tags[f"{self.id}.reject_count"] = self.reject_count
+            add_tag("spindle_rpm", round(self.spindle_rpm, 1))
+            add_tag("program_id", "PRG_8821_OP10")
+            add_tag("good_count", self.good_count)
+            add_tag("reject_count", self.reject_count)
             
         elif "paint" in self.role:
-            tags[f"{self.id}.temperature"] = round(self.temperature, 1)
-            tags[f"{self.id}.humidity"] = round(self.humidity, 1)
-            tags[f"{self.id}.air_flow"] = "ACTIVE"
+            add_tag("temperature", round(self.temperature, 1))
+            add_tag("humidity", round(self.humidity, 1))
+            add_tag("air_flow", "ACTIVE")
+            add_tag("Booth_Temperature", round(self.temperature, 1))
+            add_tag("Booth_Humidity", round(self.humidity, 1))
+            add_tag("Air_Flow_Status", "ACTIVE")
             
         elif "pretreat" in self.role:
-            tags[f"{self.id}.conveyor_speed"] = self.conveyor_speed
-            tags[f"{self.id}.dryer_temp"] = 120.0 if self.cycle_status == "DRY" else 45.0
+            add_tag("conveyor_speed", self.conveyor_speed)
+            add_tag("dryer_temp", 120.0 if self.cycle_status == "DRY" else 45.0)
             
-        elif self.role == "buffer":
-            tags[f"{self.id}.part_count"] = self.part_count
-            tags[f"{self.id}.capacity"] = self.capacity
+        elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower():
+            add_tag("part_count", self.part_count)
+            add_tag("capacity", self.capacity)
+            add_tag("Material_Count", self.part_count)
+            add_tag("Pallet_Count", max(1, self.part_count // 4))
+            add_tag("Fill_Level", round((self.part_count / self.capacity) * 100, 1))
+            
+        elif self.role == "outbound" or "outbound" in self.id.lower():
+            add_tag("pallet_count", self.part_count)
+            add_tag("Pallet_Count", self.part_count)
+            add_tag("Shipping_Status", "READY" if self.part_count > 0 else "WAITING")
+            add_tag("Queue_Depth", len(self.queue_in))
+            add_tag("System_Idle", "YES" if self.cycle_status == "IDLE" else "NO")
             
         return tags
 

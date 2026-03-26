@@ -52,7 +52,7 @@ class Renderer {
             'lpdc_01': 'lpdc_01', 'lpdc_02': 'lpdc_02', 'lpdc_03': 'lpdc_03',
             'heat_01': 'heat_01', 'heat_02': 'heat_02',
             'paint_01': 'paint_01', 'paint_02': 'paint_02',
-            'storage_01': 'storage_01001', 'raw_materials': 'storage_01001',
+            'storage_01': 'storage_01001', 'raw_materials': 'storage_01001', 'rawmaterials': 'storage_01001',
             'outbound_01': 'outbound_01', 'pretreat_01': 'pretreat_01'
         };
     }
@@ -104,6 +104,10 @@ class Renderer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.target.copy(this.defaultTarget);
         this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.02;  // Ultra-smooth, gliding stop
+        this.controls.rotateSpeed = 0.45;    // Professional interaction level
+        this.controls.zoomSpeed = 0.70;      // Precise zoom
+        this.controls.panSpeed = 0.45;       // Stately panning
         this.controls.update();
 
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
@@ -149,12 +153,46 @@ class Renderer {
             this.nodeRegistry.set(normName, c);
             this.normNodeRegistry.set(normName.replace(/[^a-z0-9]/g, ''), c);
 
-            if (c.isMesh) {
-                if (c.material) {
-                    c.material = c.material.clone();
-                    if (normName.includes('floor')) { c.material.roughness = 1.0; c.material.metalness = 0; }
-                }
+            if (c.isMesh && c.material) {
+                c.material = c.material.clone();
+                if (normName.includes('floor')) { c.material.roughness = 1.0; c.material.metalness = 0; }
             }
+        });
+
+        // Hide source meshes at their original Blender positions.
+        // Compute error mesh size BEFORE hiding — Box3.setFromObject uses traverseVisible
+        // and would return an empty box on a hidden node.
+        this.errorMeshTemplate = this.nodeRegistry.get('error') || null;
+        const palletMesh = this.nodeRegistry.get('pallet') || null;
+
+        if (this.errorMeshTemplate) {
+            const tBox = new THREE.Box3().setFromObject(this.errorMeshTemplate);
+            const tSize = new THREE.Vector3();
+            tBox.getSize(tSize);
+            this.errorMeshSize = Math.max(tSize.x, tSize.y, tSize.z) || 1;
+            this.errorMeshTemplate.visible = false;
+        }
+        if (palletMesh) palletMesh.visible = false;
+
+        // Reduce glossiness on specific industrial equipment
+        const matteTargets = [
+            'furnace_01',
+            'degasser_01', 'degasser_02',
+            'lpdc_01', 'lpdc_02', 'lpdc_03',
+            'heat_01', 'heat_02',
+            'inspection_01'
+        ];
+        matteTargets.forEach(id => {
+            const node = this.nodeRegistry.get(id);
+            if (!node) return;
+            node.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.roughness = Math.max(child.material.roughness ?? 0, 0.72);
+                    child.material.metalness = Math.min(child.material.metalness ?? 1, 0.28);
+                    child.material.envMapIntensity = 0.4;
+                    child.material.needsUpdate = true;
+                }
+            });
         });
 
         // [PERF] Yield before generating hitboxes
@@ -206,7 +244,7 @@ class Renderer {
         }
     }
 
-    _startCameraAnim(toPos, toTarget, toZoom = null) {
+    _startCameraAnim(toPos, toTarget, toZoom = null, duration = 5000) {
         this._cameraAnim = {
             fromPos: this.camera.position.clone(),
             fromTarget: this.controls.target.clone(),
@@ -214,8 +252,8 @@ class Renderer {
             toPos: toPos.clone(),
             toTarget: toTarget.clone(),
             toZoom: toZoom !== null ? toZoom : this.camera.zoom,
-            t: 0,
-            duration: 420 // [USER] Ultra-slow cinematic transition (7s at 60fps)
+            startTime: performance.now(),
+            duration: duration
         };
         this.controls.enabled = false;
     }
@@ -253,21 +291,21 @@ class Renderer {
 
         if (!center) return;
         
-        // --- 1. Target the Mesh/Hitbox center ---
-        const focusTarget = center.clone();
+        // --- 1. Target the Mesh/Hitbox center + Balanced Chip Offset ---
+        // We shift the target upwards slightly (from 0.18 to 0.14) to keep
+        // the machine's full base in view while still centering the chip.
+        const focusTarget = center.clone().add(new THREE.Vector3(0, (maxDim * 0.14) + 0.15, 0));
 
-        // --- 2. Standardized Direction Offset (Derived from Golden View) ---
-        // Using the full goldenVector [700.27, 529.69, 932.17] ensures the camera 
-        // stays far enough away to avoid near-plane clipping while maintaining the perspective.
+        // --- 2. Standardized Golden Angle ---
         const goldenVector = new THREE.Vector3(700.27, 529.69, 932.17);
-        
-        // --- 3. Position Calculation ---
         const focusPos = focusTarget.clone().add(goldenVector);
 
-        // --- 4. Immersive Framing Zoom ---
-        const targetZoom = (this.viewSize / maxDim) * 0.90; 
+        // --- 4. Calibrated Multi-Asset Framing Zoom ---
+        // We use a multiplier of 0.72 (architectural pullback) to provide roughly 28% extra margin.
+        // This ensures a very generous, high-end "SCADA" field for larger equipment.
+        const targetZoom = (this.viewSize / maxDim) * 0.72; 
         
-        this._startCameraAnim(focusPos, focusTarget, targetZoom);
+        this._startCameraAnim(focusPos, focusTarget, targetZoom, 5000);
     }
 
     focusOnZone(zoneId) {
@@ -298,10 +336,64 @@ class Renderer {
         const goldenVector = new THREE.Vector3(700.27, 529.69, 932.17);
         const focusPos = center.clone().add(goldenVector);
         
-        // Framing zoom for the whole zone (0.75 for context)
-        const targetZoom = (this.viewSize / maxDim) * 0.75; 
+        // Framing zoom for the whole zone (0.90 for context-rich framing)
+        const targetZoom = (this.viewSize / maxDim) * 0.90; 
         
-        this._startCameraAnim(focusPos, center, targetZoom);
+        this._startCameraAnim(focusPos, center, targetZoom, 5000);
+    }
+
+    _getGembaOffset(ids) {
+        // Per-machine camera angle offsets for better gemba framing
+        // Y: higher = more overhead, X/Z ratio = viewing direction
+        const map = {
+            'rawmaterials':  new THREE.Vector3(620, 580, 860),
+            'furnace_01':    new THREE.Vector3(680, 560, 910),
+            'degasser_01':   new THREE.Vector3(700, 530, 930),
+            'degasser_02':   new THREE.Vector3(700, 530, 930),
+            'lpdc_01':       new THREE.Vector3(740, 600, 900),
+            'lpdc_02':       new THREE.Vector3(740, 600, 900),
+            'lpdc_03':       new THREE.Vector3(740, 600, 900),
+            'cooling_01':    new THREE.Vector3(700, 580, 920),
+            'cooling_02':    new THREE.Vector3(700, 580, 920),
+            'inspection_01': new THREE.Vector3(700, 540, 930),
+            'heat_01':       new THREE.Vector3(720, 550, 940),
+            'heat_02':       new THREE.Vector3(720, 550, 940),
+            'cnc_01':        new THREE.Vector3(660, 540, 910),
+            'cnc_02':        new THREE.Vector3(660, 540, 910),
+            'pretreat_01':   new THREE.Vector3(700, 530, 920),
+            'paint_01':      new THREE.Vector3(700, 530, 930),
+            'paint_02':      new THREE.Vector3(700, 530, 930),
+            'outbound_01':   new THREE.Vector3(640, 520, 870),
+        };
+        const key = (ids[0] || '').toLowerCase();
+        return map[key] || new THREE.Vector3(700.27, 529.69, 932.17);
+    }
+
+    focusOnGroup(ids) {
+        if (!this.camera || !this.controls || !ids || ids.length === 0) return;
+        const groupBox = new THREE.Box3();
+        let found = false;
+        ids.forEach(id => {
+            const node = this.findMesh(id);
+            if (node) { groupBox.expandByObject(node); found = true; }
+            else {
+                const hitbox = this.hitBoxMeshes.find(m => m.userData.deviceId === id);
+                if (hitbox) { groupBox.expandByPoint(hitbox.position); found = true; }
+            }
+        });
+        if (!found) return;
+        const center = new THREE.Vector3();
+        groupBox.getCenter(center);
+        const size = new THREE.Vector3();
+        groupBox.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 50;
+        // Wider zoom for dept groups, tighter for single machines
+        const zoomMult = ids.length > 2 ? 0.70 : 0.82;
+        const targetZoom = (this.viewSize / maxDim) * zoomMult;
+        const offset = this._getGembaOffset(ids);
+        const focusPos = center.clone().add(offset);
+        // Cinematic Gemba transition (Majestic 7s sweep)
+        this._startCameraAnim(focusPos, center, targetZoom, 7000);
     }
 
     applyUpdatedIds(updatedIds) {
@@ -429,18 +521,42 @@ class Renderer {
     }
 
     _addWarningToDevice(id, box, center) {
-        if (!this.baseWarningMesh) {
-            this.baseWarningMesh = new THREE.Mesh(
-                new THREE.ConeGeometry(0.5, 1, 3),
-                new THREE.MeshBasicMaterial({ color: 0xff4400 })
-            );
+        let wClone;
+
+        // Shared solid material — overrides whatever wireframe/outline the Blender
+        // material exported. depthTest:false keeps the indicator always on top.
+        if (!this.warnMaterial) {
+            this.warnMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff3300,
+                side: THREE.DoubleSide,
+                depthTest: false
+            });
         }
-        const wClone = this.baseWarningMesh.clone();
-        wClone.scale.set(0.8, 0.8, 0.8);
-        wClone.rotation.set(Math.PI / 2, 0, 0);
-        wClone.position.set(center.x, box.max.y + 0.8, center.z);
+
+        if (this.errorMeshTemplate && this.errorMeshTemplate.geometry) {
+            // Reference the geometry only — avoids deep-cloning Blender children
+            // (line edges, alloy wheel sub-meshes, etc.) that cause the visual noise.
+            wClone = new THREE.Mesh(this.errorMeshTemplate.geometry, this.warnMaterial);
+            wClone.rotation.copy(this.errorMeshTemplate.rotation);
+            const sf = 1.2 / (this.errorMeshSize || 1);
+            wClone.scale.setScalar(sf);
+        } else {
+            // Fallback: programmatic triangle warning cone
+            if (!this.baseWarningMesh) {
+                this.baseWarningMesh = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.5, 1, 3),
+                    this.warnMaterial
+                );
+            }
+            wClone = this.baseWarningMesh.clone();
+            wClone.scale.set(0.9, 0.9, 0.9);
+        }
+
+        wClone.position.set(center.x, box.max.y + 1.8, center.z);
         wClone.visible = false;
-        wClone.userData.baseScale = wClone.scale.clone();
+        wClone.userData.pulseBaseScale = wClone.scale.clone();
+        // Stagger phase so multiple alarms don't pulse in lockstep
+        wClone.userData.pulsePhase = Math.random() * Math.PI * 2;
         this.scene.add(wClone);
         this.warningMeshes.set(id, wClone);
     }
@@ -461,24 +577,43 @@ class Renderer {
         return undefined;
     }
 
-    setChipDisplayMode(mode) {
-        this.chipDisplayMode = mode;
-    }
 
     isolateGroup(ids) {
         if (!this.model) return;
-        const targetIds = (ids || []).map(id => id.toLowerCase());
+        if (!ids || ids.length === 0) {
+            // Restore all original materials
+            this.model.traverse(node => {
+                if (node.isMesh && node.userData.originalMaterial) {
+                    node.material = node.userData.originalMaterial;
+                }
+            });
+            return;
+        }
+        const targetIds = ids.map(id => id.toLowerCase());
+
+        // Pass 1 — findMesh + traverse: catches all proper child meshes
+        const keepNodes = new Set();
+        ids.forEach(id => {
+            const root = this.findMesh(id);
+            if (root) root.traverse(n => { if (n.isMesh) keepNodes.add(n); });
+        });
+
+        // Pass 2 — name-prefix scan: catches sibling meshes (e.g. degasser bowl)
+        // that share the device name as a prefix but sit outside the main group node
+        this.nodeRegistry.forEach((node, name) => {
+            if (!node.isMesh) return;
+            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.'))) {
+                keepNodes.add(node);
+            }
+        });
+
         this.model.traverse(node => {
             if (node.isMesh) {
-                if (targetIds.length === 0) {
-                    if (node.userData.originalMaterial) node.material = node.userData.originalMaterial;
+                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
+                if (keepNodes.has(node)) {
+                    node.material = node.userData.originalMaterial;
                 } else {
-                    const mid = this._resolveDeviceIdFromObject(node);
-                    if (mid && targetIds.includes(mid.toLowerCase())) {
-                        if (node.userData.originalMaterial) node.material = node.userData.originalMaterial;
-                    } else {
-                        this._ghostNode(node);
-                    }
+                    this._ghostNode(node);
                 }
             }
         });
@@ -504,6 +639,36 @@ class Renderer {
             this.ghostMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, transparent: true, opacity: 0.2, metalness: 0, roughness: 1 });
         }
         node.material = this.ghostMaterial;
+    }
+
+    setAllGrey(excludeIds = []) {
+        if (!this.model) return;
+        if (!this.greyMaterial) {
+            this.greyMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, transparent: false, opacity: 1, metalness: 0, roughness: 1 });
+        }
+        // Build set of excluded mesh nodes — same dual-pass as isolateGroup
+        const targetIds = excludeIds.map(id => id.toLowerCase());
+        const excludeNodes = new Set();
+        excludeIds.forEach(id => {
+            const root = this.findMesh(id);
+            if (root) root.traverse(n => { if (n.isMesh) excludeNodes.add(n); });
+        });
+        this.nodeRegistry.forEach((node, name) => {
+            if (!node.isMesh) return;
+            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.'))) {
+                excludeNodes.add(node);
+            }
+        });
+        this.model.traverse(node => {
+            if (node.isMesh) {
+                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
+                if (excludeNodes.has(node)) {
+                    node.material = node.userData.originalMaterial;
+                } else {
+                    node.material = this.greyMaterial;
+                }
+            }
+        });
     }
 
     resetInteraction() {
@@ -569,11 +734,15 @@ class Renderer {
         const loop = () => {
             requestAnimationFrame(loop);
 
-            // Camera animation lerp (controls.update skipped during anim to prevent damping fighting it)
+            // [CAMERA ANIMATION] Time-based lerp with Ease-In-Out Cubic
             if (this._cameraAnim) {
                 const anim = this._cameraAnim;
-                anim.t += 1 / anim.duration;
-                const ease = 1 - Math.pow(1 - Math.min(anim.t, 1), 3);
+                const elapsed = performance.now() - anim.startTime;
+                const t = Math.min(elapsed / anim.duration, 1);
+                
+                // Symmetric Ease-In-Out Cubic
+                const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                
                 this.camera.position.lerpVectors(anim.fromPos, anim.toPos, ease);
                 this.controls.target.lerpVectors(anim.fromTarget, anim.toTarget, ease);
                 
@@ -582,17 +751,14 @@ class Renderer {
                     this.camera.updateProjectionMatrix();
                 }
 
-                // [ARCHITECTURE] Continuously sync controls during lerp 
-                // This eliminates the "snap" at the end of the animation
-                this.controls.update();
-
-                if (anim.t >= 1) {
+                if (t >= 1) {
                     this._cameraAnim = null;
                     this.controls.enabled = true;
                 }
-            } else {
-                this.controls.update();
             }
+
+            // [STABILITY] Always update controls to sync matrix, but only after Lerp
+            this.controls.update();
 
             // Drain pending label updates — max LABELS_PER_FRAME per tick to spread DOM work
             if (this.pendingLabelIds && this.pendingLabelIds.size > 0) {
@@ -627,7 +793,23 @@ class Renderer {
             }
 
             if (this.pointerMoved && this.frameCounter % 4 === 0) this.handleHover();
-            
+
+            // [PULSE] Animate active fault/alarm warning meshes
+            // Scale oscillates between 0.85×–1.15× base (≈22px–35px range at default zoom)
+            if (this.warningMeshes.size > 0) {
+                const pNow = performance.now() / 1000;
+                this.warningMeshes.forEach(wMesh => {
+                    if (!wMesh.visible) return;
+                    const phase = wMesh.userData.pulsePhase || 0;
+                    const t = 0.5 + 0.5 * Math.sin(pNow * 2.5 + phase); // 1.25 Hz
+                    const base = wMesh.userData.pulseBaseScale;
+                    if (base) {
+                        const s = 0.85 + t * 0.30; // 0.85 → 1.15
+                        wMesh.scale.set(base.x * s, base.y * s, base.z * s);
+                    }
+                });
+            }
+
             // Camera params tracking for future reference
             this._updateCameraDebug();
 

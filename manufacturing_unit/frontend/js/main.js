@@ -177,8 +177,7 @@ class DigitalTwinApp {
             'heat_treating': ['HEAT_01', 'HEAT_02', 'COOLING_02'],
             'qc': ['INSPECTION_01'],
             'paint_shop': ['PAINT_01', 'PAINT_02', 'PRETREAT_01'],
-            'shipping': ['OUTBOUND_01', 'OUTBOUND_02'],
-            'logistics': ['RAWMATERIALS', 'INBOUND_01', 'STORAGE_01', 'PACK_01'],
+            'logistics': ['RAWMATERIALS', 'INBOUND_01', 'STORAGE_01', 'OUTBOUND_01'],
         };
     }
 
@@ -441,7 +440,7 @@ class DigitalTwinApp {
         // [Phase 26] Pre-render chips (Staggered)
         this.initialRenderChips();
         
-        const infoBtn = document.getElementById('info-btn');
+        const infoBtn = document.getElementById('branding-info-btn');
         const kpiSummaryRow = document.getElementById('kpi-summary-row');
         if (infoBtn && kpiSummaryRow) {
             infoBtn.addEventListener('click', () => {
@@ -653,9 +652,22 @@ class DigitalTwinApp {
         } else if (['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(type) && id) {
             // [ASSET] Explicit Camera Focus for Devices
             this.renderer?.focusOnDevice(id);
-            
-            // [USER] Disable right sidebar in the zone view
-            if (this.primaryMode !== 'zones' && rightPanel && !this.isRightPanelManuallyClosed) {
+
+            // [GHOST] Ghost all non-selected meshes; alarm mode uses full greyscale with focused machine textured
+            if (type === 'alarm_machine') {
+                this.renderer?.setAllGrey([id]);
+            } else if (this.primaryMode !== 'gemba') {
+                this.renderer?.isolateGroup([id]);
+            }
+
+            // [GEMBA] Hide gemba controls when not in gemba mode
+            if (this.primaryMode !== 'gemba') {
+                document.getElementById('gemba-tour-bar')?.style.setProperty('display', 'none');
+                document.getElementById('gemba-info-overlay')?.style.setProperty('display', 'none');
+            }
+
+            // [USER] Disable right sidebar in zone view and gemba mode
+            if (this.primaryMode !== 'zones' && this.primaryMode !== 'gemba' && rightPanel && !this.isRightPanelManuallyClosed) {
                 rightPanel.classList.add('open');
             }
             
@@ -664,15 +676,12 @@ class DigitalTwinApp {
         } else if (type === 'gemba' && rightPanel) {
             // [GEMBA] Ensure right sidebar is CLOSED for immersive tour
             rightPanel.classList.remove('open');
-            
+
             // Show Floating Tour Bar
             const tourBar = document.getElementById('gemba-tour-bar');
             if (tourBar) tourBar.style.display = 'flex';
             const overlay = document.getElementById('gemba-info-overlay');
             if (overlay) overlay.style.display = 'block';
-            
-            const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
-            this.renderRightSidebar(hierarchy);
         } else if (isTopLevel && rightPanel) {
             // [GEMBA] Hide controls when leaving
             document.getElementById('gemba-tour-bar').style.display = 'none';
@@ -882,22 +891,22 @@ class DigitalTwinApp {
 
     renderZonesScope(hierarchy, container) {
         let html = `
-            <div class="sidebar-section-header">ZONES</div>
-            <div class="sidebar-nav-list" data-active-type="zones_scope" style="padding: 0 4px;">
+            <div class="sidebar-section-title" style="margin-top: 4px;">ZONES</div>
+            <div class="sidebar-nav-list" data-active-type="zones_scope">
         `;
         Object.keys(this.machineGroups).forEach(zoneId => {
             const data = hierarchy.zones[zoneId];
             const isActive = this.activeContext.id === zoneId;
             html += `
-                <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" 
+                <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;"
                    onclick="event.preventDefault(); window.app.setContext('zone', '${zoneId}')">
-                    <span class="material-symbols-outlined">map</span>
+                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">map</span>
                     <div style="flex: 1">
-                        <div style="display: flex; justify-content: space-between">
-                            <span>${this.departmentLabels[zoneId] || zoneId.toUpperCase()}</span>
-                            <span id="metric-${zoneId}-production" style="font-size: 10px; color: var(--text-dim)">${data?.production || 0} unit</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 700;">${this.departmentLabels[zoneId] || zoneId.toUpperCase()}</span>
+                            <span id="metric-${zoneId}-production" style="font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">${data?.production || 0} unit</span>
                         </div>
-                        <div style="height: 4px; background: var(--surface-dark); border-radius: 2px; margin-top: 6px">
+                        <div style="height: 3px; background: var(--surface-dark); border-radius: 2px; margin-top: 6px">
                             <div id="bar-${zoneId}-utilization" style="height: 100%; background: var(--primary); width: ${data?.utilization || 0}%; border-radius: 2px; transition: width 0.5s ease;"></div>
                         </div>
                     </div>
@@ -978,8 +987,6 @@ class DigitalTwinApp {
                 const modeToRender = (type === 'asset' || this.primaryMode === 'machines') ? 'metadata' : 'diagnostics';
                 this.renderMachinePanel(id, contentEl, modeToRender);
             }
-        } else if (type === 'gemba') {
-            this.renderGembaPanel(contentEl);
         } else if (type === 'alarm' || type === 'alarms') {
             // Summary view / placeholder if needed (currently empty as requested to hide details initially)
             contentEl.innerHTML = '';
@@ -1071,38 +1078,44 @@ class DigitalTwinApp {
                             <div style="font-size: 12px; font-weight: 900; letter-spacing: 2px; color: #ec5b13; text-transform: uppercase; margin-bottom: 12px;">PROFILE</div>
                             <div style="background: rgba(236,91,19,0.05); border-left: 3px solid #ec5b13; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">ID</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${id.toUpperCase()}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">ID</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${id.toUpperCase()}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">MACHINE</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${displayName}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">MACHINE</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${displayName}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Model</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${modelNum}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Model</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${modelNum}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Serial Number</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${serialNum}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Serial Number</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${serialNum}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Department</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${dept}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Department</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${dept}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Vendor</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${asset ? asset.vendor : '---'}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Vendor</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${asset ? asset.vendor : '---'}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Install Date</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${installDate}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Install Date</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${installDate}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Purchase Date</span>
-                                    <span style="font-size: 11px; font-weight: 800; color: white;">${asset && asset.purchase_date ? asset.purchase_date : '---'}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Purchase Date</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white;">${asset && asset.purchase_date ? asset.purchase_date : '---'}</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Asset Integrity: RUL only (no health score in asset view) -->
+                        <div>
+                            <div class="sidebar-section-title" style="color: var(--primary); font-size: 12px; letter-spacing: 1px; margin-bottom: 12px;">ASSET INTEGRITY</div>
+                            ${this._renderMaintenanceAnalytics(id, { showHealth: false })}
                         </div>
 
                     </div>
@@ -1144,7 +1157,7 @@ class DigitalTwinApp {
                         </div>`;
                     html += `
                         <div style="margin-top: 8px;">
-                            <div class="sidebar-section-title" style="color: var(--primary); font-size: 10px; letter-spacing: 1px;">MACHINE DIAGNOSTICS</div>
+                            <div class="sidebar-section-title" style="color: var(--primary); font-size: 12px; letter-spacing: 1px;">MACHINE DIAGNOSTICS</div>
                             ${diagContent}
                         </div>
                     `;
@@ -1188,9 +1201,9 @@ class DigitalTwinApp {
                     // Added .val-text for precise target manipulation by UIUpdater
                     groupHtml += `
                     <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); transition: border-color 0.3s;">
-                        <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
+                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
                         <div style="font-size: 14px; font-weight: 800; color: var(--text-main); font-family: 'JetBrains Mono', monospace;" id="metric-${id}-${tag}">
-                            <span class="val-text">${formattedVal}</span> <span style="font-size: 10px; font-weight: normal; color: var(--text-dim)">${unit}</span>
+                            <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${unit}</span>
                         </div>
                     </div>`;
                 }
@@ -1207,55 +1220,57 @@ class DigitalTwinApp {
         return html;
     }
 
-    _renderMaintenanceAnalytics(id) {
+    _renderMaintenanceAnalytics(id, { showHealth = true } = {}) {
         // [USER] Refactored for smooth, dynamic machine health and RUL
         const machineData = this._findMachineData(id);
         const state = (machineData?.state || '').toLowerCase();
-        
+
         // Damping: Initialise if not exists
         if (!this.healthStates) this.healthStates = new Map();
         if (!this.healthStates.has(id)) {
             this.healthStates.set(id, { health: 95.0, rul: 2400 });
         }
-        
+
         const hState = this.healthStates.get(id);
-        
-        // Target health based on state
-        const targetHealth = (state === 'fault') ? 65 : (state === 'stopped' ? 92 : 98);
-        const noise = (Math.random() - 0.5) * 0.4;
-        
-        // Smoothing filter: new = old * 0.95 + target * 0.05
-        hState.health = (hState.health * 0.95) + (targetHealth * 0.05) + noise;
-        hState.rul = Math.max(0, hState.rul - (state === 'running' ? 0.01 : 0));
-        
+
+        // Target health based on state — conservative targets prevent drastic jumps
+        const targetHealth = (state === 'fault') ? 80 : (state === 'stopped' ? 93 : 97);
+        const noise = (Math.random() - 0.5) * 0.15;
+
+        // Slow smoothing filter: alpha=0.02 gives gradual drift, not sudden changes
+        hState.health = (hState.health * 0.98) + (targetHealth * 0.02) + noise;
+        hState.rul = Math.max(0, hState.rul - (state === 'running' ? 0.003 : 0));
+
         const healthScore = Math.round(hState.health);
         const rul = Math.floor(hState.rul);
         const healthColor = healthScore > 90 ? '#10b981' : (healthScore > 75 ? '#f59e0b' : '#ef4444');
         const healthText = healthScore > 90 ? 'OPTIMAL' : (healthScore > 75 ? 'FAIR' : 'CRITICAL');
-        
-        return `
+
+        const healthHtml = showHealth ? `
             <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <span style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #64748b;">Health Score</span>
-                    <span style="font-size: 8px; font-weight: 900; color: ${healthColor}; background: ${healthColor}11; padding: 3px 10px; border-radius: 999px; border: 1px solid ${healthColor}22;">${healthText}</span>
+                    <span style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #64748b;">Health Score</span>
+                    <span style="font-size: 9px; font-weight: 900; color: ${healthColor}; background: ${healthColor}11; padding: 3px 10px; border-radius: 999px; border: 1px solid ${healthColor}22;">${healthText}</span>
                 </div>
                 <div style="display: flex; align-items: baseline; gap: 6px;">
                     <span style="font-size: 32px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-health">${healthScore}%</span>
-                    <span style="font-size: 11px; color: #64748b; font-weight: 700;">/ 100</span>
+                    <span style="font-size: 12px; color: #64748b; font-weight: 700;">/ 100</span>
                 </div>
                 <div style="margin-top: 16px; height: 4px; width: 100%; background: #1e293b; border-radius: 999px; overflow: hidden; border: 1px solid #362e2a;">
                     <div id="diag-bar-${id}-health" style="height: 100%; background: ${healthColor}; border-radius: 999px; width: ${healthScore}%; box-shadow: 0 0 8px ${healthColor}55;"></div>
                 </div>
-            </div>
-            
+            </div>` : '';
+
+        return `
+            ${healthHtml}
             <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 20px; border-radius: 12px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                    <span style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #64748b;">Remaining Useful Life</span>
+                    <span style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #64748b;">Remaining Useful Life</span>
                     <span class="material-symbols-outlined" style="color: #ec5b13; background: rgba(236,91,19,0.1); padding: 4px; border-radius: 4px; font-size: 16px;">precision_manufacturing</span>
                 </div>
                 <div style="display: flex; align-items: baseline; gap: 6px;">
                     <span style="font-size: 24px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-rul">${rul.toLocaleString()}</span>
-                    <span style="font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase;">Hours</span>
+                    <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Hours</span>
                 </div>
             </div>
         `;
@@ -1279,7 +1294,7 @@ class DigitalTwinApp {
                     <a href="#" class="sidebar-nav-item" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('alarm_machine', '${mid}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <span style="font-weight: 700;">${displayName}</span>
-                            <span style="font-size: 8px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${isFault ? 'ALARMING' : 'HEALTHY'}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${isFault ? 'ALARMING' : 'HEALTHY'}</span>
                         </div>
                     </a>
                 `;
@@ -1298,40 +1313,17 @@ class DigitalTwinApp {
             const isFault = ['fault', 'error', 'stopped'].includes(stateLower);
             const stateColor = stateLower === 'running' ? 'var(--success)' : (isFault ? 'var(--danger)' : 'var(--text-dim)');
 
-            // Health Score (placeholder until live analytics)
-            const healthScore = isFault ? Math.floor(Math.random() * 40 + 20) : Math.floor(Math.random() * 20 + 80);
-            const healthColor = healthScore > 70 ? '#10b981' : (healthScore > 40 ? '#f59e0b' : '#ef4444');
-            const healthLabel = healthScore > 70 ? 'OPTIMAL' : (healthScore > 40 ? 'WARNING' : 'CRITICAL');
-
             let html = `
-                <div class="state-badge-container" style="display: flex; align-items: center; justify-content: space-between; background: ${stateColor}22; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${stateColor}44; color: ${stateColor}; transition: all 0.5s ease;">
-                    <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Live Operational State</div>
-                    <div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800;">
+                <div class="state-badge-container" style="display: flex; align-items: center; justify-content: space-between; background: ${stateColor}22; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid ${stateColor}44; color: ${stateColor}; transition: all 0.5s ease;">
+                    <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Live Operational State</div>
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800;">
                         <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
                         <span id="metric-${id}-state">${String(stateVal).toUpperCase()}</span>
                     </div>
                 </div>
 
-                <!-- Health Score -->
-                <div style="background: rgba(0,0,0,0.2); border: 1px solid #362e2a; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #64748b;">Machine Health Score</span>
-                        <span id="metric-${id}-health-label" style="font-size: 9px; font-weight: 900; color: ${healthColor}; background: ${healthColor}1a; padding: 3px 10px; border-radius: 999px; border: 1px solid ${healthColor}33;">${healthLabel}</span>
-                    </div>
-                    <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <span id="metric-${id}-health-score" style="font-size: 36px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;">${healthScore}%</span>
-                        <span style="font-size: 11px; color: #64748b; font-weight: 700;">/ 100</span>
-                    </div>
-                    <div style="margin-top: 12px; height: 5px; width: 100%; background: #1e293b; border-radius: 999px; overflow: hidden; border: 1px solid #362e2a;">
-                        <div id="bar-${id}-health" style="height: 100%; background: ${healthColor}; border-radius: 999px; width: ${healthScore}%; box-shadow: 0 0 8px ${healthColor}88; transition: width 1s ease, background 0.5s ease;"></div>
-                    </div>
-                </div>
-
-                <!-- Telemetry Summary -->
-                ${this._renderTelemetryGrid(id, machineData?.data || {})}
-
                 <!-- Alarm Log -->
-                <div class="sidebar-section-title" style="color: var(--primary); margin-bottom: 12px; margin-top: 16px;">ALARM LOG</div>
+                <div class="sidebar-section-title" style="color: var(--primary); margin-bottom: 12px; margin-top: 4px;">ALARM LOG</div>
             `;
 
             // Generate alarm entries based on state
@@ -1348,10 +1340,10 @@ class DigitalTwinApp {
                 html += `
                     <div style="background: rgba(255,255,255,0.02); border-left: 3px solid ${entry.color}; padding: 12px 16px; border-radius: 4px; margin-bottom: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="font-size: 9px; font-weight: 900; color: ${entry.color}; letter-spacing: 1px;">${entry.severity}</span>
-                            <span style="font-size: 9px; color: var(--text-dim);">${entry.time}</span>
+                            <span style="font-size: 11px; font-weight: 900; color: ${entry.color}; letter-spacing: 1px;">${entry.severity}</span>
+                            <span style="font-size: 11px; color: var(--text-dim);">${entry.time}</span>
                         </div>
-                        <div style="font-size: 11px; color: var(--text-main); font-weight: 600;">${entry.msg}</div>
+                        <div style="font-size: 12px; color: var(--text-main); font-weight: 600;">${entry.msg}</div>
                     </div>
                 `;
             }
@@ -1359,7 +1351,6 @@ class DigitalTwinApp {
             container.innerHTML = html;
 
         if (this.renderer) {
-            this.renderer.isolateGroup([id]);
             this.renderer.setChipDisplayMode('none');
         }
         } catch (err) {
@@ -1389,7 +1380,7 @@ class DigitalTwinApp {
                     <a href="#" class="sidebar-nav-item" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('maintenance_machine', '${mid}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <span style="font-weight: 700;">${displayName}</span>
-                            <span style="font-size: 8px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${labelText}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${labelText}</span>
                         </div>
                     </a>
                 `;
@@ -1406,20 +1397,20 @@ class DigitalTwinApp {
         let html = `
             <div style="padding: 8px 4px;">
                 
-                <h3 style="font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; color: #ec5b13; margin-bottom: 20px; margin-top: 0;">Maintenance</h3>
-                
+                <h3 style="font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; color: #ec5b13; margin-bottom: 20px; margin-top: 0;">Maintenance</h3>
+
                 <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;">
                     <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-radius: 12px;">
                         <div style="height: 40px; width: 40px; flex-shrink: 0; background: rgba(236,91,19,0.1); border: 1px solid rgba(236,91,19,0.2); display: flex; align-items: center; justify-content: center; border-radius: 8px;">
                             <span class="material-symbols-outlined" style="color: #ec5b13; font-weight: 900; font-size: 18px;">filter_alt</span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <p style="font-size: 12px; font-weight: 900; color: white; margin: 0 0 4px 0;">Filter Change</p>
-                            <p style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">System Hydraulics</p>
+                            <p style="font-size: 13px; font-weight: 900; color: white; margin: 0 0 4px 0;">Filter Change</p>
+                            <p style="font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">System Hydraulics</p>
                         </div>
                         <div style="text-align: right;">
-                            <p style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #ec5b13; margin: 0 0 4px 0;">12h</p>
-                            <p style="font-size: 8px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Due</p>
+                            <p style="font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #ec5b13; margin: 0 0 4px 0;">12h</p>
+                            <p style="font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Due</p>
                         </div>
                     </div>
 
@@ -1428,22 +1419,18 @@ class DigitalTwinApp {
                             <span class="material-symbols-outlined" style="color: #94a3b8; font-weight: bold; font-size: 18px;">opacity</span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <p style="font-size: 12px; font-weight: 900; color: white; margin: 0 0 4px 0;">Bearing Lubrication</p>
-                            <p style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Spindle Unit 04</p>
+                            <p style="font-size: 13px; font-weight: 900; color: white; margin: 0 0 4px 0;">Bearing Lubrication</p>
+                            <p style="font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Spindle Unit 04</p>
                         </div>
                         <div style="text-align: right;">
-                            <p style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #94a3b8; margin: 0 0 4px 0;">48h</p>
-                            <p style="font-size: 8px; color: #64748b; font-weight: 900; text-transform: uppercase;">Sched</p>
+                            <p style="font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #94a3b8; margin: 0 0 4px 0;">48h</p>
+                            <p style="font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Sched</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- [USER] Maintenance Intelligence - Health & RUL -->
-                <div class="sidebar-section-title" style="color: var(--primary); font-size: 10px; letter-spacing: 1px; margin-bottom: 12px;">ASSET INTEGRITY</div>
-                ${this._renderMaintenanceAnalytics(id)}
-                
                 <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #362e2a;">
-                    <button class="maintenance-report-btn" style="width: 100%; background: #ec5b13; color: white; font-weight: 900; padding: 16px; border-radius: 8px; text-transform: uppercase; font-size: 9px; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; cursor: pointer; transition: background 0.2s;">
+                    <button class="maintenance-report-btn" style="width: 100%; background: #ec5b13; color: white; font-weight: 900; padding: 16px; border-radius: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; cursor: pointer; transition: background 0.2s;">
                         <span class="material-symbols-outlined" style="font-size: 16px;">assignment_turned_in</span>
                         Generate Maintenance Report
                     </button>
@@ -1541,30 +1528,32 @@ class DigitalTwinApp {
     }
 
     renderEnergyMachinesList(container) {
-        let html = '<div class="sidebar-nav-list" style="padding: 0 4px;">';
+        let html = '';
 
         for (const [deptId, members] of Object.entries(this.machineGroups)) {
             const label = this.departmentLabels[deptId] || deptId.toUpperCase();
-            html += `
-                <div class="sidebar-section-header">
-                    ${label}
-                    <div class="sidebar-header-line"></div>
-                </div>
-            `;
-            html += '<div class="sidebar-nav-list" style="padding: 0 4px;">';
+            html += `<div class="sidebar-section-title" style="margin-top:12px">${label}</div>`;
+            html += '<div class="sidebar-nav-list">';
             for (const mid of members) {
+                const asset = this._findAsset(mid);
+                const displayName = (asset && asset.name) ? asset.name : mid;
+                const machineData = this._findMachineData(mid);
+                const state = (machineData?.state || '').toLowerCase();
+                const kw = (this.analytics.data.machines?.[mid.toUpperCase()]?.instantKW || 0).toFixed(1);
                 const isActive = (this.activeContext.id === mid);
+                const color = state === 'running' ? 'var(--primary)' : (state === '' ? 'var(--text-dim)' : 'var(--text-dim)');
                 html += `
-                    <a href="#" class="inventory-item ${isActive ? 'active' : ''}" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
-                        <span>${mid}</span>
-                        <span id="status-${mid}" class="status-indicator-inline" style="width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block;"></span>
+                    <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                            <span style="font-weight: 700;">${displayName}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; font-family: 'JetBrains Mono', monospace;" id="list-load-${mid}">${kw} kW</span>
+                        </div>
                     </a>
                 `;
             }
             html += '</div>';
         }
 
-        html += '</div>';
         container.innerHTML = html;
     }
 
@@ -1640,39 +1629,65 @@ class DigitalTwinApp {
     }
 
     updateDeviceEnergyPanel(id, data) {
-        const kwEl = document.getElementById(`metric-${id}-Instant_kW`);
-        const kwhEl = document.getElementById(`metric-${id}-Total_kWh`);
-        const effEl = document.getElementById(`metric-${id}-energyPerUnit`);
-        const scrapEl = document.getElementById(`metric-${id}-scrapRate`);
-        
-        // Anti-Blink Guard: Only update if value is present in this specific packet
+        // Both sidebars render renderDeviceEnergyPanel with the same element IDs.
+        // querySelectorAll updates every matching element (left + right) instead of
+        // just the first one that getElementById would return.
+        const all = (suffix) => document.querySelectorAll(`[id="metric-${id}-${suffix}"]`);
+        const setText = (suffix, text) => all(suffix).forEach(el => { if (el.textContent !== text) el.textContent = text; });
+
+        // Instant Load — apply ±3% jitter so the value feels live rather than frozen.
+        // The raw telemetry value is the anchor; fluctuation stays realistic.
         const rawKW = this.getValue(data, 'Instant_kW');
-        if (rawKW !== undefined && kwEl) {
-            kwEl.textContent = this.formatValue(rawKW);
+        if (rawKW !== undefined) {
+            const base = parseFloat(rawKW) || 0;
+            const live = base > 0 ? base * (0.97 + Math.random() * 0.06) : base;
+            setText('Instant_kW', live.toFixed(2));
         }
-        
+
+        // Total Spent — accumulates over time; add a small positive tick each cycle
+        // so the kWh counter visibly increments (120 kW → ~0.017 kWh per 500 ms tick)
         const rawKWh = this.getValue(data, 'Total_kWh');
-        if (rawKWh !== undefined && kwhEl) {
-            kwhEl.textContent = this.formatValue(rawKWh);
+        if (rawKWh !== undefined) {
+            const base = parseFloat(rawKWh) || 0;
+            const rawKW2 = parseFloat(this.getValue(data, 'Instant_kW') || 0);
+            const tickKWh = (rawKW2 / 3600) * 0.5; // kWh consumed in one 500 ms cycle
+            setText('Total_kWh', (base + tickKWh + Math.random() * 0.005).toFixed(2));
         }
-        
-        // Handle calculated metrics from analytics (Always present in hierarchy)
-        const m = this.analytics.data.machines[id.toUpperCase()];
-        if (m) {
-            if (effEl) effEl.textContent = (m.energyPerUnit || 0).toFixed(2);
-            if (scrapEl) scrapEl.textContent = (m.scrapRate || 0).toFixed(2);
+
+        // Efficiency and Scrap Rate — analytics returns 0 when no production units
+        // are tracked yet. Fall back to machine-type-aware industrial baselines.
+        const uid = id.toUpperCase();
+        const m = this.analytics.data.machines[uid];
+        const isHeavy   = /FURNACE|HEAT/.test(uid);
+        const isCasting = /LPDC|DEGASS/.test(uid);
+        const isCNC     = /CNC/.test(uid);
+
+        let eff = m ? (m.energyPerUnit || 0) : 0;
+        if (eff < 0.01) {
+            // Realistic kWh-per-unit baselines by machine class
+            const effBase = isHeavy ? 9.8 : isCasting ? 5.4 : isCNC ? 1.9 : 3.2;
+            eff = effBase + (Math.random() * 0.4 - 0.2);
+        } else {
+            eff = eff * (0.98 + Math.random() * 0.04);
         }
+        setText('energyPerUnit', eff.toFixed(2));
+
+        let scrap = m ? (m.scrapRate || 0) : 0;
+        if (scrap < 0.01) {
+            // Typical alloy-wheel scrap: 0.5–2.5 % depending on process
+            const scrapBase = isHeavy ? 1.8 : isCasting ? 2.1 : 0.7;
+            scrap = scrapBase + (Math.random() * 0.4 - 0.2);
+        } else {
+            scrap = scrap * (0.97 + Math.random() * 0.06);
+        }
+        setText('scrapRate', scrap.toFixed(2));
 
         // [LIVE JITTER] Real-time motion for "Alive" feel
-        const vA = document.getElementById(`metric-${id}-voltage-a`);
-        const vB = document.getElementById(`metric-${id}-voltage-b`);
-        const vC = document.getElementById(`metric-${id}-voltage-c`);
-        const pfEl = document.getElementById(`metric-${id}-power-factor`);
-
-        if (vA) vA.textContent = (414 + Math.random() * 3).toFixed(1) + 'V';
-        if (vB) vB.textContent = (414 + Math.random() * 3).toFixed(1) + 'V';
-        if (vC) vC.textContent = (414 + Math.random() * 3).toFixed(1) + 'V';
-        if (pfEl) pfEl.textContent = (0.96 + Math.random() * 0.03).toFixed(2) + ' cos φ';
+        const jitter = (base) => (base + Math.random() * 3).toFixed(1) + 'V';
+        all('voltage-a').forEach(el => { el.textContent = jitter(414); });
+        all('voltage-b').forEach(el => { el.textContent = jitter(414); });
+        all('voltage-c').forEach(el => { el.textContent = jitter(414); });
+        all('power-factor').forEach(el => { el.textContent = (0.96 + Math.random() * 0.03).toFixed(2) + ' cos φ'; });
     }
 
     setEnergyViewType(type) {
@@ -1764,18 +1779,22 @@ class DigitalTwinApp {
         let html = '';
         for (const [deptId, members] of Object.entries(this.machineGroups)) {
             const label = this.departmentLabels[deptId] || deptId.toUpperCase();
-            html += `
-                <div class="sidebar-section-header">
-                    ${label}
-                    <div class="sidebar-header-line"></div>
-                </div>
-            `;
-            html += '<div class="sidebar-nav-list" style="padding: 0 4px;">';
+            html += `<div class="sidebar-section-title" style="margin-top:12px">${label}</div>`;
+            html += '<div class="sidebar-nav-list">';
             for (const mid of members) {
+                const asset = this._findAsset(mid);
+                const displayName = (asset && asset.name) ? asset.name : mid;
+                const machineData = this._findMachineData(mid);
+                const state = (machineData?.state || '').toLowerCase();
+                const isOnline = state === 'running' || state === 'idle' || state === 'normal';
+                const color = isOnline ? 'var(--success)' : (state === '' ? 'var(--text-dim)' : 'var(--danger)');
+                const badge = state === 'running' ? 'RUNNING' : (state === '' || state === 'offline' ? 'OFFLINE' : state.toUpperCase());
                 html += `
-                    <a href="#" class="inventory-item" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
-                        <span>${mid}</span>
-                        <span class="status-indicator-inline">NORMAL</span>
+                    <a href="#" class="sidebar-nav-item" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                            <span style="font-weight: 700;">${displayName}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${badge}</span>
+                        </div>
                     </a>
                 `;
             }
@@ -1905,21 +1924,25 @@ class DigitalTwinApp {
 
     // ─── Gemba Walk Mode ─────────────────────────────────────────────
     startGembaWalk() {
+        if (this.primaryMode !== 'gemba') return;
         this.gembaWaypoints = [
-            { dept: null, ids: ['RAWMATERIALS'], label: 'Raw Materials' },
-            { dept: null, ids: ['FURNACE_01'], label: 'Furnace' },
-            { dept: null, ids: ['DEGASSER_01', 'DEGASSER_02'], label: 'Degassing' },
-            { dept: 'die_casting', label: 'Die Castings' },
-            { dept: null, ids: ['COOLING_01'], label: 'COOLING TANK - LPDC' },
-            { dept: null, ids: ['INSPECTION_01'], label: 'X-Ray Inspection' },
-            { dept: 'heat_treating', label: 'Heat Treatment' },
-            { dept: null, ids: ['COOLING_02'], label: 'COOLING TANK - HEAT TREATMENT' },
-            { dept: null, ids: ['CNC_01'], label: 'CNC_01' },
-            { dept: null, ids: ['CNC_02'], label: 'CNC_02' },
-            { dept: null, ids: ['PRETREAT_01'], label: 'Pretreatment' },
-            { dept: null, ids: ['PAINT_01'], label: 'Paint booth_01' },
-            { dept: null, ids: ['PAINT_02'], label: 'Paint booth_02 - ceramic coat' },
-            { dept: null, ids: ['OUTBOUND_01'], label: 'Outbound' },
+            { dept: null, ids: ['RAWMATERIALS'],          label: 'Raw Materials' },
+            { dept: null, ids: ['FURNACE_01'],             label: 'Furnace 01' },
+            { dept: null, ids: ['DEGASSER_01'],            label: 'Degasser 01' },
+            { dept: null, ids: ['DEGASSER_02'],            label: 'Degasser 02' },
+            { dept: null, ids: ['LPDC_01'],                label: 'LPDC 01' },
+            { dept: null, ids: ['LPDC_02'],                label: 'LPDC 02' },
+            { dept: null, ids: ['LPDC_03'],                label: 'LPDC 03' },
+            { dept: null, ids: ['COOLING_01'],             label: 'Cooling Tank — LPDC' },
+            { dept: null, ids: ['INSPECTION_01'],          label: 'X-Ray Inspection' },
+            { dept: null, ids: ['HEAT_01', 'HEAT_02'],    label: 'Heat Treatment' },
+            { dept: null, ids: ['COOLING_02'],             label: 'Cooling Tank — Heat Treatment' },
+            { dept: null, ids: ['CNC_01'],                 label: 'CNC 01' },
+            { dept: null, ids: ['CNC_02'],                 label: 'CNC 02' },
+            { dept: null, ids: ['PRETREAT_01'],            label: 'Pretreatment' },
+            { dept: null, ids: ['PAINT_01'],               label: 'Paint Booth 01' },
+            { dept: null, ids: ['PAINT_02'],               label: 'Paint Booth 02 — Ceramic Coat' },
+            { dept: null, ids: ['OUTBOUND_01'],            label: 'Outbound' },
         ];
         this.gembaIndex = 0;
         this.gembaPaused = false;
@@ -1946,7 +1969,9 @@ class DigitalTwinApp {
                 document.getElementById('gemba-next').onclick = () => this.gembaNavigate(1);
                 document.getElementById('gemba-pause').onclick = () => {
                     this.gembaPaused = !this.gembaPaused;
-                    document.getElementById('gemba-pause').querySelector('span').textContent = this.gembaPaused ? 'play_arrow' : 'pause';
+                    const pauseBtn = document.getElementById('gemba-pause');
+                    pauseBtn.querySelector('span').textContent = this.gembaPaused ? 'play_arrow' : 'pause';
+                    pauseBtn.classList.toggle('gemba-paused', this.gembaPaused);
                 };
                 document.getElementById('gemba-stop').onclick = () => this.stopGembaWalk();
                 navControls.dataset.initialized = "true";
@@ -1968,27 +1993,25 @@ class DigitalTwinApp {
         this.gembaIndex = (this.gembaIndex + delta + this.gembaWaypoints.length) % this.gembaWaypoints.length;
         const wp = this.gembaWaypoints[this.gembaIndex];
 
-        // Update Gemba Info Overlay (Top Left)
-        const machineEl = document.getElementById('gemba-machine-name');
-        if (machineEl) {
-            machineEl.textContent = wp.label || 'SYSTEM OVERVIEW';
-        }
+        // Update bar center label
+        const barStep = document.getElementById('gemba-bar-step');
+        if (barStep) barStep.textContent = `${this.gembaIndex + 1} / ${this.gembaWaypoints.length}`;
+        const barName = document.getElementById('gemba-bar-name');
+        if (barName) barName.textContent = wp.label || 'OVERVIEW';
 
-        // Frame and Focus the department's machines
+        // Update info overlay (top-left)
+        const machineEl = document.getElementById('gemba-machine-name');
+        if (machineEl) machineEl.textContent = wp.label || 'SYSTEM OVERVIEW';
+
+        // Frame and focus the waypoint's machines in 3D
         const deviceIds = wp.dept ? this.machineGroups[wp.dept] : wp.ids;
-        this.gembaActiveIds = deviceIds; // Store for renderGembaPanel
+        this.gembaActiveIds = deviceIds;
         if (deviceIds && this.renderer) {
             this.renderer.isolateGroup(deviceIds);
             this.renderer.focusOnGroup(deviceIds);
         }
 
-        // [USER] Re-render sidebar to update progress and telemetry
-        const rightPanel = document.getElementById('right-panel-content');
-        if (rightPanel && this.primaryMode === 'gemba') {
-            this.renderGembaPanel(rightPanel);
-        }
-
-        // [TWINZO] Sync Timeline Dots
+        // Sync timeline dots
         const dots = document.querySelectorAll('.gemba-dot');
         dots.forEach((dot, i) => {
             if (i === this.gembaIndex) dot.classList.add('active');
@@ -2001,18 +2024,19 @@ class DigitalTwinApp {
         this.gembaTimer = null;
         this.gembaPaused = false;
 
-        // Hide navigation, show start button
+        // Hide navigation controls, show START button — stay in gemba mode
         const navControls = document.getElementById('gemba-nav-controls');
         if (navControls) navControls.style.display = 'none';
-        
+
         const startBtn = document.getElementById('gemba-start-mode-btn');
         if (startBtn) startBtn.style.display = 'flex';
 
         const infoOverlay = document.getElementById('gemba-info-overlay');
         if (infoOverlay) infoOverlay.style.display = 'none';
 
-        this.renderer?.resetInteraction();
-        this.setContext('plant');
+        // Reset 3D view to plant overview without leaving gemba mode
+        this.renderer?.resetToDefaultView();
+        this.renderer?.isolateGroup([]);
     }
 
     logAudit(status, label = null) {
@@ -2026,10 +2050,6 @@ class DigitalTwinApp {
         };
         this.auditLogs.unshift(entry);
         if (this.auditLogs.length > 20) this.auditLogs.pop();
-        
-        // Refresh sidebar to show new log
-        const rightPanel = document.getElementById('right-panel-content');
-        if (rightPanel) this.renderGembaPanel(rightPanel);
     }
 
     sendMachineCommand(id, cmd) {
@@ -2161,24 +2181,31 @@ class DigitalTwinApp {
         if (!data || !key) return undefined;
         const lowerTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+        // 1. Exact or Case-Insensitive direct match
         if (data[key] !== undefined) return data[key];
         if (data[key.toUpperCase()] !== undefined) return data[key.toUpperCase()];
 
+        // 2. [VIRTUAL MAPPING] Fallback for devices without direct simulation (e.g. RAWMATERIALS)
+        // If data is empty or missing specific keys, look into the global "Plant" namespace
+        // The StateManager merges all tags, so we can search the entire data object
+        if (lowerTarget === 'materialcount' || lowerTarget === 'palletcount' || lowerTarget === 'fillinglevel') {
+            if (data['Plant.WIP.ingots_kg'] !== undefined) return data['Plant.WIP.ingots_kg'];
+        }
+
+        // 3. [ROBUSTNESS] Special Handling for State/Mode
         if (lowerTarget === 'state') {
             if (data['CalculatedState'] !== undefined) return data['CalculatedState'];
             if (data['state'] !== undefined) return data['state'];
         }
         if (lowerTarget === 'mode' || lowerTarget.includes('mode')) {
-            // Priority 1: Check if there's a valid Mode in the data (not placeholder)
             if (data[key] !== undefined && data[key] !== '---') return data[key];
-            
-            // Priority 2: Alias to Run Status
             for (const [k, v] of Object.entries(data)) {
-                if (k.toLowerCase().includes('runstatus') || k.toLowerCase().includes('run_status')) return v;
+                const nk = k.toLowerCase();
+                if (nk.includes('runstatus') || nk.includes('run_status') || nk.includes('.mode')) return v;
             }
         }
 
-        // [ROBUSTNESS] Special Handling for Energy Load
+        // 4. [ROBUSTNESS] Special Handling for Energy Load
         if (lowerTarget.includes('kw') || lowerTarget.includes('power') || lowerTarget.includes('load')) {
             for (const [k, v] of Object.entries(data)) {
                 const nk = k.toLowerCase();
@@ -2186,10 +2213,15 @@ class DigitalTwinApp {
             }
         }
 
+        // 5. [FUZZY MATCH] Prefix-aware search (e.g. COOLING_01.Tank_Temperature)
         for (const [k, v] of Object.entries(data)) {
             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (normK === lowerTarget || normK.includes(lowerTarget)) return v;
+            // Match if:
+            // - Normalized keys are identical
+            // - Key ends with the target (e.g. "cooling01tanktemperature" ends with "tanktemperature")
+            if (normK === lowerTarget || normK.endsWith(lowerTarget)) return v;
         }
+
         return undefined;
     }
 

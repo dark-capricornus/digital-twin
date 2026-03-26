@@ -169,28 +169,31 @@ body {
     word-wrap: break-word;
 }
 
-/* ─── Responsive Adjustments ────────────────────────── */
-@media (max-width: 1200px) {
-    .kpi-summary-row {
-        gap: 10px;
-        padding: 0 10px;
-    }
-}
 
-/* ─── 2. KPI Summary Row ────────────────────────── */
+/* ─── 2. KPI Summary Row (Collapsible Plant Info Bar) ─── */
 #kpi-summary-row {
     position: fixed;
     top: 56px;
     left: 0;
     right: 0;
-    height: 80px;
-    background: var(--bg-dark);
+    height: 72px;
+    background: rgba(8, 10, 14, 0.97);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
     display: flex;
-    gap: 16px;
-    padding: 16px 24px;
+    align-items: center;
+    gap: 0;
+    padding: 0 20px;
     z-index: 1000;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-    border-bottom: 1px solid var(--surface-dark);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+#kpi-summary-row.hidden-kpi {
+    transform: translateY(-72px);
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Branding Info Button in Navbar */
@@ -204,62 +207,45 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0.8;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, color 0.2s ease;
     margin-left: 4px;
 }
 
-.kpi-chevron span {
-    font-size: 20px;
-    transition: color 0.2s ease;
-}
+.kpi-chevron span { font-size: 20px; }
+.strip-left:hover .kpi-chevron { opacity: 1; }
+.kpi-chevron:hover { color: var(--primary); opacity: 1; }
+.kpi-chevron.open span { color: var(--primary); }
 
-.strip-left:hover .kpi-chevron {
-    opacity: 1;
-}
-
-.kpi-chevron:hover {
-    color: var(--primary);
-}
-
-.kpi-chevron.open span {
-    color: var(--primary);
-}
-
-#kpi-summary-row.hidden-kpi {
-    transform: translateY(-80px);
-    opacity: 0;
-    pointer-events: none;
-}
-
-#kpi-summary-row.hidden-kpi .kpi-card {
-    opacity: 0;
-    pointer-events: none;
+.kpi-divider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 0 4px;
+    flex-shrink: 0;
 }
 
 .kpi-card {
     flex: 1;
-    background: var(--panel-bg);
-    border-left: 4px solid var(--accent-blue);
-    padding: 12px 16px;
+    border-left: 3px solid transparent;
+    padding: 0 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    gap: 3px;
 }
 
 .kpi-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     color: var(--text-dim);
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
+    letter-spacing: 1.2px;
 }
 
 .kpi-value-row {
     display: flex;
-    justify-content: space-between;
     align-items: baseline;
+    gap: 5px;
 }
 
 .kpi-value {
@@ -267,25 +253,26 @@ body {
     font-size: 20px;
     font-weight: 700;
     color: var(--text-main);
+    line-height: 1;
 }
 
 .kpi-unit {
     font-size: 11px;
     font-weight: 500;
     color: var(--text-dim);
-    margin-left: 4px;
 }
 
 .kpi-trend {
     font-size: 11px;
     font-weight: 700;
 }
+.kpi-trend.up { color: var(--success); }
+.kpi-trend.down { color: var(--danger); }
 
-.kpi-trend.up {
-    color: var(--success);
+#kpi-alarm-card.has-alarms {
+    border-left-color: var(--danger) !important;
 }
-
-.kpi-trend.down {
+#kpi-alarm-card.has-alarms .kpi-value {
     color: var(--danger);
 }
 
@@ -497,7 +484,7 @@ body {
 
 /* ─── Sidebar Mockup Refinements (1:1 FIDELITY) ─────────────────── */
 .sidebar-section-header {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #475569; /* Muted slate */
     margin: 16px 0 12px 0;
@@ -619,97 +606,67 @@ body {
     border-color: var(--primary);
 }
 
-/* Gemba Tour Bar Premium Styling */
+/* ─── Gemba Tour Bar — Twinzo Style ──────────────────────── */
 #gemba-tour-bar {
     position: fixed;
-    bottom: 84px;
+    bottom: 96px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(13, 17, 23, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 50px;
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    z-index: 2000;
-}
-
-.gemba-start-btn {
-    background: var(--primary);
-    border: none;
-    color: white;
-    padding: 10px 24px;
-    border-radius: 50px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(236, 91, 19, 0.3);
-    transition: all 0.2s;
-}
-
-.gemba-start-btn:hover {
-    transform: scale(1.05);
-    background: #FF7B37;
-    box-shadow: 0 6px 20px rgba(236, 91, 19, 0.4);
-}
-
-.gemba-start-btn span {
-    font-size: 18px;
-}
-
-.gemba-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    background: rgba(8, 10, 14, 0.96);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 56px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
+    gap: 0;
+    z-index: 3000;
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    transition: opacity 0.3s ease, min-width 0.3s ease;
 }
 
-.gemba-btn:hover {
+@keyframes gemba-start-pulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(236, 91, 19, 0.3), 0 0 0 0 rgba(236, 91, 19, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 36px rgba(236, 91, 19, 0.55), 0 0 0 10px rgba(236, 91, 19, 0.0);
+    }
+}
+
+.gemba-start-btn {
+    background: rgba(236, 91, 19, 0.08);
+    border: 1.5px solid rgba(236, 91, 19, 0.65);
+    color: white;
+    padding: 14px 40px;
+    border-radius: 48px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    animation: gemba-start-pulse 2.5s ease-in-out infinite;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gemba-start-btn:hover {
+    transform: scale(1.04);
     background: var(--primary);
     border-color: var(--primary);
-    transform: scale(1.1);
+    animation: none;
+    box-shadow: 0 8px 32px rgba(236, 91, 19, 0.55);
 }
 
-.gemba-btn.gemba-stop {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-    width: auto;
-    padding: 0 12px;
-    border-radius: 20px;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-.gemba-btn.gemba-stop:hover {
-    background: #ef4444;
-    color: white;
-}
-
-.gemba-label {
-    color: var(--text-main);
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 12px;
-    min-width: 200px;
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-}
+.gemba-start-btn span { font-size: 20px; color: var(--primary); }
+.gemba-start-btn:hover span { color: white; }
 
 .sidebar-nav-item.active {
     background: rgba(236, 91, 19, 0.1);
@@ -939,13 +896,13 @@ body {
 
 .chip-status-dot {
     font-family: 'Material Symbols Outlined' !important;
-    font-size: 13px; /* Increased to ~13px */
+    font-size: 18px;
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px; /* Increased by 25% from 19px */
-    height: 24px;
+    width: 34px;
+    height: 34px;
     background: linear-gradient(135deg, #2a1e19, #1c1411);
     border-radius: 50%;
     
@@ -1010,7 +967,7 @@ body {
 
 /* Sidebar Section Titles & Rows */
 .sidebar-section-title {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
     color: var(--text-dim);
     letter-spacing: 1.5px;
@@ -1099,127 +1056,163 @@ body {
     color: var(--text-main);
 }
 
-#gemba-tour-bar {
-    display: none;
-    position: fixed;
-    bottom: 110px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1c1411;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 40px;
-    padding: 12px 24px;
-    min-width: 600px;
+/* Nav controls row — forces bar to full walk-mode width */
+#gemba-nav-controls { gap: 0; width: 100%; min-width: 660px; }
+
+/* Media controls cluster */
+.gemba-media-group {
+    display: flex;
     align-items: center;
-    justify-content: space-between;
-    z-index: 3000;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    gap: 2px;
+    padding: 0 8px;
 }
 
-.gemba-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+/* Ghost circular buttons */
+.gemba-ctrl-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    color: white;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
-}
-
-.gemba-btn:hover {
-    background: var(--primary);
-    color: white;
-    transform: scale(1.1);
-    border-color: var(--primary);
-}
-
-.gemba-stop {
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    width: auto;
-    padding: 0 18px;
-    height: 44px;
-    border-radius: 22px;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 1px;
-}
-
-.gemba-stop:hover {
-    background: #ef4444;
-    color: white;
-}
-
-.gemba-dot {
-    width: 6px;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
     cursor: pointer;
-    transition: all 0.4s ease;
-    position: relative;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
+
+.gemba-ctrl-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transform: scale(1.08);
+}
+
+.gemba-ctrl-btn span { font-size: 22px; }
+
+/* Play/Pause center button — filled ring */
+.gemba-ctrl-primary {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: white;
+    width: 46px;
+    height: 46px;
+}
+
+.gemba-ctrl-primary:hover {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 18px rgba(236, 91, 19, 0.45);
+    transform: scale(1.1);
+}
+
+.gemba-ctrl-primary.gemba-paused {
+    background: rgba(236, 91, 19, 0.15);
+    border-color: rgba(236, 91, 19, 0.35);
+    color: var(--primary);
+}
+
+/* Thin vertical divider */
+.gemba-bar-sep {
+    width: 1px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 0 10px;
+    flex-shrink: 0;
+}
+
+/* Waypoint name + counter block */
+.gemba-wp-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 14px;
+    min-width: 160px;
+    text-align: center;
+}
+
+.gemba-wp-step {
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 2px;
+}
+
+.gemba-wp-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+/* Timeline track */
+.gemba-track {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    justify-content: center;
+    padding: 0 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Progress dots — animate to pill when active */
+.gemba-dot {
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background 0.25s ease,
+                box-shadow 0.25s ease;
+}
+
+.gemba-dot:hover { background: rgba(255, 255, 255, 0.45); }
 
 .gemba-dot.active {
+    width: 22px;
     background: var(--primary);
-    transform: scale(1.8);
-    box-shadow: 0 0 12px var(--primary);
+    box-shadow: 0 0 10px rgba(236, 91, 19, 0.55);
 }
 
-.gemba-dot::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 100%;
-    width: 12px;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(-50%);
-}
-
-.gemba-dot:last-child::after {
-    display: none;
-}
-
-.gemba-mini-btn {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text-dim);
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+/* END button */
+.gemba-end-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+    padding: 0 18px;
+    height: 44px;
+    border-radius: 44px;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    background: rgba(239, 68, 68, 0.08);
+    color: #f87171;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
     cursor: pointer;
     transition: all 0.2s ease;
+    margin-left: 4px;
+    flex-shrink: 0;
 }
 
-.gemba-mini-btn:hover {
-    background: var(--primary);
+.gemba-end-btn span { font-size: 18px; }
+
+.gemba-end-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
     color: white;
-    border-color: var(--primary);
-    transform: translateY(-1px);
-}
-
-.gemba-mini-btn span {
-    font-size: 18px;
-}
-
-.gemba-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-main);
-    padding: 0 12px;
-    white-space: nowrap;
-    letter-spacing: 0.5px;
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.32);
 }
 
 /* ─── Energy Sidebar Premium UI ─── */

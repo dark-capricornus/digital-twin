@@ -158,9 +158,10 @@ class ThermalMachine(BaseMachine):
                  self._emit_event("HEAT_TREATMENT_COMPLETE", {})
                  
     def _get_device_specific_tags(self) -> Dict[str, Any]:
-        """Expose temperature and specialized modes/timers"""
+        """Expose temperature and specialized modes/timers matching frontend schemas"""
+        temp = round(self.physics.T_current, 1)
         tags = {
-            f"{self.id}.temperature": round(self.physics.T_current, 1),
+            f"{self.id}.temperature": temp,
             f"{self.id}.target_temp": self.target_temp,
             f"{self.id}.progress": round(self.progress, 2),
             f"{self.id}.mode": self.mode,
@@ -170,6 +171,27 @@ class ThermalMachine(BaseMachine):
             f"{self.id}.wall_temp": round(self.zone_temps["wall"], 1),
             f"{self.id}.alarm_status": self.alarm_status,
         }
+        
+        # [ARCHITECTURE] Alias tags BOTH with and without prefix for robustness
+        def add_tag(key, val):
+            tags[f"{self.id}.{key}"] = val
+            tags[key] = val
+
+        if self.is_cooling_tank:
+            add_tag("Tank_Temperature", temp)
+            add_tag("Target_Temperature", self.target_temp)
+            add_tag("Cooling_Status", self.mode)
+            add_tag("Cooling_Mode", self.mode)
+        elif "furnace" in self.id.lower():
+            add_tag("Melt_Bath_Temperature", tags[f"{self.id}.bath_temp"])
+            add_tag("Roof_Temperature", tags[f"{self.id}.roof_temp"])
+            add_tag("Wall_Temperature", tags[f"{self.id}.wall_temp"])
+            add_tag("Furnace_Mode", self.mode)
+        elif "heat" in self.id.lower():
+            add_tag("Furnace_Temperature", temp)
+            add_tag("Temperature_Setpoint", self.target_temp)
+            add_tag("HT_Mode", self.mode)
+            
         return tags
 
     def _calculate_power(self) -> float:

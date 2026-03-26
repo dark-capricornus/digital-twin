@@ -50,48 +50,53 @@
         <span class="material-symbols-outlined" id="trigger-icon">dashboard</span>
     </button>
 
-    <!-- ─── 2. KPI Summary Row (80px) ──────────────────── -->
+    <!-- ─── 2. KPI Summary Row (collapsible, toggled by info icon) ── -->
     <div id="kpi-summary-row" class="hidden-kpi">
-        <div class="kpi-card energy-only" style="border-left-color: var(--accent-blue)">
-            <span class="kpi-label">Total Load</span>
+
+        <div class="kpi-card" style="border-left-color: var(--success)">
+            <span class="kpi-label">Plant Running</span>
             <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-kw">---</span>
-                <span class="kpi-unit">MW</span>
-                <span class="kpi-trend up" id="kw-trend">0.0%</span>
+                <span class="kpi-value" id="plant-running" style="font-size: 18px;">-- / --</span>
+                <span class="kpi-unit">machines</span>
             </div>
         </div>
+
+        <div class="kpi-divider"></div>
+
         <div class="kpi-card" style="border-left-color: var(--accent-blue)">
             <span class="kpi-label">Throughput</span>
             <div class="kpi-value-row">
                 <span class="kpi-value" id="plant-prod">---</span>
                 <span class="kpi-unit">units</span>
-                <span class="kpi-trend down" id="prod-trend">0.0%</span>
             </div>
         </div>
-        <div class="kpi-card" style="border-left-color: var(--accent-blue)">
-            <span class="kpi-label">Efficiency (OEE)</span>
+
+        <div class="kpi-card" style="border-left-color: var(--primary)">
+            <span class="kpi-label">OEE</span>
             <div class="kpi-value-row">
                 <span class="kpi-value" id="plant-oee">---</span>
                 <span class="kpi-unit">%</span>
-                <span class="kpi-trend up" id="oee-trend">0.0%</span>
             </div>
         </div>
-        <div class="kpi-card energy-only" style="border-left-color: var(--accent-blue)">
-            <span class="kpi-label">Energy / Unit</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-epu">---</span>
-                <span class="kpi-unit">kWh</span>
-                <span class="kpi-trend down" id="epu-trend">0.0%</span>
-            </div>
-        </div>
-        <div class="kpi-card" style="border-left-color: var(--accent-blue)">
+
+        <div class="kpi-card" style="border-left-color: #7c3aed">
             <span class="kpi-label">Utilization</span>
             <div class="kpi-value-row">
                 <span class="kpi-value" id="plant-util">---</span>
                 <span class="kpi-unit">%</span>
-                <span class="kpi-trend up" id="util-trend">0.0%</span>
             </div>
         </div>
+
+        <div class="kpi-divider"></div>
+
+        <div class="kpi-card" id="kpi-alarm-card" style="border-left-color: var(--text-dim)">
+            <span class="kpi-label">Active Alarms</span>
+            <div class="kpi-value-row">
+                <span class="kpi-value" id="plant-alarm-count" style="font-size: 18px;">0</span>
+                <span class="kpi-unit" id="plant-alarm-label">clear</span>
+            </div>
+        </div>
+
     </div>
 
     <!-- ─── 3D Scene Container (100% viewport) ────────────── -->
@@ -153,28 +158,46 @@
         </div>
     </div>
 
-    <!-- ─── Gemba Tour Bar (Floating - Twinzo Style) ─────────────── -->
+    <!-- ─── Gemba Tour Bar (Twinzo Style) ─────────────── -->
     <div id="gemba-tour-bar" style="display: none;">
         <button id="gemba-start-mode-btn" class="gemba-start-btn">
             <span class="material-symbols-outlined">play_circle</span>
-            START GEMBA MODE
+            START GEMBA WALK
         </button>
-        
-        <div id="gemba-nav-controls" style="display: none; align-items: center; width: 100%; gap: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <button id="gemba-prev" class="gemba-btn" title="Previous"><span class="material-symbols-outlined">chevron_left</span></button>
-                <button id="gemba-pause" class="gemba-btn" title="Pause"><span class="material-symbols-outlined">pause</span></button>
-                <button id="gemba-next" class="gemba-btn" title="Next"><span class="material-symbols-outlined">chevron_right</span></button>
-            </div>
-            
-            <!-- Timeline Container -->
-            <div id="gemba-timeline" style="flex: 1; display: flex; align-items: center; gap: 12px; height: 100%; min-width: 300px;">
-                <!-- Dots injected via JS -->
+
+        <div id="gemba-nav-controls" style="display: none; align-items: center; width: 100%; gap: 0;">
+            <!-- Media controls -->
+            <div class="gemba-media-group">
+                <button id="gemba-prev" class="gemba-ctrl-btn" title="Previous">
+                    <span class="material-symbols-outlined">skip_previous</span>
+                </button>
+                <button id="gemba-pause" class="gemba-ctrl-btn gemba-ctrl-primary" title="Pause">
+                    <span class="material-symbols-outlined">pause</span>
+                </button>
+                <button id="gemba-next" class="gemba-ctrl-btn" title="Next">
+                    <span class="material-symbols-outlined">skip_next</span>
+                </button>
             </div>
 
-            <button id="gemba-stop" class="gemba-btn gemba-stop" title="End Tour">
-                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-                <strong>END</strong>
+            <div class="gemba-bar-sep"></div>
+
+            <!-- Current waypoint display -->
+            <div class="gemba-wp-label">
+                <span class="gemba-wp-step" id="gemba-bar-step">1 / 14</span>
+                <span class="gemba-wp-name" id="gemba-bar-name">--</span>
+            </div>
+
+            <div class="gemba-bar-sep"></div>
+
+            <!-- Progress dots -->
+            <div id="gemba-timeline" class="gemba-track"></div>
+
+            <div class="gemba-bar-sep"></div>
+
+            <!-- End button -->
+            <button id="gemba-stop" class="gemba-end-btn" title="End Tour">
+                <span class="material-symbols-outlined">stop</span>
+                END
             </button>
         </div>
     </div>

@@ -103,13 +103,12 @@ class UIUpdater {
                 statusEl.style.boxShadow = (color === 'var(--success)') ? '0 0 6px var(--success)66' : 'none';
             }
             
-            // 2. [USER] Targeted Load Update for Sidebar List
+            // 2. [USER] Targeted Load Update for Sidebar List — ±3% jitter for live feel
             const loadEl = this._getDomElement(`list-load-${mid}`);
             if (loadEl) {
-                const val = (m.instantKW || 0).toFixed(2);
-                if (loadEl.textContent !== val) {
-                    loadEl.textContent = val;
-                }
+                const base = m.instantKW || 0;
+                const live = base > 0 ? (base * (0.97 + Math.random() * 0.06)).toFixed(2) : '0.00';
+                loadEl.textContent = live;
             }
         });
 
@@ -139,18 +138,48 @@ class UIUpdater {
         };
 
         Object.entries(mapping).forEach(([id, val]) => {
-            if (val === undefined || val === null) return; // Anti-Blink Guard
+            if (val === undefined || val === null) return;
             const el = this._getDomElement(id);
             if (!el) return;
-            
-            const formatted = typeof val === 'number' ? 
-                (id === 'plant-kw' || id === 'plant-epu' ? val.toFixed(2) : Math.round(val).toLocaleString()) : 
+            const formatted = typeof val === 'number' ?
+                (id === 'plant-kw' || id === 'plant-epu' ? val.toFixed(2) : Math.round(val).toLocaleString()) :
                 (val || '---');
-                
-            if (el.textContent !== formatted) {
-                el.textContent = formatted;
-            }
+            if (el.textContent !== formatted) el.textContent = formatted;
         });
+
+        // Plant Running / Alarm counts — scoped to machineGroups
+        // Running = machine is powered on (IsRunning / Enabled flag from payload)
+        // Alarm   = machine in fault/error/stopped state
+        const plantIds = Object.values(this.app.machineGroups || {}).flat();
+        let running = 0, alarms = 0;
+        plantIds.forEach(id => {
+            const s = this.stateManager.getDeviceState(id);
+            if (!s) return;
+            const d = s.data || {};
+            const isRunning = d.IsRunning ?? d.is_running ?? d.Enabled ?? d.enabled;
+            if (isRunning === true) running++;
+            const st = (s.state || '').toLowerCase();
+            if (['fault', 'error', 'stopped', 'alarm'].includes(st)) alarms++;
+        });
+        const total = plantIds.length;
+        const runEl = this._getDomElement('plant-running');
+        if (runEl) {
+            const txt = `${running} / ${total}`;
+            if (runEl.textContent !== txt) runEl.textContent = txt;
+        }
+        const alarmEl = this._getDomElement('plant-alarm-count');
+        if (alarmEl) {
+            const txt = String(alarms);
+            if (alarmEl.textContent !== txt) alarmEl.textContent = txt;
+        }
+        const alarmLabelEl = this._getDomElement('plant-alarm-label');
+        if (alarmLabelEl) {
+            const label = alarms === 0 ? 'clear' : (alarms === 1 ? 'alarm' : 'alarms');
+            if (alarmLabelEl.textContent !== label) alarmLabelEl.textContent = label;
+            alarmLabelEl.style.color = alarms > 0 ? 'var(--danger)' : 'var(--text-dim)';
+        }
+        const alarmCard = this._getDomElement('kpi-alarm-card');
+        if (alarmCard) alarmCard.classList.toggle('has-alarms', alarms > 0);
     }
 
     updateZones(hierarchy) {
@@ -237,7 +266,10 @@ class UIUpdater {
 
         // Also update standard metadata if present (State, Health)
         const state = (this.stateManager.getDeviceState(id)?.state || 'OFFLINE');
-        const health = Math.floor(Math.random() * 20 + 80); // Placeholder for logic
+        // Use damped health from healthStates to avoid random fluctuation
+        const health = (this.app.healthStates && this.app.healthStates.has(id))
+            ? Math.round(this.app.healthStates.get(id).health)
+            : 85;
         this.updateDeviceMetadata(id, state, health);
     }
 

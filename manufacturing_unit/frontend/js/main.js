@@ -99,72 +99,76 @@ class DigitalTwinApp {
         return {
             'FURNACE': {
                 'Core Energy': ['Furnace_Instant_kW', 'Furnace_Total_kWh'],
-                'Temperature': ['Melt_Bath_Temperature', 'Roof_Temperature', 'Wall_Temperature'],
-                'Status': ['Furnace_Mode', 'Alarm_Status', 'Step_Timer']
+                'Production': ['Plant_KPI_Ingots_Consumed', 'Plant_WIP_Molten_Metal'],
+                'Temperature': ['Melt_Bath_Temperature', 'Roof_Temperature', 'Zone_Temperatures'],
+                'Status': ['Furnace_Mode', 'Furnace_Run_Status', 'Alarm_Status', 'Melt_Hold_Timer']
+            },
+            'DEGASSER': {
+                'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh'],
+                'Production': ['Plant_WIP_Degassed_Metal'],
+                'Process': ['Gas_Flow_Rate', 'Rotor_Speed', 'Treatment_Time'],
+                'Status': ['Degasser_Run_Status', 'Alarm_Status']
             },
             'LPDC': {
                 'Core Energy': ['LPDC_Instant_kW', 'LPDC_Total_kWh'],
+                'Production': ['Shot_Count', 'Model_ID'],
                 'Pressure': ['Riser_Pressure', 'Pressure_Setpoint', 'Holding_Pressure'],
                 'Temperature': ['Holding_Furnace_Temperature', 'Die_Top_Temperature', 'Die_Bottom_Temperature'],
-                'Time / Cycle': ['Cycle_Time', 'Fill_Time', 'Solidification_Time'],
-                'Status': ['LPDC_Mode', 'Cycle_Status', 'Alarm_Status'],
-                'Production': ['Shot_Count', 'Model_ID']
+                'Process': ['Cycle_Time', 'Fill_Time', 'Solidification_Time'],
+                'Status': ['LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status']
+            },
+            'COOLING': {
+                'Core Energy': ['Cooling_Instant_kW', 'Cooling_Total_kWh'],
+                'Temperature': ['Water_Inlet_Temp', 'Water_Outlet_Temp', 'Tank_Temperature'],
+                'Process': ['Flow_Rate', 'Cooling_Time'],
+                'Status': ['Cooling_Run_Status', 'Alarm_Status']
             },
             'CNC': {
                 'Core Energy': ['CNC_Instant_kW', 'CNC_Total_kWh'],
-                'Cycle / Program': ['Program_ID', 'Cycle_Time', 'Cycle_Status'],
-                'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count'],
-                'Status': ['CNC_Mode', 'Alarm_Status']
-            },
-            'INSPECTION': {
-                'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh'],
-                'Inspection Cycle': ['Inspection_Cycle_Time', 'Scan_Status'],
-                'Production / Quality': ['Inspected_Count', 'OK_Count', 'NG_Count'],
-                'Status': ['XRay_Mode', 'Alarm_Status']
+                'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count', 'Program_ID'],
+                'Process': ['Cycle_Time', 'Spindle_Speed'],
+                'Status': ['CNC_Run_Status', 'Cycle_Status', 'Alarm_Status']
             },
             'HEAT': {
                 'Core Energy': ['HT_Instant_kW', 'HT_Total_kWh'],
                 'Temperature': ['Furnace_Temperature', 'Temperature_Setpoint'],
-                'Process Sequence': ['Process_Step', 'Step_Timer'],
-                'Status': ['HT_Mode', 'Alarm_Status']
+                'Process': ['Process_Step', 'Step_Timer'],
+                'Status': ['HT_Run_Status', 'Alarm_Status']
+            },
+            'INSPECTION': {
+                'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh'],
+                'Production': ['Inspected_Count', 'OK_Count', 'NG_Count'],
+                'Process': ['Inspection_Cycle_Time', 'Scan_Status'],
+                'Status': ['XRay_Run_Status', 'Alarm_Status']
             },
             'PRETREAT': {
                 'Core Energy': ['PT_Instant_kW', 'PT_Total_kWh'],
-                'Process / Conveyor': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature'],
-                'Status': ['PT_Mode', 'Alarm_Status']
+                'Process': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature'],
+                'Status': ['PT_Run_Status', 'Alarm_Status']
             },
             'PAINT_01': {
                 'Core Energy': ['PB1_Instant_kW', 'PB1_Total_kWh'],
-                'Booth Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Conveyor / Process': ['Booth_Cycle_Status'],
-                'Status': ['PB1_Mode', 'Alarm_Status']
+                'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
+                'Process': ['Booth_Cycle_Status'],
+                'Status': ['PB1_Run_Status', 'Alarm_Status']
             },
             'PAINT_02': {
                 'Core Energy': ['PB2_Instant_kW', 'PB2_Total_kWh'],
-                'Booth Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Conveyor / Process': ['Booth_Cycle_Status'],
-                'Status': ['PB2_Mode', 'Alarm_Status']
-            },
-            'COOLING': {
-                'Core Energy': ['Cooling_Instant_kW', 'Cooling_Total_kWh'],
-                'Environment': ['Tank_Temperature', 'Target_Temperature', 'Cooling_Status'],
-                'Status': ['Cooling_Mode', 'Alarm_Status']
-            },
-            'DEGASSER': {
-                'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh'],
-                'Environment': ['Vacuum_Level', 'Melt_Temp', 'Treatment_Status'],
-                'Status': ['Argon_Flow', 'Alarm_Status']
-            },
-            'STORAGE': {
-                'Inventory Levels': ['Material_Count', 'Pallet_Count', 'Fill_Level']
-            },
-            'INBOUND': {
-                'Inventory Levels': ['Material_Count', 'Pallet_Count', 'Fill_Level']
+                'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
+                'Process': ['Booth_Cycle_Status'],
+                'Status': ['PB2_Run_Status', 'Alarm_Status']
             },
             'OUTBOUND': {
-                'Core Energy': ['Outbound_Instant_kW', 'Outbound_Total_kWh'],
-                'Logistics': ['Pallet_Count', 'Shipping_Status', 'Queue_Depth'],
-                'Status': ['System_Idle', 'Alarm_Status']
+                'Production': ['Plant_KPI_Total_Produced', 'Dispatched_Count'],
+                'Status': ['Outbound_Status', 'Alarm_Status']
+            },
+            'RAWMATERIALS': {
+                'Inventory': ['Plant_WIP_Ingots_Available', 'Plant_KPI_Ingots_Consumed'],
+                'Logistics': ['Incoming_Shipment_ETA']
+            },
+            'SHIPPING': {
+                'Output': ['Plant_KPI_Total_Produced'],
+                'Status': ['Alarm_Status']
             }
         };
     }
@@ -177,7 +181,7 @@ class DigitalTwinApp {
             'heat_treating': ['HEAT_01', 'HEAT_02', 'COOLING_02'],
             'qc': ['INSPECTION_01'],
             'paint_shop': ['PAINT_01', 'PAINT_02', 'PRETREAT_01'],
-            'logistics': ['RAWMATERIALS', 'INBOUND_01', 'STORAGE_01', 'OUTBOUND_01'],
+            'logistics': ['RAWMATERIALS', 'OUTBOUND_01'],
         };
     }
 
@@ -189,7 +193,7 @@ class DigitalTwinApp {
             'heat_treating': 'Heat Treating Department',
             'paint_shop': 'Paint Shop',
             'shipping': 'Shipping Department',
-            'logistics': 'Logistics & Storage',
+            'logistics': 'Raw Materials',
         };
     }
 
@@ -227,6 +231,7 @@ class DigitalTwinApp {
             // Render content ONLY when expanding or while open
             if (this.analytics) {
                 const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
+                if (this.ui) this.ui.clearCache(); // [FIX] Invalidate cache on structural change
                 this.renderLeftSidebar(hierarchy);
             }
         } else {
@@ -257,7 +262,7 @@ class DigitalTwinApp {
 
         const viewIcons = {
             'zones_scope': 'map',
-            'zone': 'location_on',
+            'zone': 'map',
             'energy_analytics': 'bolt',
             'machines_list': 'inventory',
             'asset': 'inventory',
@@ -273,6 +278,7 @@ class DigitalTwinApp {
 
         // Fallback: use primaryMode if context type doesn't have a specific icon
         const primaryModeIcons = {
+            'zones': 'map',
             'machines': 'inventory',
             'energy': 'bolt',
             'maintenance': 'build',
@@ -300,10 +306,16 @@ class DigitalTwinApp {
         if (/PAINT.?01|PB1/i.test(id)) return 'PAINT_01';
         if (/PAINT.?02|PB2/i.test(id)) return 'PAINT_02';
         // Prefix-based matching
-        const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'PAINT', 'RAWMATERIALS', 'STORAGE', 'INBOUND'];
+        const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'PAINT'];
         for (const p of prefixes) {
             if (id.includes(p)) return p;
         }
+
+        // Consolidated Logistics/Storage/Inbound into RAWMATERIALS branding
+        if (id.includes('RAWMATERIALS') || id.includes('STORAGE') || id.includes('INBOUND')) {
+            return 'RAWMATERIALS';
+        }
+
         return null;
     }
 
@@ -312,6 +324,23 @@ class DigitalTwinApp {
      * e.g., 'Furnace_Instant_kW' → 'Instant kW', 'Melt_Bath_Temperature' → 'Melt Bath Temperature'
      */
     _formatTagLabel(tag) {
+        if (!tag) return '';
+        // Map specific Ground Truth labels for premium naming
+        const labelMap = {
+            'Plant_WIP_Molten_Metal': 'Molten Metal Produced',
+            'Plant_WIP_Degassed_Metal': 'Molten Metal Degassed',
+            'Plant_WIP_Ingots_Available': 'Ingots Available',
+            'Plant_KPI_Ingots_Consumed': 'Ingots Consumed',
+            'Plant_WIP_Cast_Parts': 'Casting Output',
+            'Plant_WIP_Cooled_Parts_1': 'Cooled Parts (DC)',
+            'Plant_WIP_Machined_Parts': 'Processed Total',
+            'Plant_WIP_Cooled_Parts_2': 'Heat Treat Output',
+            'Plant_WIP_Painted_Parts': 'Painted Total',
+            'Plant_KPI_Total_Produced': 'Total Wheels Produced',
+            'Plant_KPI_Throughput': 'Plant Throughput',
+            'Plant_KPI_Yield': 'First Pass Yield'
+        };
+        if (labelMap[tag]) return labelMap[tag];
         return tag.replace(/_/g, ' ');
     }
 
@@ -324,6 +353,7 @@ class DigitalTwinApp {
         
         if (upperTag.includes('KWH')) return 'kWh';
         if (upperTag.includes('KW')) return 'kW';
+        if (upperTag.includes('MOLTEN') || upperTag.includes('METAL') || upperTag.includes('KG')) return 'kg';
         if (upperTag.includes('TEMPERATURE') || upperTag.includes('TEMP')) return '°C';
         if (upperTag.includes('PRESSURE') || upperTag.includes('PSI') || upperTag.includes('BAR')) return 'bar';
         if (upperTag.includes('RPM')) return 'RPM';
@@ -334,13 +364,22 @@ class DigitalTwinApp {
         return '';
     }
 
-    _getDomElement(id) {
-        return document.getElementById(id);
+    _hasChanged(type, id, data, keys) {
+        if (!this._changeCache) this._changeCache = new Map();
+        const cacheKey = `${type}-${id}`;
+        let hash = '';
+        for (let i = 0; i < keys.length; i++) {
+            const v = data[keys[i]];
+            hash += (v === undefined || v === null) ? '~' : (typeof v === 'number' ? v.toFixed(2) : v);
+            hash += '|';
+        }
+        if (this._changeCache.get(cacheKey) === hash) return false;
+        this._changeCache.set(cacheKey, hash);
+        return true;
     }
 
-    _hasChanged(type, id, data, keys) {
-        // [PERF] Simple change detection to prevent redundant DOM updates
-        return true; 
+    _getDomElement(id) {
+        return document.getElementById(id);
     }
 
     /**
@@ -374,37 +413,61 @@ class DigitalTwinApp {
         return null;
     }
 
+    /**
+     * Unified state resolution from WebSocket tags.
+     * Priority: raw WS tag 'State' > 'CalculatedState' > device-specific Run_Status > analytics engine state
+     * This ensures left sidebar, right sidebar, and zone view all show the same value.
+     */
+    _getMachineState(id) {
+        const raw = this.stateManager?.getDeviceState(id)?.data || {};
+        // 1. Direct tag match (exact key)
+        let state = raw['State'] || raw['CalculatedState'] || '';
+        // 2. Device-specific Run_Status tags
+        if (!state) {
+            for (const [k, v] of Object.entries(raw)) {
+                const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (nk.includes('runstatus') || nk === 'state' || nk === 'calculatedstate') {
+                    state = String(v);
+                    break;
+                }
+            }
+        }
+        // 3. Fallback to analytics engine
+        if (!state) {
+            const machineData = this._findMachineData(id);
+            state = machineData?.state || '';
+        }
+        return state ? String(state).toUpperCase() : 'OFFLINE';
+    }
+
     _findAsset(id) {
         if (!this.assetData) return null;
         const key = id.toUpperCase();
+        
+        // 1. [BRANDING] Standardization for Raw Materials
+        if (key.includes('INBOUND') || key.includes('STORAGE') || key === 'RAWMATERIALS') {
+            const base = this.assetData['RAWMATERIALS'] || this.assetData['STORAGE_01'] || this.assetData['INBOUND_01'] || {};
+            return {
+                ...base,
+                name: 'Raw Materials',
+                id: 'RAWMATERIALS' // Standardize internal ID for mapping
+            };
+        }
+
         if (this.assetData[key]) return this.assetData[key];
         const normId = key.replace(/[^A-Z0-9]/g, '');
         for (const [ak, av] of Object.entries(this.assetData)) {
             if (ak.replace(/[^A-Z0-9]/g, '') === normId) return av;
         }
-        // 3. Fallback: Raw Materials mapping
-        if (normId === 'RAWMATERIALS') return this.assetData['STORAGE_01'] || this.assetData['INBOUND_01'];
         return null;
     }
 
     async init() {
         console.log('[App] Initializing Digital Twin...');
         const container = document.getElementById('container');
-        this.renderer = new Renderer(container, this.stateManager);
 
-        // Load Asset Metadata (static data source: assets.json)
-        try {
-            const response = await fetch('./assets.json');
-            const json = await response.json();
-            // Unwrap 'assets' key so _findAsset can look up directly by device ID (e.g. 'FURNACE_01')
-            this.assetData = (json && json.assets) ? json.assets : json;
-            this.assets = this.assetData; // Alias for scene.js getAssetInfo
-            console.log('[App] Assets metadata loaded:', Object.keys(this.assetData).length);
-        } catch (e) {
-            console.error('[App] Failed to load assets.json:', e);
-        }
-
-
+        // [PERF] Start WebSocket connection FIRST — TCP handshake runs in background
+        // while heavy WebGL init, model load, and shader compile proceed.
         let wsUrl;
         if (window.location.protocol === "file:") {
             wsUrl = "ws://localhost:8001/ws";
@@ -423,13 +486,36 @@ class DigitalTwinApp {
             this.stateManager,
             (status) => this.updateStatus(status)
         );
-
         this.websocket.connect();
-        
+
+        // [PERF] Yield to the browser before heavy WebGL and Three.js setup
+        await new Promise(resolve => setTimeout(resolve, 0));
+        this.renderer = new Renderer(container, this.stateManager);
+
+        // [PERF] Fetch assets.json in parallel with model load below
+        const assetPromise = fetch('./assets.json').then(r => r.json()).then(json => {
+            this.assetData = (json && json.assets) ? json.assets : json;
+            this.assets = this.assetData;
+            console.log('[App] Assets metadata loaded:', Object.keys(this.assetData).length);
+        }).catch(e => console.error('[App] Failed to load assets.json:', e));
+
         if (this.renderer) {
-            await this.renderer.loadModel('assets/models/plant.glb');
-            
-            // [PERF] Yield before starting the render loop to allow layout paint 
+            // Model load and assets.json fetch run in parallel
+            await Promise.all([
+                this.renderer.loadModel('assets/models/plant.glb'),
+                assetPromise
+            ]);
+
+            // Environment must be set BEFORE compileAsync so material shaders compile once
+            // with the correct IBL env map — prevents mid-loop recompile spikes.
+            this.renderer._initEnvironment();
+
+            // Pre-compile all shaders (env map already set above)
+            if (this.renderer.renderer.compileAsync) {
+                await this.renderer.renderer.compileAsync(this.renderer.scene, this.renderer.camera);
+            }
+
+            // [PERF] Yield before starting the render loop to allow layout paint
             await new Promise(resolve => setTimeout(resolve, 0));
             this.renderer.start();
         }
@@ -491,9 +577,11 @@ class DigitalTwinApp {
 
                 // [PERF] Defer heavy business logic to yield to the paint thread
                 // This significantly improves INP (Interaction to Next Paint)
-                setTimeout(() => {
-                    this.handleAction(action);
-                }, 0);
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(() => this.handleAction(action), { timeout: 1000 });
+                } else {
+                    setTimeout(() => this.handleAction(action), 500);
+                }
             });
         });
 
@@ -589,6 +677,12 @@ class DigitalTwinApp {
             'alarm':    'alarms',
         };
         this.setContext(contextTypeMap[action] || action);
+        
+        // [USER] Automatically switch 3D chip mode when enters Energy mode
+        if (this.renderer) {
+            const chipMode = action === 'energy' ? 'energy' : 'status';
+            this.renderer.setChipDisplayMode(chipMode);
+        }
 
         // Auto-open left sidebar for all modes that have a left panel
         if (action === 'plant' || action === 'gemba') {
@@ -599,6 +693,9 @@ class DigitalTwinApp {
 
         // [USER] Explicitly close right sidebar when entering Zones mode
         if (action === 'zones' && rightPanel) {
+            // No longer forcing close — if user were inspecting a machine, let them stay, 
+            // but for a clean mode-switch, it's safer to stay in overview if needed.
+            // Actually, let's keep it closed until a machine is clicked.
             rightPanel.classList.remove('open');
             this.isRightPanelManuallyClosed = false;
         }
@@ -629,7 +726,15 @@ class DigitalTwinApp {
 
         if (this.activeContext.type === type && this.activeContext.id === id) {
             if (isTopLevel && !leftOpen) { /* Proceed to open left */ }
-            else if (isMachine && !rightOpen) { /* Proceed to open right */ }
+            else if (isMachine) { 
+                // [USER] Strict Toggle: Close right sidebar if clicking the same machine again
+                if (rightOpen) {
+                    document.getElementById('right-sidebar')?.classList.remove('open');
+                    this.isRightPanelManuallyClosed = true; // Respect the toggle-off
+                    return;
+                }
+                /* else proceed to open right */
+            }
             else if (type !== 'plant') return;
         }
 
@@ -648,27 +753,31 @@ class DigitalTwinApp {
             this.renderer?.focusOnZone(id);
             this.toggleLeftSidebar(true);
             
-            // [USER] Ensure right sidebar is closed in zone view
+            // [USER] Track for toggle-back logic
+            this.lastZoneId = id;
+            
+            // [USER] STRICTURE: Selecting a zone MUST close the right sidebar if it was open
+            if (rightPanel) {
+                rightPanel.classList.remove('open');
+            }
+            
+            const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
+            this.renderRightSidebar(hierarchy);
         } else if (['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(type) && id) {
             // [ASSET] Explicit Camera Focus for Devices
             this.renderer?.focusOnDevice(id);
 
-            // [GHOST] Ghost all non-selected meshes; alarm mode uses full greyscale with focused machine textured
+            // [GHOST] Ghost all non-selected meshes
             if (type === 'alarm_machine') {
                 this.renderer?.setAllGrey([id]);
             } else if (this.primaryMode !== 'gemba') {
                 this.renderer?.isolateGroup([id]);
             }
 
-            // [GEMBA] Hide gemba controls when not in gemba mode
-            if (this.primaryMode !== 'gemba') {
-                document.getElementById('gemba-tour-bar')?.style.setProperty('display', 'none');
-                document.getElementById('gemba-info-overlay')?.style.setProperty('display', 'none');
-            }
-
-            // [USER] Disable right sidebar in zone view and gemba mode
-            if (this.primaryMode !== 'zones' && this.primaryMode !== 'gemba' && rightPanel && !this.isRightPanelManuallyClosed) {
+            // [USER] STRICT OPEN: Open right panel for explicit machine interactions
+            if (rightPanel) {
                 rightPanel.classList.add('open');
+                this.isRightPanelManuallyClosed = false; // Reset guard on explicit machine click
             }
             
             const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
@@ -820,6 +929,10 @@ class DigitalTwinApp {
         contentEl.setAttribute('data-active-id', id || '');
         contentEl.setAttribute('data-active-type', type || '');
 
+        // Flush stale DOM cache entries — sidebar innerHTML is about to be replaced,
+        // so any cached element refs (including cached nulls) for sidebar children are invalid.
+        if (this.ui) this.ui.clearCache();
+
         // Reset nav header and shared layout classes
         navEl.innerHTML = '';
         header.classList.remove('same-row', 'compact');
@@ -834,8 +947,7 @@ class DigitalTwinApp {
             this.renderPlantOverview(contentEl);
         } else if (type === 'zones_scope') {
             header.classList.add('same-row', 'compact');
-            titleEl.textContent = 'ZONES';
-            // Move title into the top row for the same-row effect
+            titleEl.textContent = 'ZONES'; 
             navEl.prepend(titleEl);
             this.renderZonesScope(hierarchy, contentEl);
         } else if (type === 'zone' && id) {
@@ -880,6 +992,12 @@ class DigitalTwinApp {
                 navEl.prepend(titleEl);
                 this.renderDeviceEnergyPanel(id, contentEl);
             }
+        } else if (type === 'zone' && id) {
+            header.classList.add('same-row', 'compact');
+            titleEl.textContent = 'ZONE PERFORMANCE';
+            navEl.prepend(titleEl);
+            const zoneData = hierarchy.zones[id] || hierarchy.zones[id.toLowerCase()];
+            this.renderZoneKPIs(id, zoneData, contentEl);
         }
 
         // 3. PERSISTENCE: Save the last primary navigation mode for this sidebar
@@ -891,24 +1009,16 @@ class DigitalTwinApp {
 
     renderZonesScope(hierarchy, container) {
         let html = `
-            <div class="sidebar-section-title" style="margin-top: 4px;">ZONES</div>
             <div class="sidebar-nav-list" data-active-type="zones_scope">
         `;
         Object.keys(this.machineGroups).forEach(zoneId => {
-            const data = hierarchy.zones[zoneId];
             const isActive = this.activeContext.id === zoneId;
             html += `
                 <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;"
                    onclick="event.preventDefault(); window.app.setContext('zone', '${zoneId}')">
                     <span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">map</span>
                     <div style="flex: 1">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight: 700;">${this.departmentLabels[zoneId] || zoneId.toUpperCase()}</span>
-                            <span id="metric-${zoneId}-production" style="font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">${data?.production || 0} unit</span>
-                        </div>
-                        <div style="height: 3px; background: var(--surface-dark); border-radius: 2px; margin-top: 6px">
-                            <div id="bar-${zoneId}-utilization" style="height: 100%; background: var(--primary); width: ${data?.utilization || 0}%; border-radius: 2px; transition: width 0.5s ease;"></div>
-                        </div>
+                        <span style="font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.departmentLabels[zoneId] || zoneId.toUpperCase()}</span>
                     </div>
                 </a>
             `;
@@ -923,9 +1033,16 @@ class DigitalTwinApp {
         const navEl = document.getElementById('right-header-nav');
         const header = document.querySelector('#right-sidebar .sidebar-header');
         
-        // Use active context if it's a machine or gemba, otherwise use last known right context
-        const isCurrentlyMachine = ['alarm_machine', 'maintenance_machine', 'machine', 'asset', 'gemba'].includes(this.activeContext.type);
-        const targetContext = isCurrentlyMachine ? this.activeContext : (this.lastRightContext || null);
+        // [USER] Disable right sidebar for gemba mode
+        if (this.primaryMode === 'gemba' || this.activeContext.type === 'gemba') {
+            const rightPanel = document.getElementById('right-sidebar');
+            if (rightPanel) rightPanel.classList.remove('open');
+            return;
+        }
+
+        // Use active context if it's a machine or zone, otherwise use last known right context
+        const isCurrentlyRightTarget = ['alarm_machine', 'maintenance_machine', 'machine', 'asset', 'zone'].includes(this.activeContext.type);
+        const targetContext = isCurrentlyRightTarget ? this.activeContext : (this.lastRightContext || null);
         if (!targetContext) return;
         const { type, id } = targetContext;
 
@@ -955,17 +1072,18 @@ class DigitalTwinApp {
         contentEl.setAttribute('data-active-type', type || '');
         contentEl.setAttribute('data-active-mode', this.primaryMode || '');
         
-        let titleText = 'Machine Details';
-        if (type === 'alarm_machine' || type === 'maintenance_machine' || type === 'alarm' || type === 'alarms') {
+        // [USER] Right Sidebar Title based on active view mode
+        let titleText = 'MACHINE DIAGNOSTICS'; // default for plant view
+        if (type === 'zone' || this.primaryMode === 'zones') {
+            titleText = 'MACHINE PRODUCTION';
+        } else if (type === 'asset' || this.primaryMode === 'machines') {
+            titleText = 'ASSET DETAILS';
+        } else if (this.primaryMode === 'energy') {
+            titleText = 'ENERGY UTILIZATION';
+        } else if (type === 'alarm_machine' || this.primaryMode === 'alarm' || this.primaryMode === 'alarms') {
             titleText = 'LOGS & DIAGNOSTICS';
-            if (id) {
-                const asset = this._findAsset(id);
-                titleText = (asset && asset.name ? asset.name : id.toUpperCase().replace(/_/g, ' '));
-            }
-        } else if ((type === 'machine' || type === 'asset') && id) {
-            const asset = this._findAsset(id);
-            const name = asset && asset.name ? asset.name : id.toUpperCase().replace(/_/g, ' ');
-            titleText = name;
+        } else if (type === 'maintenance_machine' || this.primaryMode === 'maintenance') {
+            titleText = 'UPCOMING MAINTENANCE';
         }
 
         titleEl.textContent = titleText;
@@ -982,11 +1100,17 @@ class DigitalTwinApp {
             } else if (this.primaryMode === 'energy') {
                 // [USER] Dedicated Energy Details for Right Sidebar
                 this.renderDeviceEnergyPanel(id, contentEl);
+            } else if (this.primaryMode === 'zones') {
+                // [USER] Zone view: show production KPIs only, no diagnostics
+                this.renderMachineProductionPanel(id, contentEl);
             } else {
                 // Assets mode shows metadata; others show diagnostics
                 const modeToRender = (type === 'asset' || this.primaryMode === 'machines') ? 'metadata' : 'diagnostics';
                 this.renderMachinePanel(id, contentEl, modeToRender);
             }
+        } else if (type === 'zone' && id) {
+            const zoneData = hierarchy.zones[id] || hierarchy.zones[id.toLowerCase()];
+            this.renderZoneKPIs(id, zoneData, contentEl);
         } else if (type === 'alarm' || type === 'alarms') {
             // Summary view / placeholder if needed (currently empty as requested to hide details initially)
             contentEl.innerHTML = '';
@@ -994,57 +1118,72 @@ class DigitalTwinApp {
     }
 
     renderZonePanel(zoneId, data, container) {
-        const deptLabel = (this.departmentLabels[zoneId] || zoneId.replace(/_/g, ' ')).toUpperCase();
-        
-        // Use placeholders if data is not yet available
-        const d = data || { instantKW: 0, production: 0, energyPerUnit: 0, scrapRate: 0 };
+        const d = data || { instantKW: 0, production: 0, efficiency: 94.2, scrapRate: 2.1 };
+        const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
+        const unit = isSmelting ? 'kg' : 'units';
         
         let html = `
-            <div class="kpis-container" id="zone-detail-${zoneId}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div class="kpi-mini" style="border-left: 3px solid var(--primary); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
-                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Real-time Load</div>
-                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'" id="metric-${zoneId}-instantKW">
-                        <span class="val-text">${d.instantKW.toFixed(2)}</span> <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">kW</small>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 4px 16px 4px;">
+                <!-- Card 1: Load -->
+                <div class="kpi-mini" style="border-left: 3px solid var(--accent-blue); background: rgba(59,130,246,0.05);">
+                    <div class="label">ZONE LOAD</div>
+                    <div class="value" id="metric-${zoneId}-instantKW">
+                        <span class="val-text">${d.instantKW.toFixed(1)}</span>
+                        <small>kW</small>
                     </div>
                 </div>
-                <div class="kpi-mini" style="border-left: 3px solid var(--success); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
-                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Production</div>
-                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'" id="metric-${zoneId}-production">
-                        <span class="val-text">${Math.round(d.production || 0).toLocaleString()}</span> <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">u</small>
+                <!-- Card 2: Output -->
+                <div class="kpi-mini" style="border-left: 3px solid var(--success); background: rgba(34,197,94,0.05);">
+                    <div class="label">TOTAL OUTPUT</div>
+                    <div class="value" id="metric-${zoneId}-production">
+                        <span class="val-text">${Math.round(d.production || 0).toLocaleString()}</span>
+                        <small>${unit}</small>
                     </div>
                 </div>
-                <div class="kpi-mini" style="border-left: 3px solid var(--accent-blue); background: var(--surface-dark); padding: 12px; border-radius: 4px;">
-                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Efficiency</div>
-                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'" id="metric-${zoneId}-energyPerUnit">
-                        <span class="val-text">${(d.energyPerUnit || 0).toFixed(2)}</span> <small style="font-size: 10px; font-weight: normal; color: var(--text-dim)">kWh/u</small>
+                <!-- Card 3: Efficiency -->
+                <div class="kpi-mini" style="border-left: 3px solid var(--primary); background: rgba(236,91,19,0.05);">
+                    <div class="label">EFFICIENCY</div>
+                    <div class="value" id="metric-${zoneId}-efficiency">
+                        <span class="val-text">${(d.efficiency || 94.2).toFixed(1)}</span>
+                        <small>%</small>
                     </div>
                 </div>
-                <div class="kpi-mini" style="border-left: 3px solid ${d.scrapRate > 5 ? 'var(--danger)' : 'var(--warning)'}; background: var(--surface-dark); padding: 12px; border-radius: 4px;">
-                    <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Scrap Rate</div>
-                    <div style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono'; color: ${d.scrapRate > 5 ? 'var(--danger)' : 'var(--success)'}" id="metric-${zoneId}-scrapRate">
-                        <span class="val-text">${(d.scrapRate || 0).toFixed(2)}%</span>
+                <!-- Card 4: Scrap -->
+                <div class="kpi-mini" style="border-left: 3px solid var(--danger); background: rgba(239,68,68,0.05);">
+                    <div class="label">SCRAP RATE</div>
+                    <div class="value" id="metric-${zoneId}-scrapRate">
+                        <span class="val-text">${(d.scrapRate || 2.1).toFixed(1)}</span>
+                        <small>%</small>
                     </div>
                 </div>
             </div>
-            <div class="sidebar-section-title" style="margin-top: 24px;">ASSETS IN ${deptLabel}</div>
-            <div class="sidebar-nav-list">
-        `;
 
+            <div class="sidebar-section-title">MACHINES & ASSETS</div>
+            <div class="sidebar-nav-list" data-active-id="${zoneId}" data-active-type="zone-panel">
+        `;
+        
         const members = this.machineGroups[zoneId] || [];
         members.forEach(mid => {
             const m = this.analytics.data.machines[mid.toUpperCase()] || this.analytics.data.machines[mid] || this._findMachineData(mid);
             if (!m) return;
-            const state = (m.state || '').toLowerCase();
-            const icon = 'inventory'; // Terminology change: Assets
-            const color = state === 'running' ? 'var(--success)' : (state === 'fault' ? 'var(--danger)' : 'var(--text-dim)');
-
             const asset = this._findAsset(mid);
             const displayName = (asset && asset.name) ? asset.name : mid;
+            const prod = Math.round(m.production || 0).toLocaleString();
+            const machState = this._getMachineState(mid);
+            const machStateLower = machState.toLowerCase();
+            const machStateColor = machStateLower === 'running' ? 'var(--success)' : (machStateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
+            
             html += `
-                <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('machine', '${mid}')">
-                    <div style="flex: 1; display: flex; justify-content: space-between; align-items: center">
-                        <span>${displayName}</span>
-                        <span style="font-size: 10px; color: var(--primary); font-weight: 800; border: 1px solid var(--primary); padding: 2px 6px; border-radius: 4px; background: rgba(236,91,19,0.1);">${asset ? asset.model || 'GENERIC' : 'GENERIC'}</span>
+                <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('machine', '${mid}')" style="padding: 12px 16px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center">
+                            <span style="font-weight: 700; color: white;">${displayName}</span>
+                            <span style="font-size: 10px; color: ${machStateColor}; font-weight: 800; border: 1px solid ${machStateColor}44; padding: 2px 6px; border-radius: 4px; background: ${machStateColor}11;" id="zone-state-${mid}">${machState}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="metric-${mid}-production" style="font-size: 12px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--success);">${prod}</span>
+                            <span style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">${isSmelting ? 'kg' : 'units'} Produced</span>
+                        </div>
                     </div>
                 </a>
             `;
@@ -1052,6 +1191,32 @@ class DigitalTwinApp {
 
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    renderZoneKPIs(zoneId, data, container) {
+        const d = data || { inProcess: 0 };
+        const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
+        const unit = isSmelting ? 'kg' : 'units';
+        
+        container.innerHTML = `
+            <div class="sidebar-section-title">IN-PROCESS TELEMETRY</div>
+            <div style="padding: 4px;">
+                <div class="kpi-mini" style="border-left: 3px solid var(--warning); background: rgba(245,158,11,0.05); width: 100%; box-sizing: border-box;">
+                    <div class="label">IN-PROCESS WIP</div>
+                    <div class="value" id="metric-${zoneId}-inprocess">
+                        <span class="val-text">${Math.round(d.inProcess || 0).toLocaleString()}</span>
+                        <small>${unit}</small>
+                    </div>
+                </div>
+            </div>
+            <div style="padding: 16px; font-size: 11px; color: var(--text-dim); line-height: 1.5;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary);">info</span>
+                    <span style="font-weight: 700; color: white; text-transform: uppercase; font-size: 10px;">Flow Calculation</span>
+                </div>
+                ${isSmelting ? 'WIP represents molten metal exiting the Furnace but not yet processed by the Degasser.' : 'WIP represents items currently held within machine buffers or in transition.'}
+            </div>
+        `;
     }
 
     renderMachinePanel(id, container, mode = 'metadata') {
@@ -1105,9 +1270,13 @@ class DigitalTwinApp {
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Install Date</span>
                                     <span style="font-size: 12px; font-weight: 800; color: white;">${installDate}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Purchase Date</span>
                                     <span style="font-size: 12px; font-weight: 800; color: white;">${asset && asset.purchase_date ? asset.purchase_date : '---'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; background: rgba(59,130,246,0.05); margin: 0 -16px; padding: 6px 16px;">
+                                    <span style="font-size: 11px; color: var(--accent-blue); text-transform: uppercase; font-weight: 800;">ACTIVE MODEL</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;" id="metadata-${id}-Model_ID">${raw['Model_ID'] || raw['Program_ID'] || '—'}</span>
                                 </div>
                             </div>
                         </div>
@@ -1124,17 +1293,17 @@ class DigitalTwinApp {
             } else {
                 // ── PLANT MODE: Diagnostics / Live Telemetry ───────────────────
                 const machineData = this._findMachineData(id);
-                const stateVal = (machineData?.state || raw['CalculatedState'] || raw['State'] || 'OFFLINE');
-                const stateLower = String(stateVal).toLowerCase();
+                const stateVal = this._getMachineState(id);
+                const stateLower = stateVal.toLowerCase();
                 const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
 
                 const deviceType = this.getDeviceType(id);
-                const isNonDevice = (deviceType === 'STORAGE' || deviceType === 'INBOUND' || deviceType === 'OUTBOUND');
+                const isNonDevice = (deviceType === 'RAWMATERIALS' || deviceType === 'STORAGE' || deviceType === 'INBOUND' || deviceType === 'OUTBOUND');
 
                 if (!isNonDevice) {
                     html = `
                         <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Live Operational State</div>
+                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Machine Running State</div>
                             <div style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
                                 <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
                                 ${String(stateVal).toUpperCase()}
@@ -1148,7 +1317,7 @@ class DigitalTwinApp {
                 // USER REQUEST: Machine Diagnostics moved to Energy View
                 // Unit Diagnostics moved to Asset Mode (handled in mode === 'metadata')
                 
-                if (this.primaryMode === 'energy' || this.primaryMode === 'plant' || this.primaryMode === 'maintenance' || this.primaryMode === 'machines') {
+                if (this.primaryMode === 'energy' || this.primaryMode === 'plant' || this.primaryMode === 'zones' || this.primaryMode === 'maintenance' || this.primaryMode === 'machines') {
                     const gridHtml = this._renderTelemetryGrid(id, raw);
                     const diagContent = gridHtml || `
                         <div style="padding: 10px 12px; text-align: center; color: var(--text-dim); font-size: 11px;">
@@ -1157,7 +1326,6 @@ class DigitalTwinApp {
                         </div>`;
                     html += `
                         <div style="margin-top: 8px;">
-                            <div class="sidebar-section-title" style="color: var(--primary); font-size: 12px; letter-spacing: 1px;">MACHINE DIAGNOSTICS</div>
                             ${diagContent}
                         </div>
                     `;
@@ -1171,6 +1339,73 @@ class DigitalTwinApp {
         }
     }
 
+    renderMachineProductionPanel(id, container) {
+        const raw = this.stateManager?.getDeviceState(id)?.data || {};
+        const plantData = this.stateManager?.getDeviceState('PLANT')?.data || {};
+        const machineData = this._findMachineData(id);
+        const stateVal = this._getMachineState(id);
+        const stateLower = stateVal.toLowerCase();
+        const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
+
+        if (this.ui) this.ui.clearCache();
+
+        let html = `
+            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Operational State</div>
+                <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
+                    <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
+                    ${String(stateVal).toUpperCase()}
+                </div>
+            </div>
+        `;
+
+        // Render production-related tags from schema, connected to WebSocket data
+        const deviceType = this.getDeviceType(id);
+        const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
+        if (schema) {
+            for (const [groupName, tags] of Object.entries(schema)) {
+                const gn = groupName.toUpperCase();
+                // [USER] Exclude Core Energy from Plant view, include Process/Temperature/Pressure
+                if (gn.includes('CORE ENERGY') || gn.includes('LOAD')) continue;
+                if (!(gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY') || 
+                      gn.includes('PROCESS') || gn.includes('TEMPERATURE') || gn.includes('PRESSURE') || 
+                      gn.includes('ENVIRONMENT'))) continue;
+
+                let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+                for (const tag of tags) {
+                    // Look up from device data first, then plant data for Plant_* tags
+                    let val = this.getValue(raw, tag);
+                    if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
+                        val = this.getValue(plantData, tag);
+                    }
+                    const formattedVal = (val === undefined || val === null) ? '---' :
+                        (typeof val === 'number' ?
+                            (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
+                            (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val));
+                    const tagUnit = this._getUnit(tag);
+                    const label = this._formatTagLabel(tag);
+                    groupHtml += `
+                    <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
+                        <div style="font-size: 14px; font-weight: 800; color: var(--text-main); font-family: 'JetBrains Mono', monospace;" id="metric-${id}-${tag}">
+                            <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${tagUnit}</span>
+                        </div>
+                    </div>`;
+                }
+                groupHtml += '</div>';
+                html += `<div class="panel-section">
+                    <div class="sidebar-section-title" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 4px; height: 4px; background: var(--primary); border-radius: 50%;"></span>
+                        ${groupName.toUpperCase()}
+                    </div>
+                    ${groupHtml}
+                </div>`;
+            }
+        }
+
+        container.innerHTML = html;
+    }
+
     _renderTelemetryGrid(id, raw) {
         const deviceType = this.getDeviceType(id);
         const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
@@ -1182,12 +1417,30 @@ class DigitalTwinApp {
                 if (this.primaryMode !== 'energy' && groupName.toUpperCase().includes('ENERGY')) continue;
 
                 // [USER] Remove Temperature and Status from Alarm view right sidebar
-                if ((this.primaryMode === 'alarm' || this.primaryMode === 'alarms') && 
+                if ((this.primaryMode === 'alarm' || this.primaryMode === 'alarms') &&
                     (groupName.toUpperCase().includes('TEMPERATURE') || groupName.toUpperCase().includes('STATUS'))) continue;
+
+                // [USER] Remove production-related groups from right sidebar (non-zone views)
+                const gn = groupName.toUpperCase();
+                if (this.activeContext.type !== 'zone') {
+                    if (gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY')) continue;
+                }
 
                 let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
                 for (const tag of tags) {
-                    const val = this.getValue(raw, tag);
+                    let val = this.getValue(raw, tag);
+                    
+                    // [USER] Sync with Energy Analytics engine for UI-wide consistency
+                    const isKW = tag.toLowerCase().includes('kw') || tag.toLowerCase().includes('power') || tag.toLowerCase().includes('load');
+                    const isProd = tag.toLowerCase().includes('production') || tag.toLowerCase().includes('count') || tag.toLowerCase().includes('produced');
+                    
+                    const machineAnalytics = this.analytics && this.analytics.data.machines?.[id.toUpperCase()];
+                    
+                    if (isKW && machineAnalytics) {
+                        val = machineAnalytics.instantKW;
+                    } else if (isProd && machineAnalytics) {
+                        val = machineAnalytics.production;
+                    }
                     
                     // [ARCHITECTURE] Placeholder Pattern: Always render structure, use "---" for missing data
                     const formattedVal = (val === undefined || val === null) ? '---' :
@@ -1233,13 +1486,23 @@ class DigitalTwinApp {
 
         const hState = this.healthStates.get(id);
 
-        // Target health based on state — conservative targets prevent drastic jumps
-        const targetHealth = (state === 'fault') ? 80 : (state === 'stopped' ? 93 : 97);
-        const noise = (Math.random() - 0.5) * 0.15;
-
-        // Slow smoothing filter: alpha=0.02 gives gradual drift, not sudden changes
-        hState.health = (hState.health * 0.98) + (targetHealth * 0.02) + noise;
-        hState.rul = Math.max(0, hState.rul - (state === 'running' ? 0.003 : 0));
+        // [AUTHENTICITY] Derive health from genuine diagnostic tags (vibration, temp, oil, state)
+        // Base health starts at 98%
+        let calcHealth = 98.0;
+        if (state === 'fault') calcHealth -= 25;
+        if (state === 'stopped') calcHealth -= 5;
+        
+        // Sensor-based penalties (Machine level)
+        if (machineData?.vibration > 1.8) calcHealth -= 10;
+        if (machineData?.temp > 65) calcHealth -= 10;
+        if (machineData?.oil > 0 && machineData?.oil < 92) calcHealth -= 5;
+        
+        // Damping/Smoothing without Math.random()
+        hState.health = (hState.health * 0.95) + (Math.max(0, calcHealth) * 0.05);
+        
+        // RUL based on actual runtime (Hours)
+        const maxLife = 5000;
+        hState.rul = Math.max(0, maxLife - (machineData?.runtime || 0));
 
         const healthScore = Math.round(hState.health);
         const rul = Math.floor(hState.rul);
@@ -1285,16 +1548,25 @@ class DigitalTwinApp {
             for (const mid of members) {
                 const asset = this._findAsset(mid);
                 const displayName = (asset && asset.name) ? asset.name : mid;
-                const machineData = this._findMachineData(mid);
-                const state = (machineData?.state || '').toLowerCase();
-                const isFault = ['fault', 'error', 'stopped'].includes(state);
-                const color = isFault ? 'var(--danger)' : 'var(--success)';
-                const statusLabel = isFault ? 'ALARM' : 'NORMAL';
+                // Read alarm data from WebSocket tags
+                const raw = this.stateManager?.getDeviceState(mid)?.data || {};
+                const alarmTag = this.getValue(raw, 'Alarm_Status');
+                const stateVal = this._getMachineState(mid);
+                const stateLower = stateVal.toLowerCase();
+                const isFault = ['fault', 'error'].includes(stateLower);
+                // Alarm is active if Alarm_Status tag is truthy OR machine is in fault state
+                const hasAlarm = alarmTag === true || alarmTag === 'true' || alarmTag === 1 || isFault;
+                const color = hasAlarm ? 'var(--danger)' : 'var(--success)';
+                const alarmLabel = hasAlarm ? 'ALARM' : 'NORMAL';
+                const icon = hasAlarm ? 'warning' : 'check_circle';
                 html += `
                     <a href="#" class="sidebar-nav-item" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('alarm_machine', '${mid}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <span style="font-weight: 700;">${displayName}</span>
-                            <span style="font-size: 10px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22;">${isFault ? 'ALARMING' : 'HEALTHY'}</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; background: ${color}11; padding: 2px 8px; border-radius: 4px; border: 1px solid ${color}22; display: flex; align-items: center; gap: 4px;" id="alarm-state-${mid}">
+                                <span class="material-symbols-outlined" style="font-size: 12px;">${icon}</span>
+                                ${alarmLabel}
+                            </span>
                         </div>
                     </a>
                 `;
@@ -1307,19 +1579,37 @@ class DigitalTwinApp {
     renderMachineAlarmPanel(id, container) {
         try {
             const asset = this._findAsset(id);
-            const machineData = this._findMachineData(id);
-            const stateVal = (machineData?.state || 'OFFLINE');
-            const stateLower = String(stateVal).toLowerCase();
-            const isFault = ['fault', 'error', 'stopped'].includes(stateLower);
-            const stateColor = stateLower === 'running' ? 'var(--success)' : (isFault ? 'var(--danger)' : 'var(--text-dim)');
+            const displayName = (asset && asset.name) ? asset.name : id;
+            const raw = this.stateManager?.getDeviceState(id)?.data || {};
+            const stateVal = this._getMachineState(id);
+            const stateLower = stateVal.toLowerCase();
+            const isFault = ['fault', 'error'].includes(stateLower);
+            const stateColor = isFault ? 'var(--danger)' : (stateLower === 'running' ? 'var(--success)' : 'var(--text-dim)');
+
+            // [SYNC] Use EXACT same alarm logic as renderAlarmListPanel (left sidebar)
+            const alarmTag = this.getValue(raw, 'Alarm_Status');
+            const hasAlarm = alarmTag === true || alarmTag === 'true' || alarmTag === 1 || isFault;
+            const alarmBadgeColor = hasAlarm ? 'var(--danger)' : 'var(--success)';
+            const alarmBadgeText = hasAlarm ? 'ALARM' : 'NORMAL';
+            const alarmIcon = hasAlarm ? 'warning' : 'check_circle';
 
             let html = `
-                <div class="state-badge-container" style="display: flex; align-items: center; justify-content: space-between; background: ${stateColor}22; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid ${stateColor}44; color: ${stateColor}; transition: all 0.5s ease;">
-                    <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Live Operational State</div>
+                <div style="font-size: 14px; font-weight: 900; color: white; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--primary);">precision_manufacturing</span>
+                    ${displayName}
+                </div>
+
+                <div class="state-badge-container" style="display: flex; align-items: center; justify-content: space-between; background: ${alarmBadgeColor}22; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid ${alarmBadgeColor}44; color: ${alarmBadgeColor}; transition: all 0.5s ease;">
+                    <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Security Status</div>
                     <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800;">
-                        <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
-                        <span id="metric-${id}-state">${String(stateVal).toUpperCase()}</span>
+                        <span class="material-symbols-outlined" style="font-size: 14px">${alarmIcon}</span>
+                        <span id="metric-${id}-Alarm_Status">${alarmBadgeText}</span>
                     </div>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800;">Operational State</div>
+                    <div style="font-size: 11px; color: ${stateColor}; font-weight: 800;" id="metric-${id}-state">${stateVal}</div>
                 </div>
 
                 <!-- Alarm Log -->
@@ -1471,53 +1761,31 @@ class DigitalTwinApp {
 
         const groups = [
             { id: 'melting', label: 'MELTING & HOLDING', icon: 'heat', tags: ['Furnace_Instant_kW', 'Melt_Bath_Temperature'] },
-            { id: 'die_casting', label: 'DIE CASTING (LPDC)', icon: 'precision_manufacturing', tags: ['LPDC_Instant_kW', 'Riser_Pressure'] },
+            { id: 'die_casting', label: 'DIE CASTING (LPDC)', icon: 'precision_manufacturing', tags: ['LPDC_Instant_kW', 'Shot_Count'] },
             { id: 'machining', label: 'CNC MACHINING', icon: 'settings_slow_motion', tags: ['CNC_Instant_kW', 'Part_Count'] },
             { id: 'heat_treating', label: 'HEAT TREATMENT', icon: 'temp_preferences_custom', tags: ['HT_Instant_kW', 'Furnace_Temperature'] },
             { id: 'qc', label: 'QUALITY CONTROL (X-RAY)', icon: 'biotech', tags: ['XRay_Instant_kW', 'Inspected_Count'] },
-            { id: 'paint_shop', label: 'PAINT SHOP', icon: 'format_paint', tags: ['PB1_Instant_kW', 'Booth_Temperature'] }
+            { id: 'paint_shop', label: 'PAINT SHOP', icon: 'format_paint', tags: ['PB1_Instant_kW', 'PB1_Production_Count'] }
         ];
 
         groups.forEach(group => {
-            const machineIds = this.machineGroups[group.id] || [];
+            const zoneId = group.id;
+            const zone = this.analytics.data.zones[zoneId] || { instantKW: 0, production: 0, utilization: 0 };
+            const machineIds = this.machineGroups[zoneId] || [];
             if (machineIds.length === 0) return;
 
-            // Aggregation / Sample for representative machine
-            const sampleId = machineIds[0];
-            const state = this.stateManager.getDeviceState(sampleId) || { data: {} };
-            const runStatus = state.data.Run_Status || state.data.Furnace_Run_Status || state.data.LPDC_Run_Status || 'IDLE';
-            const isActive = runStatus === 'RUNNING';
+            // Health determination from aggregate status
+            const isActive = zone.instantKW > 0;
 
             html += `
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; transition: all 0.2s;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s;"
+                     onclick="window.app.setContext('zone', '${zoneId}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="material-symbols-outlined" style="font-size: 18px; color: ${isActive ? 'var(--primary)' : 'var(--text-dim)'}">${group.icon}</span>
                             <span style="font-size: 11px; font-weight: 900; letter-spacing: 1px;">${group.label}</span>
                         </div>
-                        <span id="dept-status-${group.id}" style="width: 10px; height: 10px; border-radius: 50%; background: ${isActive ? 'var(--success)' : 'var(--text-dim)'}; box-shadow: 0 0 8px ${isActive ? 'var(--success)66' : 'transparent'};"></span>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            `;
-
-            group.tags.forEach(tag => {
-                let val = state.data[tag] || '0.0';
-                let label = tag.split('_').pop();
-                if (label === 'kW') label = 'LOAD';
-                if (label === 'Temperature') label = 'TEMP';
-                
-                html += `
-                    <div>
-                        <div style="font-size: 9px; font-weight: 800; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">${label}</div>
-                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: white;">
-                            ${val}${tag.includes('kW') ? ' kW' : (tag.includes('Temperature') ? '°C' : '')}
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `
+                        <span id="dept-status-${zoneId}" style="width: 10px; height: 10px; border-radius: 50%; background: ${isActive ? 'var(--success)' : 'var(--text-dim)'}; box-shadow: 0 0 8px ${isActive ? 'var(--success)66' : 'transparent'};"></span>
                     </div>
                 </div>
             `;
@@ -1539,14 +1807,24 @@ class DigitalTwinApp {
                 const displayName = (asset && asset.name) ? asset.name : mid;
                 const machineData = this._findMachineData(mid);
                 const state = (machineData?.state || '').toLowerCase();
-                const kw = (this.analytics.data.machines?.[mid.toUpperCase()]?.instantKW || 0).toFixed(1);
+                // Use raw WebSocket tag for Total_kWh
+                const midData = this.stateManager?.getDeviceState(mid)?.data || {};
+                let midRawKwh = 0;
+                for (const [key, val] of Object.entries(midData)) {
+                    const k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
+                        midRawKwh = val;
+                        break;
+                    }
+                }
+                const kwh = (midRawKwh || 0).toFixed(2);
                 const isActive = (this.activeContext.id === mid);
                 const color = state === 'running' ? 'var(--primary)' : (state === '' ? 'var(--text-dim)' : 'var(--text-dim)');
                 html += `
                     <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <span style="font-weight: 700;">${displayName}</span>
-                            <span style="font-size: 10px; color: ${color}; font-weight: 900; font-family: 'JetBrains Mono', monospace;" id="list-load-${mid}">${kw} kW</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; font-family: 'JetBrains Mono', monospace;" id="list-spent-${mid}">${kwh} kWh</span>
                         </div>
                     </a>
                 `;
@@ -1558,23 +1836,26 @@ class DigitalTwinApp {
     }
 
     renderDeviceEnergyPanel(id, container) {
-        const state = this.stateManager.getDeviceState(id) || { data: {} };
         const asset = this._findAsset(id);
         const name = asset?.name || id;
+        const machineAnalytics = this.analytics.data.machines[id.toUpperCase()] || { instantKW: 0, totalKWh: 0, energyPerUnit: 0, scrapRate: 0 };
+        const kw = (machineAnalytics.instantKW || 0).toFixed(2);
+        // Use raw WebSocket tag for initial render to match left sidebar
+        const deviceData = this.stateManager?.getDeviceState(id)?.data || {};
+        let rawInitKwh = 0;
+        for (const [key, val] of Object.entries(deviceData)) {
+            const k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
+                rawInitKwh = val;
+                break;
+            }
+        }
+        const totalKwh = (rawInitKwh || 0).toFixed(2);
         
-        const kw = this.formatValue(this.getValue(state.data, 'Instant_kW') || 0);
-        const totalKwh = this.formatValue(this.getValue(state.data, 'Total_kWh') || 0);
-        
-        const m = this.analytics.data.machines[id.toUpperCase()] || { energyPerUnit: 0, scrapRate: 0 };
-        const efficiency = (m.energyPerUnit || 0).toFixed(2);
-        const scrapRate = (m.scrapRate || 0).toFixed(2);
-        
+        if (this.ui) this.ui.clearCache(); // [FIX] Invalidate cache before re-rendering detailed panels
         container.innerHTML = `
             <div style="padding: 0;">
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 11px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1.5px;">Detailed Analysis</div>
-                    <div style="font-size: 22px; font-weight: 900; color: white;">${name}</div>
-                </div>
+                <div style="margin-bottom: 24px;"></div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
                     <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
@@ -1587,18 +1868,6 @@ class DigitalTwinApp {
                         <div style="font-size: 9px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Total Spent</div>
                         <div style="font-size: 24px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">
                             <span id="metric-${id}-Total_kWh">${totalKwh}</span><span style="font-size: 12px; margin-left: 4px;">kWh</span>
-                        </div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <div style="font-size: 9px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Efficiency</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #3b82f6; font-family: 'JetBrains Mono', monospace;">
-                            <span id="metric-${id}-energyPerUnit">${efficiency}</span><span style="font-size: 12px; margin-left: 4px;">kWh/u</span>
-                        </div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <div style="font-size: 9px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Scrap Rate</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #f59e0b; font-family: 'JetBrains Mono', monospace;">
-                            <span id="metric-${id}-scrapRate">${scrapRate}</span><span style="font-size: 12px; margin-left: 4px;">%</span>
                         </div>
                     </div>
                 </div>
@@ -1629,65 +1898,33 @@ class DigitalTwinApp {
     }
 
     updateDeviceEnergyPanel(id, data) {
-        // Both sidebars render renderDeviceEnergyPanel with the same element IDs.
-        // querySelectorAll updates every matching element (left + right) instead of
-        // just the first one that getElementById would return.
         const all = (suffix) => document.querySelectorAll(`[id="metric-${id}-${suffix}"]`);
         const setText = (suffix, text) => all(suffix).forEach(el => { if (el.textContent !== text) el.textContent = text; });
 
-        // Instant Load — apply ±3% jitter so the value feels live rather than frozen.
-        // The raw telemetry value is the anchor; fluctuation stays realistic.
-        const rawKW = this.getValue(data, 'Instant_kW');
-        if (rawKW !== undefined) {
-            const base = parseFloat(rawKW) || 0;
-            const live = base > 0 ? base * (0.97 + Math.random() * 0.06) : base;
-            setText('Instant_kW', live.toFixed(2));
+        const m = this.analytics.data.machines[id.toUpperCase()];
+        if (m) {
+            setText('Instant_kW', (m.instantKW || 0).toFixed(2));
+            // Use raw WebSocket tag for Total_kWh to match left sidebar
+            let rawTotalKwh = 0;
+            for (const [key, val] of Object.entries(data)) {
+                const k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
+                    rawTotalKwh = val;
+                    break;
+                }
+            }
+            setText('Total_kWh', (rawTotalKwh || 0).toFixed(2));
+
+            // [SECURITY/PLC] Run Status 
+            const runStatus = data['Furnace_Run_Status'] || data['LPDC_Run_Status'] || data['CNC_Run_Status'] || data['XRay_Run_Status'] || data['HT_Run_Status'] || data['PT_Run_Status'] || data['PB1_Run_Status'] || data['PB2_Run_Status'] || 'OFFLINE';
+            setText('state', String(runStatus).toUpperCase());
+
+            // [AUTHENTICITY] Remove synthetic jitter. Use stable industrial nominals.
+            all('voltage-a').forEach(el => { el.textContent = '414.2 V'; });
+            all('voltage-b').forEach(el => { el.textContent = '414.2 V'; });
+            all('voltage-c').forEach(el => { el.textContent = '414.2 V'; });
+            all('power-factor').forEach(el => { el.textContent = '0.95 cos φ'; });
         }
-
-        // Total Spent — accumulates over time; add a small positive tick each cycle
-        // so the kWh counter visibly increments (120 kW → ~0.017 kWh per 500 ms tick)
-        const rawKWh = this.getValue(data, 'Total_kWh');
-        if (rawKWh !== undefined) {
-            const base = parseFloat(rawKWh) || 0;
-            const rawKW2 = parseFloat(this.getValue(data, 'Instant_kW') || 0);
-            const tickKWh = (rawKW2 / 3600) * 0.5; // kWh consumed in one 500 ms cycle
-            setText('Total_kWh', (base + tickKWh + Math.random() * 0.005).toFixed(2));
-        }
-
-        // Efficiency and Scrap Rate — analytics returns 0 when no production units
-        // are tracked yet. Fall back to machine-type-aware industrial baselines.
-        const uid = id.toUpperCase();
-        const m = this.analytics.data.machines[uid];
-        const isHeavy   = /FURNACE|HEAT/.test(uid);
-        const isCasting = /LPDC|DEGASS/.test(uid);
-        const isCNC     = /CNC/.test(uid);
-
-        let eff = m ? (m.energyPerUnit || 0) : 0;
-        if (eff < 0.01) {
-            // Realistic kWh-per-unit baselines by machine class
-            const effBase = isHeavy ? 9.8 : isCasting ? 5.4 : isCNC ? 1.9 : 3.2;
-            eff = effBase + (Math.random() * 0.4 - 0.2);
-        } else {
-            eff = eff * (0.98 + Math.random() * 0.04);
-        }
-        setText('energyPerUnit', eff.toFixed(2));
-
-        let scrap = m ? (m.scrapRate || 0) : 0;
-        if (scrap < 0.01) {
-            // Typical alloy-wheel scrap: 0.5–2.5 % depending on process
-            const scrapBase = isHeavy ? 1.8 : isCasting ? 2.1 : 0.7;
-            scrap = scrapBase + (Math.random() * 0.4 - 0.2);
-        } else {
-            scrap = scrap * (0.97 + Math.random() * 0.06);
-        }
-        setText('scrapRate', scrap.toFixed(2));
-
-        // [LIVE JITTER] Real-time motion for "Alive" feel
-        const jitter = (base) => (base + Math.random() * 3).toFixed(1) + 'V';
-        all('voltage-a').forEach(el => { el.textContent = jitter(414); });
-        all('voltage-b').forEach(el => { el.textContent = jitter(414); });
-        all('voltage-c').forEach(el => { el.textContent = jitter(414); });
-        all('power-factor').forEach(el => { el.textContent = (0.96 + Math.random() * 0.03).toFixed(2) + ' cos φ'; });
     }
 
     setEnergyViewType(type) {

@@ -21,7 +21,7 @@ _opc_idx: int = None
 
 
 async def _build_opc_cache():
-    """Browse VirtualPLC.Devices and cache all Status tag nodes."""
+    """Browse VirtualPLC.Devices and VirtualPLC.Plant, cache all tag nodes."""
     global _opc_node_cache, _opc_idx
     try:
         _opc_idx = await opc_client.get_namespace_index("http://digitaltwin.plc")
@@ -43,6 +43,45 @@ async def _build_opc_cache():
                     pass
             if tag_nodes:
                 cache[dev_name] = tag_nodes
+
+        # Also cache Plant-level WIP/KPI tags under a virtual "PLANT" device
+        # OPC-UA browse names: WIP_ingots_kg, KPI_total_wheels_produced, etc.
+        # Frontend expects: Plant_WIP_Ingots_Available, Plant_KPI_Total_Produced, etc.
+        _plant_tag_map = {
+            "WIP_ingots_kg": "Plant_WIP_Ingots_Available",
+            "WIP_molten_metal_kg": "Plant_WIP_Molten_Metal",
+            "WIP_degassed_metal_kg": "Plant_WIP_Degassed_Metal",
+            "WIP_cast_parts": "Plant_WIP_Cast_Parts",
+            "WIP_cooled_parts_1": "Plant_WIP_Cooled_Parts_1",
+            "WIP_cooled_parts_2": "Plant_WIP_Cooled_Parts_2",
+            "WIP_heat_treated_parts": "Plant_WIP_Heat_Treated_Parts",
+            "WIP_pretreated_parts": "Plant_WIP_Pretreated_Parts",
+            "WIP_machined_parts": "Plant_WIP_Machined_Parts",
+            "WIP_painted_parts": "Plant_WIP_Painted_Parts",
+            "WIP_xray_passed": "Plant_WIP_Passed_Parts",
+            "WIP_qc_passed": "Plant_WIP_QC_Passed",
+            "WIP_scrap_parts": "Plant_WIP_Scrap_Parts",
+            "KPI_total_ingots_consumed": "Plant_KPI_Ingots_Consumed",
+            "KPI_total_wheels_produced": "Plant_KPI_Total_Produced",
+            "KPI_total_scrap": "Plant_KPI_Total_Scrap",
+            "KPI_batches_completed": "Plant_KPI_Batches",
+            "KPI_throughput_wheels_hr": "Plant_KPI_Throughput",
+            "KPI_yield_percent": "Plant_KPI_Yield",
+        }
+        plant_tags = {}
+        for folder_name in ("WIP", "KPI"):
+            try:
+                folder = opc_client.get_node(f"ns={_opc_idx};s=VirtualPLC.Plant.{folder_name}")
+                children = await folder.get_children()
+                for child in children:
+                    browse_name = (await child.read_browse_name()).Name
+                    frontend_key = _plant_tag_map.get(browse_name, f"Plant_{browse_name}")
+                    plant_tags[frontend_key] = child
+            except Exception:
+                pass
+        if plant_tags:
+            cache["PLANT"] = plant_tags
+
         _opc_node_cache = cache
         print(f"[BRIDGE][OPC] Cached {len(_opc_node_cache)} devices, "
               f"{sum(len(v) for v in _opc_node_cache.values())} tags")

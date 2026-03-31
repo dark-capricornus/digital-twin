@@ -295,7 +295,7 @@ body {
 /* Floating Sidebar Trigger */
 .sidebar-trigger {
     position: fixed;
-    top: 72px; /* Below top strip (56px) + some gap */
+    top: 50%;
     left: 16px;
     width: 48px;
     height: 48px;
@@ -308,13 +308,14 @@ body {
     justify-content: center;
     cursor: pointer;
     z-index: 2000;
-    transition: all 0.3s ease;
+    transform: translateY(-50%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .sidebar-trigger:hover {
     background: var(--surface-dark);
-    transform: translateY(-2px);
+    transform: translateY(calc(-50% - 4px));
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
 }
 

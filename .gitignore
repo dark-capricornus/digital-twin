@@ -40,7 +40,6 @@ output.txt
 merge_tags.py 
 merged_tags.json 
 tags_required.txt 
-tags.json
 machine_template_tags_import.json
 run.sh   
 all_ignition_tags_import.json 
@@ -57,3 +56,7 @@ postman/
 test_opc_write.py
 test_ws_write.py
 tags_check.json
+
+
+#blend files
+layout_model_15.blend

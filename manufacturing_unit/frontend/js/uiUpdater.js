@@ -23,69 +23,69 @@ class UIUpdater {
     }
 
     cycle() {
-        // [ARCHITECTURE] UI Update Loop
-        // Process all buffered changes since the last cycle
-        const updatedIds = this.stateManager.consumeBuffer();
+        // [ARCHITECTURE] setInterval handler must be zero-work.
+        // consumeBuffer() spread-merges all device payloads (20+ devices × 50+ tags) which can
+        // exceed 50ms on batch WebSocket updates. Moving everything into rAF guarantees the
+        // interval tick always returns in <1ms regardless of payload size.
+        requestAnimationFrame(() => {
+            const updatedIds = this.stateManager.consumeBuffer();
 
-        // Queue label updates for the rAF loop — keeps setInterval non-blocking
-        if (updatedIds.size > 0 && this.app.renderer) {
-            this.app.renderer.applyUpdatedIds(updatedIds);
-        }
-
-        if (updatedIds.size === 0 && !this.app.forceRefresh) return;
-        this.app.forceRefresh = false;
-
-        // 1. Update Global Analytics (Hierarchy)
-        const hierarchy = this.app.analytics.update(this.stateManager.deviceStates, this.app.machineGroups);
-        const plant = hierarchy.plant;
-
-        // 2. Targeted Dashboard Updates (KPI Row)
-        this.updateDashboard(plant);
-        this.updateTopStrip(plant);
-
-        // 3. Update Detail Sidebar (Targeted)
-        const activeCtx = this.app.activeContext;
-        if (activeCtx.id && ['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(activeCtx.type)) {
-            const data = this.stateManager.getDeviceState(activeCtx.id)?.data;
-            if (data) {
-                this.updateLiveSidebar(activeCtx.id, data);
-                
-                // [SPECIFIC] Energy Panel update
-                if (this.app.primaryMode === 'energy') {
-                    this.app.updateDeviceEnergyPanel(activeCtx.id, data);
-                }
+            if (updatedIds.size > 0 && this.app.renderer) {
+                this.app.renderer.applyUpdatedIds(updatedIds);
             }
-        }
 
-        // 4. Update Left Sidebar (Targeted Structural Check)
-        const leftSidebar = this._getDomElement('left-sidebar');
-        if (leftSidebar && leftSidebar.classList.contains('open')) {
-            const leftNavList = this._getDomElement('left-nav-list');
-            const activeType = leftNavList?.getAttribute('data-active-type');
-            const activeId = leftNavList?.getAttribute('data-active-id');
+            // Analytics MUST run before the early-exit gate — virtual kWh/production
+            // accumulation is time-based and must tick every cycle regardless of WebSocket activity.
+            const hierarchy = this.app.analytics.update(this.stateManager.deviceStates, this.app.machineGroups);
+            const plant = hierarchy.plant;
 
-            // [LOGIC FIX] Normalized Structural Integrity Check
-            const targetCtx = this.app.getLeftSidebarContext();
-            const domId = activeId || null;
-            const targetId = targetCtx.id || null;
-            
-            if (activeType !== targetCtx.type || domId !== targetId) {
-                this.app.renderLeftSidebar(hierarchy);
+            // Early exit: skip DOM work if nothing changed and not in energy mode.
+            if (updatedIds.size === 0 && !this.app.forceRefresh && this.app.primaryMode !== 'energy') {
                 return;
             }
+            this.app.forceRefresh = false;
 
-            // [STABILITY] Targeted Label Updates (No Flicker)
-            this.updateAllDeviceLists(hierarchy);
+            // 2. Dashboard & Top Strip
+            this.updateDashboard(plant);
+            this.updateTopStrip(plant);
 
-            if (activeType === 'zones_scope' || activeType === 'zone') {
-                this.updateZones(hierarchy);
-            } else if (activeType === 'gemba') {
-                this.updateGemba(hierarchy);
+            // 3. Detail Sidebar
+            const activeCtx = this.app.activeContext;
+            if (activeCtx.id && ['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(activeCtx.type)) {
+                const data = this.stateManager.getDeviceState(activeCtx.id)?.data;
+                if (data) {
+                    this.updateLiveSidebar(activeCtx.id, data);
+                    if (this.app.primaryMode === 'energy') {
+                        this.app.updateDeviceEnergyPanel(activeCtx.id, data);
+                    } else if (this.app.primaryMode === 'zones') {
+                        this.updateMachineProductionPanel(activeCtx.id);
+                    }
+                }
             }
-        }
 
-        // 5. Update Alarm Chip
-        this.updateAlarmChip();
+            // 4. Left Sidebar (Targeted Structural Check)
+            const leftSidebar = this._getDomElement('left-sidebar');
+            if (leftSidebar && leftSidebar.classList.contains('open')) {
+                const leftNavList = this._getDomElement('left-nav-list');
+                const activeType = leftNavList?.getAttribute('data-active-type');
+                const activeId = leftNavList?.getAttribute('data-active-id');
+
+                const targetCtx = this.app.getLeftSidebarContext();
+                if (activeType !== targetCtx.type || (activeId || null) !== (targetCtx.id || null)) {
+                    this.app.renderLeftSidebar(hierarchy);
+                } else {
+                    this.updateAllDeviceLists(hierarchy);
+                    if (activeType === 'zones_scope' || activeType === 'zone') {
+                        this.updateZones(hierarchy);
+                    } else if (activeType === 'gemba') {
+                        this.updateGemba(hierarchy);
+                    }
+                }
+            }
+
+            // 5. Alarm Chip
+            this.updateAlarmChip();
+        });
     }
 
     updateAllDeviceLists(hierarchy) {
@@ -103,13 +103,48 @@ class UIUpdater {
                 statusEl.style.boxShadow = (color === 'var(--success)') ? '0 0 6px var(--success)66' : 'none';
             }
             
-            // 2. [USER] Targeted Load Update for Sidebar List — ±3% jitter for live feel
-            const loadEl = this._getDomElement(`list-load-${mid}`);
-            if (loadEl) {
-                const base = m.instantKW || 0;
-                const live = base > 0 ? (base * (0.97 + Math.random() * 0.06)).toFixed(2) : '0.00';
-                loadEl.textContent = live;
+            // 2. [USER] Targeted Spent Update for Sidebar List — use raw WebSocket tag
+            const spentEl = this._getDomElement(`list-spent-${mid}`);
+            if (spentEl) {
+                const deviceData = this.stateManager.getDeviceState(mid)?.data || {};
+                let rawKwh = 0;
+                for (const [key, val] of Object.entries(deviceData)) {
+                    const k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
+                        rawKwh = val;
+                        break;
+                    }
+                }
+                const kwh = (rawKwh || 0).toFixed(2);
+                if (spentEl.textContent !== `${kwh} kWh`) spentEl.textContent = `${kwh} kWh`;
             }
+
+            // 3. [USER] Targeted Production Update for Sidebar List (Zone details)
+            const prodEl = this._getDomElement(`metric-${mid}-production`);
+            if (prodEl) {
+                const prod = Math.round(m.production || 0).toLocaleString();
+                if (prodEl.textContent !== prod) prodEl.textContent = prod;
+            }
+
+            // 4. [USER] Generic Tag-based Metric updates (Department cards)
+            // Scans for any metric-${mid}-TAG elements and updates them from the analytics engine
+            const tags = ['Instant_kW', 'Total_kWh', 'Production_Count', 'Shot_Count', 'Part_Count', 'Inspected_Count', 'Temperature'];
+            tags.forEach(tagRef => {
+                // Handle different possible tag name variations
+                const possibleTags = [tagRef, `${mid}_${tagRef}`, `PB1_${tagRef}`, `PB2_${tagRef}`, `PT_${tagRef}`, `LPDC_${tagRef}`, `CNC_${tagRef}`, `XRay_${tagRef}`, `Furnace_${tagRef}`, `HT_${tagRef}`, `Cooling_${tagRef}`];
+                possibleTags.forEach(tag => {
+                    const el = this._getDomElement(`metric-${mid}-${tag}`);
+                    if (el) {
+                        const tl = tag.toLowerCase();
+                        const val = tl.includes('kwh') ? m.totalKWh :
+                                   tl.includes('kw') ? m.instantKW :
+                                   (tl.includes('temp') ? m.data?.[tag] : m.production);
+                        const valNode = el.querySelector('.val-text') || el;
+                        const formatted = typeof val === 'number' ? (tl.includes('kw') || tl.includes('kwh') ? val.toFixed(2) : Math.round(val).toLocaleString()) : (val || '0.0');
+                        if (valNode.textContent !== formatted) valNode.textContent = formatted;
+                    }
+                });
+            });
         });
 
         // 2. Update Department/Category Status in Plant Overview
@@ -190,7 +225,7 @@ class UIUpdater {
             // 1. Sidebar List Item updates
             const prodListEl = this._getDomElement(`metric-${zoneId}-production`);
             if (prodListEl) {
-                const text = `${Math.round(data.production || 0).toLocaleString()} unit`;
+                const text = `${Math.round(data.production || 0).toLocaleString()}`;
                 if (prodListEl.textContent !== text) prodListEl.textContent = text;
             }
 
@@ -202,8 +237,9 @@ class UIUpdater {
 
             // 2. Zone Detail Panel updates (if in detail view)
             const kpis = {
-                'instantKW': (v) => `${(v || 0).toFixed(2)}`,
+                'instantKW': (v) => `${(v || 0).toFixed(1)}`,
                 'production': (v) => `${Math.round(v || 0).toLocaleString()}`,
+                'inProcess': (v) => `${Math.round(v || 0).toLocaleString()}`,
                 'energyPerUnit': (v) => `${(v || 0).toFixed(2)}`,
                 'scrapRate': (v) => `${(v || 0).toFixed(2)}%`
             };
@@ -349,6 +385,34 @@ class UIUpdater {
         });
     }
 
+    updateMachineProductionPanel(id) {
+        // Update production schema tags from WebSocket data (device + plant)
+        const deviceData = this.stateManager.getDeviceState(id)?.data || {};
+        const plantData = this.stateManager.getDeviceState('PLANT')?.data || {};
+        const deviceType = this.app.getDeviceType(id);
+        const schema = deviceType ? this.app.sidebarSchemas[deviceType] : null;
+        if (!schema) return;
+
+        for (const [groupName, tags] of Object.entries(schema)) {
+            const gn = groupName.toUpperCase();
+            if (!(gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY'))) continue;
+            for (const tag of tags) {
+                const el = this._getDomElement(`metric-${id}-${tag}`);
+                if (!el) continue;
+                let val = this.app.getValue(deviceData, tag);
+                if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
+                    val = this.app.getValue(plantData, tag);
+                }
+                if (val !== undefined && val !== null) {
+                    const valNode = el.querySelector('.val-text') || el;
+                    const formatted = typeof val === 'number' ?
+                        (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) : String(val);
+                    if (valNode.textContent !== formatted) valNode.textContent = formatted;
+                }
+            }
+        }
+    }
+
     updateAlarmChip() {
         const chip = this._getDomElement('alarm-chip');
         if (!chip) return;
@@ -360,10 +424,15 @@ class UIUpdater {
         chip.classList.toggle('has-alarms', alarmCount > 0);
     }
 
+    clearCache() {
+        this.domCache.clear();
+    }
+
     _getDomElement(id) {
         if (this.domCache.has(id)) return this.domCache.get(id);
         const el = document.getElementById(id);
-        if (el) this.domCache.set(id, el);
+        // [PERF] Cache even null results to avoid redundant, expensive ID lookups for missing components
+        this.domCache.set(id, el); 
         return el;
     }
 }

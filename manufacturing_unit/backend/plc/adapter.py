@@ -101,7 +101,28 @@ class SimulationAdapter:
         "motor_load": "Motor_Load_Pct",
         "oil_level": "Oil_Level_Pct",
         "air_pressure": "Air_Supply_PSI",
-        "internal_temp": "Internal_Temp"
+        "internal_temp": "Internal_Temp",
+        
+        # Plant-Level KPIs (Orchestrator Mapping)
+        "KPI_total_ingots_consumed": "Plant_KPI_Ingots_Consumed",
+        "KPI_total_wheels_produced": "Plant_KPI_Total_Produced",
+        "KPI_total_scrap": "Plant_KPI_Total_Scrap",
+        "KPI_batches_completed": "Plant_KPI_Batches",
+        "KPI_throughput_wheels_hr": "Plant_KPI_Throughput",
+        "KPI_yield_percent": "Plant_KPI_Yield",
+        
+        # WIP (Ground Truth Flow)
+        "WIP_ingots_kg": "Plant_WIP_Ingots_Available",
+        "WIP_molten_metal_kg": "Plant_WIP_Molten_Metal",
+        "WIP_degassed_metal_kg": "Plant_WIP_Degassed_Metal",
+        "WIP_cast_parts": "Plant_WIP_Cast_Parts",
+        "WIP_cooled_parts_1": "Plant_WIP_Cooled_Parts_1",
+        "WIP_heat_treated_parts": "Plant_WIP_Heat_Treated_Parts",
+        "WIP_cooled_parts_2": "Plant_WIP_Cooled_Parts_2",
+        "WIP_machined_parts": "Plant_WIP_Machined_Parts",
+        "WIP_pretreated_parts": "Plant_WIP_Pretreated_Parts",
+        "WIP_painted_parts": "Plant_WIP_Painted_Parts",
+        "WIP_xray_passed": "Plant_WIP_Passed_Parts"
     }
 
     def get_tags(self) -> Dict[str, Any]:
@@ -154,13 +175,25 @@ class SimulationAdapter:
                         final_key = "Furnace_Temperature"
                     elif "PAINT" in base_type or "PB" in base_type:
                         final_key = "Booth_Temperature"
-                elif final_key == "ProcessedCount" and "CNC" in base_type:
-                    final_key = "Part_Count"
+                elif final_key == "ProcessedCount":
+                    final_key = f"{base_type}_Production_Count"
+                elif final_key in ["Good_Part_Count", "Reject_Count"]:
+                    final_key = f"{base_type}_{final_key}"
                 elif final_key == "TargetTemp":
                     if "HT" in base_type:
                         final_key = "Temperature_Setpoint"
                         
+                # [ARCHITECTURE] SCADA Mapping Core
+                # Store the custom prefixed/specialized tag name
                 mapped_tags[final_key] = v
+                
+                # [VISIBILITY FIX] Also store the generic "base" tag name for plant/zone aggregation
+                # This ensures consistent data for the plant/zone counters while keeping asset-specific tags.
+                # Only do this if final_key was modified (prefixed/renamed)
+                if key_clean in self.TAG_MAP:
+                    generic_key = self.TAG_MAP[key_clean]
+                    if generic_key not in mapped_tags:
+                        mapped_tags[generic_key] = v
             else:
                 # Fallback
                 mapped_tags[key_clean] = v

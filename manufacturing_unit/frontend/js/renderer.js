@@ -38,8 +38,24 @@ class Renderer {
         this.interpolatedValues = new Map();
         this.chipDisplayMode = 'none';
 
+        // [PERF] Per-frame utility objects to avoid GC pressure
+        this.frustum = new THREE.Frustum();
+        this.projScreenMatrix = new THREE.Matrix4();
+        this.viewCachePosition = new THREE.Vector3();
+
         this.init();
-        this.setupInteraction();
+
+        // [PERF] Subdivide secondary setup into micro-tasks to stay under 50ms frame budget
+        setTimeout(() => {
+            this._initSecondary();
+        }, 10);
+        
+        // Environment is now initialised explicitly from main.js (after model load + compileAsync)
+        // so shaders compile once with the correct env map already set.
+
+        setTimeout(() => {
+            this.setupInteraction();
+        }, 50);
     }
 
     _getManualMap() {
@@ -86,10 +102,6 @@ class Renderer {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = false;
         this.container.appendChild(this.renderer.domElement);
-
-        // [PERF] Defer secondary setup to avoid blocking main thread at startup
-        this._initSecondary();
-        
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -109,13 +121,25 @@ class Renderer {
         this.controls.zoomSpeed = 0.70;      // Precise zoom
         this.controls.panSpeed = 0.45;       // Stately panning
         this.controls.update();
+    }
 
-        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        dirLight.position.set(20, 40, 20);
+    _initEnvironment() {
+        if (!this.renderer || !this.scene) return;
+
+        // PMREM runs synchronously here — called before compileAsync + start() in main.js
+        // so shaders compile once with the correct env map, eliminating mid-loop recompiles.
+        const pmrem = new THREE.PMREMGenerator(this.renderer);
+        this.scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+        pmrem.dispose();
+
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.25);
+        dirLight.position.set(50, 100, 50);
         this.scene.add(dirLight);
+        const pointLight = new THREE.PointLight(0xffffff, 0.8);
+        pointLight.position.set(-50, 40, -50);
+        this.scene.add(pointLight);
+        this.scene.background = new THREE.Color(0x0d1117);
     }
 
     setupInteraction() {
@@ -414,7 +438,7 @@ class Renderer {
 
     updateDeviceLabel(id, data) {
         if (!this.scene) return;
-        
+
         // 1. Check/Create Label
         if (!this.labelRegistry.has(id)) {
             const node = this.findMesh(id);
@@ -425,67 +449,63 @@ class Renderer {
         const labelItem = this.labelRegistry.get(id);
         if (!labelItem || !labelItem.element) return;
 
-        const element = labelItem.element;
+        // [PERF] Cache sub-element references on first access
+        if (!labelItem.cache) {
+            const el = labelItem.element;
+            labelItem.cache = {
+                dot: el.querySelector('.chip-status-dot'),
+                unified: el.querySelector('.chip-unified-value'),
+                header: el.querySelector('.chip-header')
+            };
+        }
+        const cache = labelItem.cache;
 
-        // 2. Update Status Dot
-        const dotEl = element.querySelector('.chip-status-dot');
-        if (dotEl) {
-            const stateStr = (this.getValue(data, 'State') || this.getValue(data, 'CalculatedState') || '').toString().toLowerCase();
-            const isRunning = data.IsRunning === true || stateStr === 'running';
-            dotEl.className = `chip-status-dot ${isRunning ? 'running' : 'stopped'}`;
+        // 2. Update Status Dot — with change detection
+        const stateStr = (this.getValue(data, 'State') || this.getValue(data, 'CalculatedState') || '').toString().toLowerCase();
+        const isRunning = data.IsRunning === true || stateStr === 'running';
+        const dotClass = isRunning ? 'running' : 'stopped';
+        if (cache.dot && labelItem._lastDotClass !== dotClass) {
+            cache.dot.className = `chip-status-dot ${dotClass}`;
+            labelItem._lastDotClass = dotClass;
         }
 
-        // 3. Update Warning Mesh
+        // 3. Update Warning Mesh — with change detection
         const state = (this.getValue(data, 'State') || "").toString().toLowerCase();
         const wMesh = this.warningMeshes.get(id);
         if (wMesh) {
             const isAlarmState = ['stopped', 'fault', 'error', 'offline'].some(s => state.includes(s));
-            wMesh.visible = isAlarmState;
+            if (wMesh.visible !== isAlarmState) wMesh.visible = isAlarmState;
         }
 
         // 4. Energy Mode Values
-        const unifiedEl = element.querySelector('.chip-unified-value');
-        const headerEl = element.querySelector('.chip-header');
-        
         if (this.chipDisplayMode === 'energy') {
-            if (headerEl) headerEl.style.display = 'none';
-                const kwVal = this.getValue(data, 'Instant_kW') || 
-                              this.getValue(data, 'power') || 
-                              this.getValue(data, 'load') || 0;
-                let targetKW = parseFloat(kwVal);
+            if (cache.header && labelItem._lastMode !== 'energy') {
+                cache.header.style.display = 'none';
+                labelItem._lastMode = 'energy';
+            }
 
-                // [LOGIC] Realistic industrial load baselines
-                // Active vs. Standby load mappings to prevent zero-load anomalies
-                const baseStandby = id.toUpperCase().includes('FURNACE') ? 38.5 : (id.toUpperCase().includes('LPDC') ? 12.2 : (id.toUpperCase().includes('CNC') ? 2.8 : 0.45));
-                const baseActive = id.toUpperCase().includes('FURNACE') ? 142.0 : (id.toUpperCase().includes('LPDC') ? 48.0 : (id.toUpperCase().includes('CNC') ? 18.5 : 8.2));
-                
-                const stateVal = (data['state'] || data['CalculatedState'] || '').toLowerCase();
-                const isRunning = ['running', 'active', 'processing', 'heating', 'melting'].some(s => stateVal.includes(s));
-                
-                if (targetKW <= 0.1) {
-                    targetKW = isRunning ? (baseActive + (Math.random() * 8)) : (baseStandby + (Math.random() * 2));
-                }
+            const m = window.app && window.app.analytics ? window.app.analytics.data.machines[id.toUpperCase()] : null;
+            let targetKW = m ? m.instantKW : 0;
 
-                // Fetch Efficiency from global app state if available
-                const m = window.app && window.app.analytics ? window.app.analytics.data.machines[id.toUpperCase()] : null;
-                const eff = m ? m.energyPerUnit : 0;
-                
-                if (!this.interpolatedValues.has(id)) {
-                    this.interpolatedValues.set(id, { 
-                        current: targetKW, 
-                        target: targetKW, 
-                        element: unifiedEl, 
-                        lastFormatted: '', 
-                    });
-                } else {
-                    const entry = this.interpolatedValues.get(id);
-                    entry.target = targetKW;
-                    entry.element = unifiedEl; 
-                }
-                unifiedEl.style.display = 'block';
+            if (!this.interpolatedValues.has(id)) {
+                this.interpolatedValues.set(id, {
+                    current: targetKW,
+                    target: targetKW,
+                    element: cache.unified,
+                    valSpan: null,
+                    lastFormatted: '',
+                });
+            } else {
+                const entry = this.interpolatedValues.get(id);
+                entry.target = targetKW;
+            }
+            if (cache.unified) cache.unified.style.display = 'block';
         } else {
-            if (headerEl) headerEl.style.display = 'flex';
-            if (unifiedEl) unifiedEl.style.display = 'none';
+            if (cache.header && labelItem._lastMode !== 'normal') {
+                cache.header.style.display = 'flex';
+                labelItem._lastMode = 'normal';
+            }
+            if (cache.unified) cache.unified.style.display = 'none';
         }
     }
 
@@ -498,8 +518,6 @@ class Renderer {
         const asset = window.app ? window.app._findAsset(id) : null;
         const icon = asset ? (asset.icon || 'settings') : 'settings';
         const fallbackName = id.replace(/_/g, ' ').toUpperCase();
-        const name = (asset && asset.name) ? asset.name : fallbackName;
-
         div.innerHTML = `
             <div class="chip-unified-value" style="display: none;">--- kW</div>
             <div class="chip-header">
@@ -555,8 +573,9 @@ class Renderer {
         wClone.position.set(center.x, box.max.y + 1.8, center.z);
         wClone.visible = false;
         wClone.userData.pulseBaseScale = wClone.scale.clone();
-        // Stagger phase so multiple alarms don't pulse in lockstep
-        wClone.userData.pulsePhase = Math.random() * Math.PI * 2;
+        // [AUTHENTICITY] Deterministic staggering based on ID hash instead of random jitter
+        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        wClone.userData.pulsePhase = (hash % 100) / 100 * Math.PI * 2;
         this.scene.add(wClone);
         this.warningMeshes.set(id, wClone);
     }
@@ -731,36 +750,39 @@ class Renderer {
 
     start() {
         const LABELS_PER_FRAME = 3;
+        const TARGET_MS = 33; // ~30fps cap — each render takes ~30-50ms on integrated GPU;
+                               // capping prevents back-to-back renders from piling up
+        let lastRenderTime = 0;
         const loop = () => {
             requestAnimationFrame(loop);
 
-            // [CAMERA ANIMATION] Time-based lerp with Ease-In-Out Cubic
+            // Two independent dirty flags:
+            //  needsWebGL  — scene geometry/materials changed → call renderer.render()
+            //  needsLabels — camera moved → call labelRenderer.render() to reproject CSS2D positions
+            // Energy chip interpolation updates innerHTML directly and needs neither.
+            let needsWebGL = false;
+            let needsLabels = false;
+
+            // [CAMERA ANIMATION]
             if (this._cameraAnim) {
                 const anim = this._cameraAnim;
                 const elapsed = performance.now() - anim.startTime;
                 const t = Math.min(elapsed / anim.duration, 1);
-                
-                // Symmetric Ease-In-Out Cubic
                 const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                
                 this.camera.position.lerpVectors(anim.fromPos, anim.toPos, ease);
                 this.controls.target.lerpVectors(anim.fromTarget, anim.toTarget, ease);
-                
                 if (this.camera.isOrthographicCamera && anim.toZoom) {
                     this.camera.zoom = THREE.MathUtils.lerp(anim.fromZoom, anim.toZoom, ease);
                     this.camera.updateProjectionMatrix();
                 }
-
-                if (t >= 1) {
-                    this._cameraAnim = null;
-                    this.controls.enabled = true;
-                }
+                if (t >= 1) { this._cameraAnim = null; this.controls.enabled = true; }
+                needsWebGL = true; needsLabels = true;
             }
 
-            // [STABILITY] Always update controls to sync matrix, but only after Lerp
-            this.controls.update();
+            // OrbitControls: returns true while damping/pan/zoom is still settling
+            if (this.controls.update()) { needsWebGL = true; needsLabels = true; }
 
-            // Drain pending label updates — max LABELS_PER_FRAME per tick to spread DOM work
+            // Label content drain — new labels need both a scene render and reprojection
             if (this.pendingLabelIds && this.pendingLabelIds.size > 0) {
                 let n = 0;
                 for (const id of this.pendingLabelIds) {
@@ -769,53 +791,110 @@ class Renderer {
                     this.pendingLabelIds.delete(id);
                     if (++n >= LABELS_PER_FRAME) break;
                 }
+                needsWebGL = true; needsLabels = true;
             }
 
-            // [INTERPOLATION] Smooth value transitions for energy chips
-            if (this.interpolatedValues.size > 0) {
-                this.interpolatedValues.forEach((entry, id) => {
-                    const diff = entry.target - entry.current;
-                    if (Math.abs(diff) < 0.005) {
-                        entry.current = entry.target;
-                    } else {
-                        entry.current += diff * 0.02; // 2% step towards target per frame
-                    }
-                    
-                    const fmtKW = entry.current.toFixed(1);
-                    
-                    if (fmtKW !== entry.lastFormatted) {
-                        entry.element.innerHTML = `
-                            <div style="font-size: 12px; font-weight: 900; color: var(--primary);">${fmtKW} <small style="font-size: 8px; opacity: 0.7;">kW</small></div>
-                        `;
-                        entry.lastFormatted = fmtKW;
-                    }
-                });
+            if (this.pointerMoved && this.frameCounter % 4 === 0) {
+                this.handleHover();
+                this.pointerMoved = false;
             }
 
-            if (this.pointerMoved && this.frameCounter % 4 === 0) this.handleHover();
-
-            // [PULSE] Animate active fault/alarm warning meshes
-            // Scale oscillates between 0.85×–1.15× base (≈22px–35px range at default zoom)
+            // [PULSE] Warning meshes scale in 3D
             if (this.warningMeshes.size > 0) {
                 const pNow = performance.now() / 1000;
+                
+                // Update frustum if not already updated by labels this frame
+                if (!needsLabels) {
+                    this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+                    this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+                }
+
                 this.warningMeshes.forEach(wMesh => {
                     if (!wMesh.visible) return;
+                    
+                    // Frustum check: if hazard is off-screen, don't pulse it
+                    if (!this.frustum.containsPoint(wMesh.position)) return;
+
+                    needsWebGL = true;
                     const phase = wMesh.userData.pulsePhase || 0;
-                    const t = 0.5 + 0.5 * Math.sin(pNow * 2.5 + phase); // 1.25 Hz
+                    const t = 0.5 + 0.5 * Math.sin(pNow * 2.5 + phase);
                     const base = wMesh.userData.pulseBaseScale;
                     if (base) {
-                        const s = 0.85 + t * 0.30; // 0.85 → 1.15
+                        const s = 0.85 + t * 0.30;
                         wMesh.scale.set(base.x * s, base.y * s, base.z * s);
                     }
                 });
             }
 
-            // Camera params tracking for future reference
-            this._updateCameraDebug();
-
             this.frameCounter++;
-            this.renderer.render(this.scene, this.camera);
-            this.labelRenderer.render(this.scene, this.camera);
+
+            // Throttle actual work (Rendering & DOM Updates) to ~30fps
+            const now = performance.now();
+            if (now - lastRenderTime < TARGET_MS) return;
+            lastRenderTime = now;
+
+            // [INTERPOLATION] Energy chip values
+            if (this.interpolatedValues.size > 0) {
+                this.interpolatedValues.forEach((entry) => {
+                    const diff = entry.target - entry.current;
+                    entry.current = Math.abs(diff) < 0.005 ? entry.target : entry.current + diff * 0.02;
+
+                    const fmtKW = entry.current.toFixed(1);
+                    if (fmtKW !== entry.lastFormatted) {
+                        // [PERF] Cache valSpan reference — avoid querySelector every frame
+                        if (!entry.valSpan && entry.element) {
+                            entry.valSpan = entry.element.querySelector('.chip-val-text');
+                        }
+                        if (entry.valSpan) {
+                            entry.valSpan.textContent = fmtKW;
+                        } else if (entry.element) {
+                            entry.element.innerHTML = `<div style="font-size:12px;font-weight:900;color:var(--primary);"><span class="chip-val-text">${fmtKW}</span> <small style="font-size:8px;opacity:0.7;">kW</small></div>`;
+                            entry.valSpan = entry.element.querySelector('.chip-val-text');
+                        }
+                        entry.lastFormatted = fmtKW;
+                    }
+                });
+            }
+
+            if (!needsWebGL && !needsLabels) return;
+
+            if (needsWebGL) {
+                // Drop pixel ratio while camera is in motion (animation OR user drag/zoom)
+                // to halve GPU shading cost; restore immediately once settled.
+                const cameraMoving = this._cameraAnim || needsLabels;
+                if (cameraMoving) {
+                    this.renderer.setPixelRatio(1);
+                    this._wasMoving = true;
+                } else if (this._wasMoving) {
+                    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                    this._wasMoving = false;
+                }
+
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            // [PERF] Intelligent Label Management
+            // CSS2DRenderer is the main-thread bottleneck. We use manual frustum culling
+            // and distance gating to prune the work before calling .render()
+            if (needsLabels) {
+                // 1. Update Camera Frustum
+                this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+                this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+
+                // 2. Individual Visibility Check (Culling & Distance)
+                const isTooDistant = this.camera.zoom < 0.1; // Hide labels when zoomed out too far
+                this.labelRegistry.forEach((entry) => {
+                    const obj = entry.object;
+                    if (isTooDistant) {
+                        obj.visible = false;
+                    } else {
+                        obj.visible = this.frustum.containsPoint(obj.position);
+                    }
+                });
+
+                this.labelRenderer.render(this.scene, this.camera);
+                this._updateCameraDebug();
+            }
         };
         loop();
     }

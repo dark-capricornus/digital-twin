@@ -112,8 +112,9 @@ class SimpleMachine(BaseMachine):
                 self.cycle_status = "IDLE"
                 return
 
-        # 2. Role-specific Stage Transitions
-        self.progress += (dt / self.cycle_time) * 100.0
+        # 2. Role-specific Stage Transitions (with 5% Efficiency Jitter)
+        jitter = random.uniform(0.95, 1.05)
+        self.progress += (dt / (self.cycle_time * jitter)) * 100.0
         self.stage_timer += dt
 
         if self.role == "casting":
@@ -236,10 +237,14 @@ class SimpleMachine(BaseMachine):
             add_tag("Booth_Temperature", round(self.temperature, 1))
             add_tag("Booth_Humidity", round(self.humidity, 1))
             add_tag("Air_Flow_Status", "ACTIVE")
+            add_tag("good_count", self.good_count)
+            add_tag("reject_count", self.reject_count)
             
         elif "pretreat" in self.role:
             add_tag("conveyor_speed", self.conveyor_speed)
             add_tag("dryer_temp", 120.0 if self.cycle_status == "DRY" else 45.0)
+            add_tag("good_count", self.good_count)
+            add_tag("reject_count", self.reject_count)
             
         elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower():
             add_tag("part_count", self.part_count)
@@ -247,6 +252,8 @@ class SimpleMachine(BaseMachine):
             add_tag("Material_Count", self.part_count)
             add_tag("Pallet_Count", max(1, self.part_count // 4))
             add_tag("Fill_Level", round((self.part_count / self.capacity) * 100, 1))
+            add_tag("good_count", self.good_count)
+            add_tag("reject_count", self.reject_count)
             
         elif self.role == "outbound" or "outbound" in self.id.lower():
             add_tag("pallet_count", self.part_count)

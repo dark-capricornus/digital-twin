@@ -22,7 +22,9 @@ class StateManager {
      * [ARCHITECTURE] No direct processing or UI updates here.
      */
     setRawState(rawId, state, payload) {
-        const id = rawId.toLowerCase();
+        // Alias inbound_01 and storage_01 → rawmaterials so they share one entry in all views
+        let id = rawId.toLowerCase();
+        if (id === 'inbound_01' || id === 'storage_01') id = 'rawmaterials';
         this.stateBuffer.set(id, { state, payload, timestamp: Date.now() });
     }
 
@@ -36,21 +38,23 @@ class StateManager {
         const updatedIds = new Set();
         this.stateBuffer.forEach((update, id) => {
             const color = this.getColorForState(update.state, update.payload);
-            const oldItem = this.deviceStates.get(id);
-            
-            // [ARCHITECTURE] Preservation: Merge payload with previous state to avoid "blinking" on partial updates
-            const mergedData = { ...(oldItem?.data || {}), ...update.payload };
+            const existing = this.deviceStates.get(id);
 
-            this.deviceStates.set(id, {
-                state: update.state,
-                color,
-                lastUpdate: update.timestamp,
-                data: mergedData
-            });
+            if (existing) {
+                // Mutate in-place: avoids { ...50tags, ...50tags } = 100 property copies per device per cycle
+                Object.assign(existing.data, update.payload);
+                existing.state = update.state;
+                existing.color = color;
+                existing.lastUpdate = update.timestamp;
+            } else {
+                this.deviceStates.set(id, {
+                    state: update.state,
+                    color,
+                    lastUpdate: update.timestamp,
+                    data: { ...update.payload }
+                });
+            }
             updatedIds.add(id);
-            
-            // Still trigger high-level listeners (like device count) if state changed
-            // But telemetry rendering should now pull from here instead of reacting to this
             this.listeners.forEach(cb => cb(id, color, update.state));
         });
 

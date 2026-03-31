@@ -69,7 +69,7 @@ class SceneManager {
             'rawmaterials': 'storage_01001',
             'outbound_01': 'outbound_01',
             'outbound01': 'outbound_01',
-            'outbound_02': null, 
+            'outbound_02': null,
             'outbound02': null,
             'pretreat_01': 'pretreat_01',
             'pretreat01': 'pretreat_01',
@@ -99,7 +99,7 @@ class SceneManager {
 
     setChipDisplayMode(mode) {
         this.chipDisplayMode = mode;
-        
+
         // Force immediate redraw of all labels using latest cached data
         this.labelRegistry.forEach((obj, id) => {
             const data = this.persistentValues.get(id);
@@ -129,24 +129,24 @@ class SceneManager {
         if (!this.camera || !this.renderer) return;
         const canvas = this.renderer.domElement;
         const frustum = this.computeOrthoFrustum(this.viewSize, canvas.clientWidth, canvas.clientHeight);
-        
+
         this.camera.left = frustum.left;
         this.camera.right = frustum.right;
         this.camera.top = frustum.top;
         this.camera.bottom = frustum.bottom;
-        
+
         this.camera.updateProjectionMatrix();
     }
 
     identifyCameraParameters() {
         if (!this.camera || !this.controls) return null;
-        
+
         const position = this.camera.position;
         const target = this.controls.target;
-        
+
         const offset = new THREE.Vector3().subVectors(position, target);
         const distance = offset.length();
-        
+
         // Prevent division by zero or NaN propagation
         if (distance < 0.0001 || isNaN(distance)) {
             return {
@@ -156,20 +156,20 @@ class SceneManager {
                 zoom: isNaN(this.camera.zoom) ? 1 : this.camera.zoom
             };
         }
-        
+
         // Calculate Angles
         // Azimuthal (Horizontal) - Angle in XZ plane
         const hRad = Math.atan2(offset.x, offset.z);
         let hAngle = THREE.MathUtils.radToDeg(hRad);
         if (isNaN(hAngle)) hAngle = 0;
-        
+
         // Polar (Vertical) - Angle from XZ plane towards Y axis
         // Use clamping to prevent NaN from floating point precision errors
         const verticalRatio = Math.max(-1, Math.min(1, offset.y / distance));
         const vRad = Math.asin(verticalRatio);
         let vAngle = THREE.MathUtils.radToDeg(vRad);
         if (isNaN(vAngle)) vAngle = 0;
-        
+
         return {
             hAngle: parseFloat(hAngle.toFixed(1)),
             vAngle: parseFloat(vAngle.toFixed(1)),
@@ -185,7 +185,7 @@ class SceneManager {
         const assets = window.app.assets;
         if (assets[id.toUpperCase()]) return assets[id.toUpperCase()];
         if (assets[id]) return assets[id];
-        
+
         // 2. Try normalized match (e.g. RAW_MATERIALS -> RAWMATERIALS)
         for (const [key, val] of Object.entries(assets)) {
             if (key.replace(/[^A-Z0-9]/g, '') === normId) return val;
@@ -219,7 +219,7 @@ class SceneManager {
         this.camera.position.copy(position);
         this.controls.target.copy(target);
         this.camera.zoom = zoom;
-        
+
         this.camera.updateProjectionMatrix();
         this.controls.update();
 
@@ -234,8 +234,8 @@ class SceneManager {
         const aspect = window.innerWidth / window.innerHeight;
         this.camera = new THREE.OrthographicCamera(
             -aspect * this.viewSize / 2,
-             aspect * this.viewSize / 2,
-             this.viewSize / 2,
+            aspect * this.viewSize / 2,
+            this.viewSize / 2,
             -this.viewSize / 2,
             0.1,
             10000
@@ -244,11 +244,11 @@ class SceneManager {
         // Screen-Matched Industrial Pseudo-Isometric View (from User Screenshot)
         this.defaultTarget = new THREE.Vector3(-6.84, -4.58, 10.27);
         // Derived from H:45, V:27.9, Dist:1280.6
-        this.defaultPosition = new THREE.Vector3(793.43, 594.61, 810.54); 
+        this.defaultPosition = new THREE.Vector3(793.43, 594.61, 810.54);
         this.defaultZoom = 1.13;
 
         // Force strictly vertical orientation to fix "bending" artifact
-        this.camera.up.set(0, 1, 0); 
+        this.camera.up.set(0, 1, 0);
         this.camera.position.copy(this.defaultPosition);
         this.camera.lookAt(this.defaultTarget);
         this.camera.zoom = this.defaultZoom;
@@ -305,7 +305,7 @@ class SceneManager {
             border-radius: 8px;
             padding: 8px 12px;
             color: white;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Public Sans', monospace;
             font-size: 11px;
             display: none; 
             z-index: 1000;
@@ -320,16 +320,16 @@ class SceneManager {
 
     _updateCoordinateTracker() {
         if (!this.coordsOverlay || !this.controls || !this.camera) return;
-        
+
         // Visibility control: Only in energy_analytics mode
         const isEnergyMode = window.app && window.app.activeContext && window.app.activeContext.type === 'energy_analytics';
         this.coordsOverlay.style.display = isEnergyMode ? 'block' : 'none';
-        
+
         if (!isEnergyMode) return;
 
         const params = this.identifyCameraParameters();
         const target = this.controls.target;
-        
+
         const safeX = isNaN(target.x) ? "0.00" : target.x.toFixed(2);
         const safeY = isNaN(target.y) ? "0.00" : target.y.toFixed(2);
         const safeZ = isNaN(target.z) ? "0.00" : target.z.toFixed(2);
@@ -389,19 +389,19 @@ class SceneManager {
                 if (child.material) child.material.dispose();
             });
         }
-        
+
         this.hitGroup = new THREE.Group();
         this.hitGroup.name = 'InteractionHitZones';
         this.scene.add(this.hitGroup);
-        
+
         this.hitBoxMeshes = [];
         const processedNodes = new Set();
-        
+
         console.log('[Scene] Updating hit zones for manualMap:', Object.keys(this.manualMap).length);
 
         for (const [id, targetName] of Object.entries(this.manualMap)) {
             if (!targetName) continue;
-            
+
             const node = this.nodeRegistry.get(targetName.toLowerCase());
             if (!node || processedNodes.has(node)) continue;
             processedNodes.add(node);
@@ -420,18 +420,18 @@ class SceneManager {
 
             // Create invisible proxy mesh
             const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: 0x00ff00, 
-                visible: false, 
-                transparent: true, 
-                opacity: 0 
-            }); 
-            
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                visible: false,
+                transparent: true,
+                opacity: 0
+            });
+
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.copy(center);
             mesh.userData.deviceId = id;
             mesh.name = `HitZone_${id}`;
-            
+
             this.hitGroup.add(mesh);
             this.hitBoxMeshes.push(mesh);
         }
@@ -480,7 +480,7 @@ class SceneManager {
      */
     handleHover() {
         if (!this.raycaster || !this.camera || !this.hitBoxMeshes.length) return;
-        
+
         // [PERF] Only raycast if the mouse has actually moved since the last frame
         if (!this.pointerMoved) return;
         this.pointerMoved = false; // Reset for next frame
@@ -489,7 +489,7 @@ class SceneManager {
 
         // Raycast against stable hit zones only
         const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
-        
+
         let hoveredId = null;
         if (intersects.length > 0) {
             hoveredId = intersects[0].object.userData.deviceId;
@@ -515,18 +515,18 @@ class SceneManager {
 
             // Stability: Wait longer (250ms) to clear hover, but switch machines faster (40ms)
             const delay = hoveredId === null ? 250 : 40;
-            
+
             this.hoverTimeout = setTimeout(() => {
                 const oldId = this.hoveredDeviceId;
                 this.hoveredDeviceId = hoveredId;
                 this.pendingHoverId = null;
                 this.checkZoom();
-                
+
                 // --- Visual Feedback Integration ---
                 this.labelRegistry.forEach(data => {
                     if (data && data.element) data.element.classList.remove('hovered');
                 });
-                
+
                 if (this.hoveredDeviceId) {
                     const label = this.labelRegistry.get(this.hoveredDeviceId);
                     if (label && label.element) {
@@ -555,14 +555,14 @@ class SceneManager {
         // View-aware chip click handling
         if (window.app) {
             const mode = window.app.primaryMode;
-            
+
             // In zones mode: focus camera only, no sidebar changes
             if (mode === 'zones') {
                 this.focusOnMachine(id);
                 this.activeDeviceId = id;
                 return;
             }
-            
+
             // All other modes: use setContext for proper routing
             // Energy mode is handled in setContext (keeps chips alive)
             window.app.setContext('machine', id);
@@ -608,7 +608,7 @@ class SceneManager {
         let targetLookAt = new THREE.Vector3();
         const anchorName = `${id}_FocusAnchor`.toLowerCase();
         const anchor = this.nodeRegistry.get(anchorName) || (this.model ? this.model.getObjectByName(anchorName) : null);
-        
+
         if (anchor) {
             anchor.getWorldPosition(targetLookAt);
         } else {
@@ -632,7 +632,7 @@ class SceneManager {
      */
     animateCamera(targetPosition, targetLookAt, targetZoom = null) {
         if (!targetPosition || !targetLookAt || !this.camera || !this.controls) return;
-        
+
         // Safety check for NaN
         if (isNaN(targetPosition.x) || isNaN(targetLookAt.x)) {
             console.error('[Scene] Invalid animation target:', targetPosition, targetLookAt);
@@ -644,13 +644,13 @@ class SceneManager {
         const startTarget = this.controls.target.clone();
         const startZoom = this.camera.zoom;
         const endZoom = targetZoom !== null ? targetZoom : startZoom;
-        
+
         // Disable controls during animation to prevent state conflict
         this.controls.enabled = false;
-        
+
         // If start and end are same, re-enable and skip
-        if (startPos.distanceTo(targetPosition) < 0.01 && 
-            startTarget.distanceTo(targetLookAt) < 0.01 && 
+        if (startPos.distanceTo(targetPosition) < 0.01 &&
+            startTarget.distanceTo(targetLookAt) < 0.01 &&
             Math.abs(startZoom - endZoom) < 0.001) {
             this.controls.enabled = true;
             return;
@@ -661,7 +661,7 @@ class SceneManager {
         const animate = (currentTime) => {
             const elapsed = (currentTime - startTime) / 1000;
             const t = Math.min(elapsed / duration, 1);
-            
+
             // Ease in-out cubic
             const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -669,10 +669,10 @@ class SceneManager {
             this.camera.position.lerpVectors(startPos, targetPosition, ease);
             this.controls.target.lerpVectors(startTarget, targetLookAt, ease);
             this.camera.zoom = THREE.MathUtils.lerp(startZoom, endZoom, ease);
-            
+
             // Stabilize orientation
-            this.camera.up.set(0, 1, 0); 
-            
+            this.camera.up.set(0, 1, 0);
+
             // Critical Updates: Ensure all matrices are valid
             this.camera.updateMatrixWorld(true);
             this.camera.updateProjectionMatrix();
@@ -729,7 +729,7 @@ class SceneManager {
         // Reset to original materials if null/all
         if (!deviceIds || deviceIds.length === 0) {
             const isAlarmMode = window.app && window.app._isAlarmMode(window.app.primaryMode);
-            
+
             if (isAlarmMode) {
                 this.highlightAlarms();
             } else {
@@ -759,7 +759,7 @@ class SceneManager {
                 if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
 
                 const isActive = activeMeshesSet.has(node);
-                
+
                 // Warning meshes ignore ghosting
                 if (node.name.toLowerCase().includes('warning')) return;
 
@@ -839,14 +839,14 @@ class SceneManager {
         // Optimal Zonal Zoom Calculation (Orthographic)
         const maxDim = Math.max(size.x, size.y, size.z);
         const padding = 1.1; // Tighter fit for better detail (Reduced from 1.3)
-        
+
         // Based on frustumSize = 1000 in constructor/resize
-        const frustumBase = 1000; 
+        const frustumBase = 1000;
         const aspect = window.innerWidth / window.innerHeight;
-        
+
         // Calculate zoom to fit world maxDim into world-space frustum
         let targetZoom = (frustumBase * aspect) / (maxDim * padding);
-        
+
         // Clamp zoom for zones to keep a high-level department overview
         targetZoom = Math.max(0.8, Math.min(targetZoom, 2.5)); // Increased max from 1.8 to 2.5
 
@@ -1083,7 +1083,7 @@ class SceneManager {
             loadingScreen.classList.add('hidden');
             setTimeout(() => loadingScreen.remove(), 700);
         }
-        
+
         // Finalize scene metadata and hit zones
         this.model.updateMatrixWorld(true);
         this._updateHitZones();
@@ -1127,7 +1127,7 @@ class SceneManager {
 
         // 2. Normalized fuzzy search with priority
         const normId = id.replace(/[^a-z0-9]/g, '');
-        
+
         // 2.1 [PERF] Fast Normalized Match
         if (this.normNodeRegistry.has(normId)) {
             const match = this.normNodeRegistry.get(normId);
@@ -1264,7 +1264,7 @@ class SceneManager {
             // Retrieve icon directly from asset metadata (assets.json)
             // This fixes the overlap by ensuring ONLY defined machines get labels.
             let iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : '';
-            
+
             // If no explicit icon is defined for this ID, skip label creation.
             // This prevents "ghost" icons for un-unified or internal IDs.
             if (!iconName) return;
@@ -1280,7 +1280,7 @@ class SceneManager {
             `;
 
             div.onclick = (event) => {
-                event.stopPropagation(); 
+                event.stopPropagation();
                 // [PERF] Yield to the browser's paint thread to improve INP
                 setTimeout(() => {
                     window.app.setContext('machine', id);
@@ -1293,7 +1293,7 @@ class SceneManager {
             const box = new THREE.Box3().setFromObject(mesh);
             const center = new THREE.Vector3();
             box.getCenter(center);
-            
+
             // USER REQUEST: Position icons just above machines to avoid "ghostly" floating
             const suffixMatch = id.match(/_?(\d+)$/);
             const index = suffixMatch ? parseInt(suffixMatch[1]) : 0;
@@ -1365,7 +1365,7 @@ class SceneManager {
                 // Remove background/box-shadow as user wants no background
                 dotIndicator.style.backgroundColor = 'transparent';
                 dotIndicator.style.boxShadow = 'none';
-                
+
                 // Set icon color dynamically based on state
                 // [PERF] Removed expensive text-shadow glow which caused 150ms+ renderer violations
                 dotIndicator.style.color = hex;
@@ -1398,16 +1398,16 @@ class SceneManager {
         if (this.chipDisplayMode === 'energy') {
             if (headerEl) headerEl.style.display = 'none';
             if (valueEl) valueEl.classList.remove('visible');
-            
+
             if (unifiedEl) {
                 const rawKW = this.getValue(data, 'Instant_kW') || 0;
                 const targetKW = parseFloat(rawKW);
-                
+
                 // Initialize or update interpolation target
                 if (!this.interpolatedValues.has(id)) {
-                    this.interpolatedValues.set(id, { 
-                        current: targetKW, 
-                        target: targetKW, 
+                    this.interpolatedValues.set(id, {
+                        current: targetKW,
+                        target: targetKW,
                         element: unifiedEl,
                         lastFormatted: targetKW.toFixed(2),
                         unit: 'kW'
@@ -1416,7 +1416,7 @@ class SceneManager {
                 } else {
                     const entry = this.interpolatedValues.get(id);
                     entry.target = targetKW;
-                    entry.element = unifiedEl; 
+                    entry.element = unifiedEl;
                 }
 
                 unifiedEl.style.display = 'block';
@@ -1437,7 +1437,7 @@ class SceneManager {
         }
     }
 
-    setLabelMode(id, mode) {}
+    setLabelMode(id, mode) { }
 
     setLabelExpanded(id, expanded) {
         const label = this.labelRegistry.get(id);
@@ -1480,11 +1480,11 @@ class SceneManager {
      */
     updateInterpolations(deltaTime) {
         const lerpFactor = Math.min(deltaTime * 8.0, 1.0); // Slightly faster lerp
-        
+
         this.interpolatedValues.forEach((data, id) => {
             if (Math.abs(data.current - data.target) > 0.0001) {
                 data.current += (data.target - data.current) * lerpFactor;
-                
+
                 // [PERF] Only update DOM if the formatted string has actually changed
                 // This prevents redundant layout thrashing during fine lerp adjustments
                 const formatted = data.current.toFixed(2);
@@ -1507,10 +1507,10 @@ class SceneManager {
 
     checkZoom(zoomDelta, posDelta) {
         if (!this.camera) return;
-        
+
         // [PERF] Skip expensive DOM visibility iteration if camera state is stable
         if (zoomDelta < 0.001 && posDelta < 0.01) return;
-        
+
         this.lastCameraZoom = this.camera.zoom;
         this.lastCameraPos.copy(this.camera.position);
 
@@ -1575,7 +1575,7 @@ class SceneManager {
             });
 
             this.renderer.render(this.scene, this.camera);
-            
+
             if (isMoving || this.frameCounter % 2 === 0) {
                 this.labelRenderer.render(this.scene, this.camera);
             }

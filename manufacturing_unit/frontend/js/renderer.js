@@ -8,7 +8,7 @@ class Renderer {
     constructor(container, stateManager) {
         this.container = container;
         this.stateManager = stateManager;
-        
+
         this.scene = null;
         this.camera = null;
         this.renderer = null;
@@ -49,7 +49,7 @@ class Renderer {
         setTimeout(() => {
             this._initSecondary();
         }, 10);
-        
+
         // Environment is now initialised explicitly from main.js (after model load + compileAsync)
         // so shaders compile once with the correct env map already set.
 
@@ -82,7 +82,7 @@ class Renderer {
             -aspect * this.viewSize / 2,
             aspect * this.viewSize / 2,
             this.viewSize / 2,
-            -this.viewSize / 2,     
+            -this.viewSize / 2,
             0.1,
             10000
         );
@@ -164,10 +164,10 @@ class Renderer {
     async loadModel(path) {
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync(path);
-        
+
         // [PERF] Yield before heavy traversal to avoid blocking main thread
         await new Promise(resolve => setTimeout(resolve, 0));
-        
+
         this.model = gltf.scene;
         this.scene.add(this.model);
 
@@ -314,7 +314,7 @@ class Renderer {
         }
 
         if (!center) return;
-        
+
         // --- 1. Target the Mesh/Hitbox center + Balanced Chip Offset ---
         // We shift the target upwards slightly (from 0.18 to 0.14) to keep
         // the machine's full base in view while still centering the chip.
@@ -327,8 +327,8 @@ class Renderer {
         // --- 4. Calibrated Multi-Asset Framing Zoom ---
         // We use a multiplier of 0.72 (architectural pullback) to provide roughly 28% extra margin.
         // This ensures a very generous, high-end "SCADA" field for larger equipment.
-        const targetZoom = (this.viewSize / maxDim) * 0.72; 
-        
+        const targetZoom = (this.viewSize / maxDim) * 0.72;
+
         this._startCameraAnim(focusPos, focusTarget, targetZoom, 5000);
     }
 
@@ -339,7 +339,7 @@ class Renderer {
 
         const zoneBox = new THREE.Box3();
         let found = false;
-        
+
         machineIds.forEach(mid => {
             const node = this.findMesh(mid);
             if (node) {
@@ -359,10 +359,10 @@ class Renderer {
         // Same Golden Angle
         const goldenVector = new THREE.Vector3(700.27, 529.69, 932.17);
         const focusPos = center.clone().add(goldenVector);
-        
+
         // Framing zoom for the whole zone (0.90 for context-rich framing)
-        const targetZoom = (this.viewSize / maxDim) * 0.90; 
-        
+        const targetZoom = (this.viewSize / maxDim) * 0.90;
+
         this._startCameraAnim(focusPos, center, targetZoom, 5000);
     }
 
@@ -370,24 +370,24 @@ class Renderer {
         // Per-machine camera angle offsets for better gemba framing
         // Y: higher = more overhead, X/Z ratio = viewing direction
         const map = {
-            'rawmaterials':  new THREE.Vector3(620, 580, 860),
-            'furnace_01':    new THREE.Vector3(680, 560, 910),
-            'degasser_01':   new THREE.Vector3(700, 530, 930),
-            'degasser_02':   new THREE.Vector3(700, 530, 930),
-            'lpdc_01':       new THREE.Vector3(740, 600, 900),
-            'lpdc_02':       new THREE.Vector3(740, 600, 900),
-            'lpdc_03':       new THREE.Vector3(740, 600, 900),
-            'cooling_01':    new THREE.Vector3(700, 580, 920),
-            'cooling_02':    new THREE.Vector3(700, 580, 920),
+            'rawmaterials': new THREE.Vector3(620, 580, 860),
+            'furnace_01': new THREE.Vector3(680, 560, 910),
+            'degasser_01': new THREE.Vector3(700, 530, 930),
+            'degasser_02': new THREE.Vector3(700, 530, 930),
+            'lpdc_01': new THREE.Vector3(740, 600, 900),
+            'lpdc_02': new THREE.Vector3(740, 600, 900),
+            'lpdc_03': new THREE.Vector3(740, 600, 900),
+            'cooling_01': new THREE.Vector3(700, 580, 920),
+            'cooling_02': new THREE.Vector3(700, 580, 920),
             'inspection_01': new THREE.Vector3(700, 540, 930),
-            'heat_01':       new THREE.Vector3(720, 550, 940),
-            'heat_02':       new THREE.Vector3(720, 550, 940),
-            'cnc_01':        new THREE.Vector3(660, 540, 910),
-            'cnc_02':        new THREE.Vector3(660, 540, 910),
-            'pretreat_01':   new THREE.Vector3(700, 530, 920),
-            'paint_01':      new THREE.Vector3(700, 530, 930),
-            'paint_02':      new THREE.Vector3(700, 530, 930),
-            'outbound_01':   new THREE.Vector3(640, 520, 870),
+            'heat_01': new THREE.Vector3(720, 550, 940),
+            'heat_02': new THREE.Vector3(720, 550, 940),
+            'cnc_01': new THREE.Vector3(660, 540, 910),
+            'cnc_02': new THREE.Vector3(660, 540, 910),
+            'pretreat_01': new THREE.Vector3(700, 530, 920),
+            'paint_01': new THREE.Vector3(700, 530, 930),
+            'paint_02': new THREE.Vector3(700, 530, 930),
+            'outbound_01': new THREE.Vector3(640, 520, 870),
         };
         const key = (ids[0] || '').toLowerCase();
         return map[key] || new THREE.Vector3(700.27, 529.69, 932.17);
@@ -513,7 +513,7 @@ class Renderer {
         const div = document.createElement('div');
         div.className = 'machine-chip';
         div.id = `chip-${id}`;
-        
+
         // Use mapping for icon/name from assets.json if possible
         const asset = window.app ? window.app._findAsset(id) : null;
         const icon = asset ? (asset.icon || 'settings') : 'settings';
@@ -719,7 +719,7 @@ class Renderer {
                 border: 1px solid rgba(0, 255, 153, 0.3);
                 border-radius: 8px;
                 color: #00ff99;
-                font-family: 'JetBrains Mono', monospace;
+                font-family: 'Public Sans', monospace;
                 font-size: 11px;
                 line-height: 1.5;
                 pointer-events: none;
@@ -732,7 +732,7 @@ class Renderer {
 
         const p = this.camera.position;
         const t = this.controls.target;
-        
+
         let typeInfo = '';
         if (this.camera.isOrthographicCamera) {
             typeInfo = `TYPE: ORTHOGRAPHIC<br>ZOOM: ${this.camera.zoom.toFixed(3)}`;
@@ -751,7 +751,7 @@ class Renderer {
     start() {
         const LABELS_PER_FRAME = 3;
         const TARGET_MS = 33; // ~30fps cap — each render takes ~30-50ms on integrated GPU;
-                               // capping prevents back-to-back renders from piling up
+        // capping prevents back-to-back renders from piling up
         let lastRenderTime = 0;
         const loop = () => {
             requestAnimationFrame(loop);
@@ -802,7 +802,7 @@ class Renderer {
             // [PULSE] Warning meshes scale in 3D
             if (this.warningMeshes.size > 0) {
                 const pNow = performance.now() / 1000;
-                
+
                 // Update frustum if not already updated by labels this frame
                 if (!needsLabels) {
                     this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
@@ -811,7 +811,7 @@ class Renderer {
 
                 this.warningMeshes.forEach(wMesh => {
                     if (!wMesh.visible) return;
-                    
+
                     // Frustum check: if hazard is off-screen, don't pulse it
                     if (!this.frustum.containsPoint(wMesh.position)) return;
 

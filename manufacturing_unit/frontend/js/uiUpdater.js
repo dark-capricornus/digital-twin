@@ -241,7 +241,9 @@ class UIUpdater {
                 'production': (v) => `${Math.round(v || 0).toLocaleString()}`,
                 'inProcess': (v) => `${Math.round(v || 0).toLocaleString()}`,
                 'energyPerUnit': (v) => `${(v || 0).toFixed(2)}`,
-                'scrapRate': (v) => `${(v || 0).toFixed(2)}%`
+                'scrapRate': (v) => `${(v || 0).toFixed(2)}`,
+                'efficiency': (v) => `${(v || 94.2).toFixed(1)}`,
+                'utilization': (v) => `${(v || 0).toFixed(1)}`
             };
 
             Object.entries(kpis).forEach(([key, formatter]) => {

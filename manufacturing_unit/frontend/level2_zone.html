@@ -1,15 +1,21 @@
 <!DOCTYPE html>
 
-<html class="light" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Zone Alpha - Industrial Command Center</title>
-<link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Zone Alpha - Industrial Command Center</title>
+    <link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;900&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -25,237 +31,293 @@
                     fontFamily: {
                         "display": ["Public Sans"]
                     },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
                 },
             },
         }
     </script>
-<style>
-        body { font-family: 'Public Sans', sans-serif; }
-        .sidebar-active { background-color: rgba(236, 91, 19, 0.1); border-left: 4px solid #ec5b13; }
+    <style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+
+        .sidebar-active {
+            background-color: rgba(236, 91, 19, 0.1);
+            border-left: 4px solid #ec5b13;
+        }
     </style>
 </head>
+
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
-<div class="flex h-screen flex-col overflow-hidden">
-<!-- Top Navigation Bar -->
-<header class="flex h-16 w-full items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 shrink-0">
-<div class="flex items-center gap-6">
-<div class="flex items-center gap-3 text-primary">
-<span class="material-symbols-outlined text-3xl font-bold">factory</span>
-<h2 class="text-slate-900 dark:text-white text-lg font-black leading-tight tracking-tight uppercase">Command Center</h2>
-</div>
-<div class="hidden md:flex items-center gap-1">
-<button class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Global</button>
-<button class="px-4 py-2 text-sm font-bold text-primary border-b-2 border-primary">Zones</button>
-<button class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Alarms</button>
-<button class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Reports</button>
-</div>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative hidden sm:block">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-<input class="h-10 w-64 rounded-lg border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 pl-10 pr-4 text-sm focus:ring-primary focus:border-primary" placeholder="Search components..." type="text"/>
-</div>
-<button class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-<span class="material-symbols-outlined">notifications</span>
-</button>
-<div class="h-10 w-10 rounded-full border-2 border-primary overflow-hidden">
-<img alt="User Profile" data-alt="User avatar icon for the plant manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNT9_Jq49ga9R02VmptXrht3xCO8SCuuTjIPWEp_Gg_oV8sYyAyd4NRaMAdjtf2FO4tJdK7ZzM_8hWXXI7O52mtB-O10Y5lZ5U9qJln9zz7gW4YobdddXLRmPlKSc3FGMs0eEFZAaqZ1CxJQClP6e8Rl00bYQRYbekjqAGYDt4kGkyB9YnubRq_upZwJi8tWDBTYFe7k31pxN4Bf9mvDTFFwi1fereN8KYE9uqORLOxuFJQpl9AyncXEJr5kZ8mu4m3Nqt-wcQSWns"/>
-</div>
-</div>
-</header>
-<div class="flex flex-1 overflow-hidden">
-<!-- Left Sidebar Navigation -->
-<aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col py-6 shrink-0">
-<div class="px-6 mb-8">
-<p class="text-xs font-bold uppercase tracking-widest text-slate-400">Current Scope</p>
-<h3 class="text-xl font-black text-slate-800 dark:text-white">Zone Alpha</h3>
-<p class="text-sm text-primary font-semibold">Casting Section</p>
-</div>
-<nav class="flex-1 px-3 space-y-1">
-<a class="flex items-center gap-3 px-3 py-3 rounded-lg sidebar-active text-primary" href="#">
-<span class="material-symbols-outlined">dashboard</span>
-<span class="font-bold text-sm uppercase tracking-wide">Overview</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800" href="#">
-<span class="material-symbols-outlined">precision_manufacturing</span>
-<span class="font-bold text-sm uppercase tracking-wide">Machine Status</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800" href="#">
-<span class="material-symbols-outlined">build</span>
-<span class="font-bold text-sm uppercase tracking-wide">Maintenance</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800" href="#">
-<span class="material-symbols-outlined">analytics</span>
-<span class="font-bold text-sm uppercase tracking-wide">Analytics</span>
-</a>
-</nav>
-<div class="px-6 mt-auto">
-<div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-<p class="text-xs font-bold text-slate-500 uppercase">System Health</p>
-<div class="mt-2 flex items-center gap-2">
-<div class="h-2 w-2 rounded-full bg-industrial-green"></div>
-<span class="text-sm font-bold text-slate-700 dark:text-slate-300">All Nodes Online</span>
-</div>
-</div>
-</div>
-</aside>
-<!-- Main Dashboard Area (70%) -->
-<main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 flex flex-col gap-6">
-<!-- Header Stats -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-<div class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
-<p class="text-sm font-bold text-slate-500 uppercase">Throughput (hr)</p>
-<h4 class="text-4xl font-black text-slate-800 dark:text-white">1,420 <span class="text-sm font-normal text-slate-400">units</span></h4>
-<div class="flex items-center gap-1 text-industrial-green font-bold">
-<span class="material-symbols-outlined text-sm">trending_up</span>
-<span>+4.2% vs target</span>
-</div>
-</div>
-<div class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
-<p class="text-sm font-bold text-slate-500 uppercase">Scrap Rate</p>
-<h4 class="text-4xl font-black text-slate-800 dark:text-white">0.85%</h4>
-<div class="flex items-center gap-1 text-industrial-green font-bold">
-<span class="material-symbols-outlined text-sm">trending_down</span>
-<span>-0.12% trend</span>
-</div>
-</div>
-<div class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
-<p class="text-sm font-bold text-slate-500 uppercase">Active Workforce</p>
-<h4 class="text-4xl font-black text-slate-800 dark:text-white">12 / 14</h4>
-<div class="flex items-center gap-1 text-primary font-bold">
-<span class="material-symbols-outlined text-sm">warning</span>
-<span>2 personnel offline</span>
-</div>
-</div>
-</div>
-<!-- 3D Digital Twin View -->
-<div class="flex-1 min-h-[400px] bg-slate-200 dark:bg-slate-800 relative border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
-<div class="absolute inset-0 bg-cover bg-center opacity-50 dark:opacity-30" data-alt="Industrial factory floor 3D visualization model" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCXKOXy169tTXy8Bl2W9czQH1n763Lz5GXuvRIXPWBy1FEhasrBXQBeQF9tjTjl20NNqaBYPIY56ppqM9fscLS_U6VHHM1P7pmXMqrwAbfibjHVwSpZgcKW_sjLjRO5TR7PDFSr8OZnfdb23fPBHGkHjRJbGGZVk3lwN_LHAeawaejwRS9UHrq-PBhmV8BlpKqG5aNNV1iNBek29Ef2mJaZpk5R7q6uNHBOoyBb8nsvRlqofgkPJt9qi_vxipJlBClkICgjvjHBOx5Q')"></div>
-<!-- Digital Twin Highlights -->
-<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-<!-- Simulated Zone Alpha Highlight -->
-<div class="relative">
-<div class="w-96 h-64 border-4 border-primary bg-primary/10 flex items-center justify-center">
-<span class="bg-primary text-white text-xs font-black px-3 py-1 uppercase tracking-widest absolute -top-4 -left-4">Zone Alpha Active</span>
-</div>
-<!-- Point of Interest Markers -->
-<div class="absolute top-10 left-10 h-6 w-6 rounded-full bg-industrial-green border-2 border-white animate-pulse"></div>
-<div class="absolute bottom-20 right-24 h-6 w-6 rounded-full bg-primary border-2 border-white"></div>
-</div>
-</div>
-<div class="absolute bottom-4 left-4 flex gap-2">
-<button class="bg-white dark:bg-slate-900 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 font-bold text-xs uppercase flex items-center gap-2">
-<span class="material-symbols-outlined text-sm">videocam</span> Live Feed
+    <div class="flex h-screen flex-col overflow-hidden">
+        <!-- Top Navigation Bar -->
+        <header
+            class="flex h-16 w-full items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 shrink-0">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3 text-primary">
+                    <span class="material-symbols-outlined text-3xl font-bold">factory</span>
+                    <h2
+                        class="text-slate-900 dark:text-white text-lg font-black leading-tight tracking-tight uppercase">
+                        Command Center</h2>
+                </div>
+                <div class="hidden md:flex items-center gap-1">
+                    <button
+                        class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Global</button>
+                    <button class="px-4 py-2 text-sm font-bold text-primary border-b-2 border-primary">Zones</button>
+                    <button
+                        class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Alarms</button>
+                    <button
+                        class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary">Reports</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block">
+                    <span
+                        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        class="h-10 w-64 rounded-lg border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 pl-10 pr-4 text-sm focus:ring-primary focus:border-primary"
+                        placeholder="Search components..." type="text" />
+                </div>
+                <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <span class="material-symbols-outlined">notifications</span>
+                </button>
+                <div class="h-10 w-10 rounded-full border-2 border-primary overflow-hidden">
+                    <img alt="User Profile" data-alt="User avatar icon for the plant manager"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNT9_Jq49ga9R02VmptXrht3xCO8SCuuTjIPWEp_Gg_oV8sYyAyd4NRaMAdjtf2FO4tJdK7ZzM_8hWXXI7O52mtB-O10Y5lZ5U9qJln9zz7gW4YobdddXLRmPlKSc3FGMs0eEFZAaqZ1CxJQClP6e8Rl00bYQRYbekjqAGYDt4kGkyB9YnubRq_upZwJi8tWDBTYFe7k31pxN4Bf9mvDTFFwi1fereN8KYE9uqORLOxuFJQpl9AyncXEJr5kZ8mu4m3Nqt-wcQSWns" />
+                </div>
+            </div>
+        </header>
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Left Sidebar Navigation -->
+            <aside
+                class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col py-6 shrink-0">
+                <div class="px-6 mb-8">
+                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Current Scope</p>
+                    <h3 class="text-xl font-black text-slate-800 dark:text-white">Zone Alpha</h3>
+                    <p class="text-sm text-primary font-semibold">Casting Section</p>
+                </div>
+                <nav class="flex-1 px-3 space-y-1">
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg sidebar-active text-primary" href="#">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <span class="font-bold text-sm uppercase tracking-wide">Overview</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        href="#">
+                        <span class="material-symbols-outlined">precision_manufacturing</span>
+                        <span class="font-bold text-sm uppercase tracking-wide">Machine Status</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        href="#">
+                        <span class="material-symbols-outlined">build</span>
+                        <span class="font-bold text-sm uppercase tracking-wide">Maintenance</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        href="#">
+                        <span class="material-symbols-outlined">analytics</span>
+                        <span class="font-bold text-sm uppercase tracking-wide">Analytics</span>
+                    </a>
+                </nav>
+                <div class="px-6 mt-auto">
+                    <div
+                        class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <p class="text-xs font-bold text-slate-500 uppercase">System Health</p>
+                        <div class="mt-2 flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-industrial-green"></div>
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-300">All Nodes Online</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- Main Dashboard Area (70%) -->
+            <main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 flex flex-col gap-6">
+                <!-- Header Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div
+                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
+                        <p class="text-sm font-bold text-slate-500 uppercase">Throughput (hr)</p>
+                        <h4 class="text-4xl font-black text-slate-800 dark:text-white">1,420 <span
+                                class="text-sm font-normal text-slate-400">units</span></h4>
+                        <div class="flex items-center gap-1 text-industrial-green font-bold">
+                            <span class="material-symbols-outlined text-sm">trending_up</span>
+                            <span>+4.2% vs target</span>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
+                        <p class="text-sm font-bold text-slate-500 uppercase">Scrap Rate</p>
+                        <h4 class="text-4xl font-black text-slate-800 dark:text-white">0.85%</h4>
+                        <div class="flex items-center gap-1 text-industrial-green font-bold">
+                            <span class="material-symbols-outlined text-sm">trending_down</span>
+                            <span>-0.12% trend</span>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-sm flex flex-col gap-2">
+                        <p class="text-sm font-bold text-slate-500 uppercase">Active Workforce</p>
+                        <h4 class="text-4xl font-black text-slate-800 dark:text-white">12 / 14</h4>
+                        <div class="flex items-center gap-1 text-primary font-bold">
+                            <span class="material-symbols-outlined text-sm">warning</span>
+                            <span>2 personnel offline</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 3D Digital Twin View -->
+                <div
+                    class="flex-1 min-h-[400px] bg-slate-200 dark:bg-slate-800 relative border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                    <div class="absolute inset-0 bg-cover bg-center opacity-50 dark:opacity-30"
+                        data-alt="Industrial factory floor 3D visualization model"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCXKOXy169tTXy8Bl2W9czQH1n763Lz5GXuvRIXPWBy1FEhasrBXQBeQF9tjTjl20NNqaBYPIY56ppqM9fscLS_U6VHHM1P7pmXMqrwAbfibjHVwSpZgcKW_sjLjRO5TR7PDFSr8OZnfdb23fPBHGkHjRJbGGZVk3lwN_LHAeawaejwRS9UHrq-PBhmV8BlpKqG5aNNV1iNBek29Ef2mJaZpk5R7q6uNHBOoyBb8nsvRlqofgkPJt9qi_vxipJlBClkICgjvjHBOx5Q')">
+                    </div>
+                    <!-- Digital Twin Highlights -->
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                        <!-- Simulated Zone Alpha Highlight -->
+                        <div class="relative">
+                            <div
+                                class="w-96 h-64 border-4 border-primary bg-primary/10 flex items-center justify-center">
+                                <span
+                                    class="bg-primary text-white text-xs font-black px-3 py-1 uppercase tracking-widest absolute -top-4 -left-4">Zone
+                                    Alpha Active</span>
+                            </div>
+                            <!-- Point of Interest Markers -->
+                            <div
+                                class="absolute top-10 left-10 h-6 w-6 rounded-full bg-industrial-green border-2 border-white animate-pulse">
+                            </div>
+                            <div
+                                class="absolute bottom-20 right-24 h-6 w-6 rounded-full bg-primary border-2 border-white">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-4 left-4 flex gap-2">
+                        <button
+                            class="bg-white dark:bg-slate-900 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 font-bold text-xs uppercase flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">videocam</span> Live Feed
                         </button>
-<button class="bg-white dark:bg-slate-900 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 font-bold text-xs uppercase flex items-center gap-2">
-<span class="material-symbols-outlined text-sm">layers</span> Heatmap
+                        <button
+                            class="bg-white dark:bg-slate-900 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 font-bold text-xs uppercase flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">layers</span> Heatmap
                         </button>
-</div>
-</div>
-</main>
-<!-- Right Contextual Panel (30%) -->
-<aside class="w-[30%] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
-<div class="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-<h2 class="text-2xl font-black text-slate-800 dark:text-white leading-none uppercase tracking-tight">Zone Alpha - Casting</h2>
-<p class="text-sm font-bold text-slate-500 mt-2">Real-time Telemetry &amp; Control</p>
-</div>
-<div class="p-6 space-y-8">
-<!-- Zone OEE Card -->
-<section>
-<div class="flex justify-between items-end mb-4">
-<h3 class="text-sm font-black uppercase tracking-widest text-slate-400">Zone Performance (OEE)</h3>
-<span class="text-3xl font-black text-industrial-green">84%</span>
-</div>
-<div class="w-full bg-slate-100 dark:bg-slate-800 h-6 border-2 border-slate-200 dark:border-slate-700">
-<div class="bg-industrial-green h-full" style="width: 84%;"></div>
-</div>
-<div class="grid grid-cols-3 gap-2 mt-3 text-[10px] font-bold uppercase text-slate-500">
-<div>Avail: 92%</div>
-<div>Perf: 88%</div>
-<div>Qual: 98%</div>
-</div>
-</section>
-<!-- Active Alarms -->
-<section>
-<div class="flex justify-between items-center mb-4">
-<h3 class="text-sm font-black uppercase tracking-widest text-slate-400">Active Alarms</h3>
-<span class="bg-primary px-2 py-0.5 text-xs font-black text-white rounded">2 Active</span>
-</div>
-<div class="space-y-3">
-<div class="bg-red-50 dark:bg-red-950/20 border-l-4 border-red-600 p-3 flex items-start gap-3">
-<span class="material-symbols-outlined text-red-600">error</span>
-<div>
-<p class="text-sm font-bold text-red-900 dark:text-red-400">Furnace #01 Temp Critical</p>
-<p class="text-xs text-red-700 dark:text-red-500">Exceeded 1200°C threshold</p>
-</div>
-</div>
-<div class="bg-orange-50 dark:bg-orange-950/20 border-l-4 border-orange-500 p-3 flex items-start gap-3">
-<span class="material-symbols-outlined text-orange-500">warning</span>
-<div>
-<p class="text-sm font-bold text-orange-900 dark:text-orange-400">CNC #08 Coolant Low</p>
-<p class="text-xs text-orange-700 dark:text-orange-500">Refill required in 45 mins</p>
-</div>
-</div>
-</div>
-</section>
-<!-- Machine Table -->
-<section>
-<h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Asset Status</h3>
-<div class="border-2 border-slate-200 dark:border-slate-800 rounded-none overflow-hidden">
-<table class="w-full text-left text-sm border-collapse">
-<thead class="bg-slate-50 dark:bg-slate-800/50">
-<tr class="border-b border-slate-200 dark:border-slate-800 font-black text-[10px] uppercase">
-<th class="px-3 py-2">Asset ID</th>
-<th class="px-3 py-2">Status</th>
-<th class="px-3 py-2 text-right">Load</th>
-</tr>
-</thead>
-<tbody>
-<tr class="border-b border-slate-100 dark:border-slate-800">
-<td class="px-3 py-3 font-bold">Furnace #01</td>
-<td class="px-3 py-3">
-<span class="inline-flex items-center gap-1 text-red-600 font-bold">
-<span class="h-2 w-2 rounded-full bg-red-600"></span> Alert
+                    </div>
+                </div>
+            </main>
+            <!-- Right Contextual Panel (30%) -->
+            <aside
+                class="w-[30%] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
+                <div class="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                    <h2
+                        class="text-2xl font-black text-slate-800 dark:text-white leading-none uppercase tracking-tight">
+                        Zone Alpha - Casting</h2>
+                    <p class="text-sm font-bold text-slate-500 mt-2">Real-time Telemetry &amp; Control</p>
+                </div>
+                <div class="p-6 space-y-8">
+                    <!-- Zone OEE Card -->
+                    <section>
+                        <div class="flex justify-between items-end mb-4">
+                            <h3 class="text-sm font-black uppercase tracking-widest text-slate-400">Zone Performance
+                                (OEE)</h3>
+                            <span class="text-3xl font-black text-industrial-green">84%</span>
+                        </div>
+                        <div
+                            class="w-full bg-slate-100 dark:bg-slate-800 h-6 border-2 border-slate-200 dark:border-slate-700">
+                            <div class="bg-industrial-green h-full" style="width: 84%;"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-3 text-[10px] font-bold uppercase text-slate-500">
+                            <div>Avail: 92%</div>
+                            <div>Perf: 88%</div>
+                            <div>Qual: 98%</div>
+                        </div>
+                    </section>
+                    <!-- Active Alarms -->
+                    <section>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-black uppercase tracking-widest text-slate-400">Active Alarms</h3>
+                            <span class="bg-primary px-2 py-0.5 text-xs font-black text-white rounded">2 Active</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div
+                                class="bg-red-50 dark:bg-red-950/20 border-l-4 border-red-600 p-3 flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-600">error</span>
+                                <div>
+                                    <p class="text-sm font-bold text-red-900 dark:text-red-400">Furnace #01 Temp
+                                        Critical</p>
+                                    <p class="text-xs text-red-700 dark:text-red-500">Exceeded 1200°C threshold</p>
+                                </div>
+                            </div>
+                            <div
+                                class="bg-orange-50 dark:bg-orange-950/20 border-l-4 border-orange-500 p-3 flex items-start gap-3">
+                                <span class="material-symbols-outlined text-orange-500">warning</span>
+                                <div>
+                                    <p class="text-sm font-bold text-orange-900 dark:text-orange-400">CNC #08 Coolant
+                                        Low</p>
+                                    <p class="text-xs text-orange-700 dark:text-orange-500">Refill required in 45 mins
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <!-- Machine Table -->
+                    <section>
+                        <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Asset Status</h3>
+                        <div class="border-2 border-slate-200 dark:border-slate-800 rounded-none overflow-hidden">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 dark:bg-slate-800/50">
+                                    <tr
+                                        class="border-b border-slate-200 dark:border-slate-800 font-black text-[10px] uppercase">
+                                        <th class="px-3 py-2">Asset ID</th>
+                                        <th class="px-3 py-2">Status</th>
+                                        <th class="px-3 py-2 text-right">Load</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-slate-100 dark:border-slate-800">
+                                        <td class="px-3 py-3 font-bold">Furnace #01</td>
+                                        <td class="px-3 py-3">
+                                            <span class="inline-flex items-center gap-1 text-red-600 font-bold">
+                                                <span class="h-2 w-2 rounded-full bg-red-600"></span> Alert
                                             </span>
-</td>
-<td class="px-3 py-3 text-right font-mono">112%</td>
-</tr>
-<tr class="border-b border-slate-100 dark:border-slate-800">
-<td class="px-3 py-3 font-bold">LPDC #02</td>
-<td class="px-3 py-3">
-<span class="inline-flex items-center gap-1 text-industrial-green font-bold">
-<span class="h-2 w-2 rounded-full bg-industrial-green"></span> Nominal
+                                        </td>
+                                        <td class="px-3 py-3 text-right font-mono">112%</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-100 dark:border-slate-800">
+                                        <td class="px-3 py-3 font-bold">LPDC #02</td>
+                                        <td class="px-3 py-3">
+                                            <span
+                                                class="inline-flex items-center gap-1 text-industrial-green font-bold">
+                                                <span class="h-2 w-2 rounded-full bg-industrial-green"></span> Nominal
                                             </span>
-</td>
-<td class="px-3 py-3 text-right font-mono">74%</td>
-</tr>
-<tr>
-<td class="px-3 py-3 font-bold">CNC #08</td>
-<td class="px-3 py-3">
-<span class="inline-flex items-center gap-1 text-orange-500 font-bold">
-<span class="h-2 w-2 rounded-full bg-orange-500"></span> Warning
+                                        </td>
+                                        <td class="px-3 py-3 text-right font-mono">74%</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-3 font-bold">CNC #08</td>
+                                        <td class="px-3 py-3">
+                                            <span class="inline-flex items-center gap-1 text-orange-500 font-bold">
+                                                <span class="h-2 w-2 rounded-full bg-orange-500"></span> Warning
                                             </span>
-</td>
-<td class="px-3 py-3 text-right font-mono">91%</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<!-- Control Actions -->
-<section class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
-<div class="grid grid-cols-2 gap-3">
-<button class="bg-industrial-blue text-white py-3 px-4 font-black uppercase text-xs hover:bg-industrial-blue/90">
+                                        </td>
+                                        <td class="px-3 py-3 text-right font-mono">91%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <!-- Control Actions -->
+                    <section class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
+                        <div class="grid grid-cols-2 gap-3">
+                            <button
+                                class="bg-industrial-blue text-white py-3 px-4 font-black uppercase text-xs hover:bg-industrial-blue/90">
                                 Override Local
                             </button>
-<button class="bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 py-3 px-4 font-black uppercase text-xs hover:opacity-90">
+                            <button
+                                class="bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 py-3 px-4 font-black uppercase text-xs hover:opacity-90">
                                 E-Stop Zone
                             </button>
-</div>
-</section>
-</div>
-</aside>
-</div>
-</div>
-</body></html>
+                        </div>
+                    </section>
+                </div>
+            </aside>
+        </div>
+    </div>
+</body>
+
+</html>

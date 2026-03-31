@@ -16,17 +16,17 @@ class DigitalTwinApp {
         this.ui = new UIUpdater(this, this.stateManager);
         this.websocket = null;
         this.analytics = new EnergyAnalytics();
-        
+
         this.activeContext = { type: 'plant', id: null };
         this.primaryMode = 'plant';
         this.assetData = {};
         this.forceRefresh = false;
 
         // Energy View State
-        this.energyViewSettings = { 
-            parameter: 'status', 
-            viewType: 'all', 
-            selectedMachineId: null 
+        this.energyViewSettings = {
+            parameter: 'status',
+            viewType: 'all',
+            selectedMachineId: null
         };
         this.lastChipMode = 'status';
 
@@ -65,14 +65,14 @@ class DigitalTwinApp {
     async initialRenderChips() {
         const chipContainer = document.getElementById('status-chips-container');
         if (!chipContainer) return;
-        
+
         // Clear Existing
         chipContainer.innerHTML = '';
-        
+
         // Define key assets to show
         const assetsToShow = ['FURNACE_01', 'LPDC_01', 'CNC_01', 'CNC_02', 'INSPECTION_01', 'HEAT_01'];
         const BATCH_SIZE = 3;
-        
+
         // [PERF] Stagger chip creation over multiple animation frames
         // This prevents the 180ms blockage by splitting DOM work into ~16ms chunks
         for (let i = 0; i < assetsToShow.length; i += BATCH_SIZE) {
@@ -227,7 +227,7 @@ class DigitalTwinApp {
         if (expand) {
             leftPanel.classList.add('open');
             if (triggerIcon) triggerIcon.textContent = 'close';
-            
+
             // Render content ONLY when expanding or while open
             if (this.analytics) {
                 const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
@@ -350,7 +350,7 @@ class DigitalTwinApp {
     _getUnit(tag) {
         if (!tag) return '';
         const upperTag = tag.toUpperCase();
-        
+
         if (upperTag.includes('KWH')) return 'kWh';
         if (upperTag.includes('KW')) return 'kW';
         if (upperTag.includes('MOLTEN') || upperTag.includes('METAL') || upperTag.includes('KG')) return 'kg';
@@ -360,7 +360,7 @@ class DigitalTwinApp {
         if (upperTag.includes('SPEED')) return 'm/min';
         if (upperTag.includes('HUMIDITY') || upperTag.includes('PCT') || upperTag.includes('%')) return '%';
         if (upperTag.includes('TIME') || upperTag.includes('TIMER')) return 's';
-        
+
         return '';
     }
 
@@ -389,9 +389,9 @@ class DigitalTwinApp {
      */
     _findTelemetry(id) {
         const state = this.stateManager.getDeviceState(id);
-        return { 
-            state: state?.state, 
-            color: state?.color, 
+        return {
+            state: state?.state,
+            color: state?.color,
             cache: state?.data,
             storeKey: id
         };
@@ -443,7 +443,7 @@ class DigitalTwinApp {
     _findAsset(id) {
         if (!this.assetData) return null;
         const key = id.toUpperCase();
-        
+
         // 1. [BRANDING] Standardization for Raw Materials
         if (key.includes('INBOUND') || key.includes('STORAGE') || key === 'RAWMATERIALS') {
             const base = this.assetData['RAWMATERIALS'] || this.assetData['STORAGE_01'] || this.assetData['INBOUND_01'] || {};
@@ -525,7 +525,7 @@ class DigitalTwinApp {
 
         // [Phase 26] Pre-render chips (Staggered)
         this.initialRenderChips();
-        
+
         const infoBtn = document.getElementById('branding-info-btn');
         const kpiSummaryRow = document.getElementById('kpi-summary-row');
         if (infoBtn && kpiSummaryRow) {
@@ -541,7 +541,7 @@ class DigitalTwinApp {
             loader.style.opacity = '0';
             setTimeout(() => loader.remove(), 500);
         }
-        
+
         // [USER] Ensure sidebar is strictly removed if starting in Plant/Gemba
         // We'll call setContext to ensure initial state consistency
         this.updateTriggerIcon();
@@ -570,7 +570,7 @@ class DigitalTwinApp {
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
-                
+
                 // [PERF] Immediate UI Feedback (Instant Active State)
                 document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -671,13 +671,13 @@ class DigitalTwinApp {
 
         // Map nav action names to the context types renderLeftSidebar expects
         const contextTypeMap = {
-            'zones':    'zones_scope',
+            'zones': 'zones_scope',
             'machines': 'machines_list',
-            'energy':   'energy_analytics',
-            'alarm':    'alarms',
+            'energy': 'energy_analytics',
+            'alarm': 'alarms',
         };
         this.setContext(contextTypeMap[action] || action);
-        
+
         // [USER] Automatically switch 3D chip mode when enters Energy mode
         if (this.renderer) {
             const chipMode = action === 'energy' ? 'energy' : 'status';
@@ -706,8 +706,8 @@ class DigitalTwinApp {
     }
 
     setContext(type, id = null) {
-        console.log(`[App] Transition: ${this.activeContext.type}->${type}${id ? ':'+id : ''}`);
-        
+        console.log(`[App] Transition: ${this.activeContext.type}->${type}${id ? ':' + id : ''}`);
+
         // [Routing Interception] If clicking a generic machine while in Maintenance mode, route it to Maintenance Machine.
         if ((type === 'machine' || type === 'asset') && this.primaryMode === 'maintenance') {
             type = 'maintenance_machine';
@@ -726,7 +726,7 @@ class DigitalTwinApp {
 
         if (this.activeContext.type === type && this.activeContext.id === id) {
             if (isTopLevel && !leftOpen) { /* Proceed to open left */ }
-            else if (isMachine) { 
+            else if (isMachine) {
                 // [USER] Strict Toggle: Close right sidebar if clicking the same machine again
                 if (rightOpen) {
                     document.getElementById('right-sidebar')?.classList.remove('open');
@@ -747,20 +747,20 @@ class DigitalTwinApp {
 
         // ─── Direct Interaction Dispatch ────────────────────────────────
         const rightPanel = document.getElementById('right-sidebar');
-        
+
         if (type === 'zone' && id) {
             // [ZONE] Explicit Camera Focus for Zones
             this.renderer?.focusOnZone(id);
             this.toggleLeftSidebar(true);
-            
+
             // [USER] Track for toggle-back logic
             this.lastZoneId = id;
-            
+
             // [USER] STRICTURE: Selecting a zone MUST close the right sidebar if it was open
             if (rightPanel) {
                 rightPanel.classList.remove('open');
             }
-            
+
             const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
             this.renderRightSidebar(hierarchy);
         } else if (['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(type) && id) {
@@ -779,7 +779,7 @@ class DigitalTwinApp {
                 rightPanel.classList.add('open');
                 this.isRightPanelManuallyClosed = false; // Reset guard on explicit machine click
             }
-            
+
             const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
             this.renderRightSidebar(hierarchy);
         } else if (type === 'gemba' && rightPanel) {
@@ -851,7 +851,7 @@ class DigitalTwinApp {
 
     updateTopStrip(plant) {
         if (!this._hasChanged('plant', 'top-strip', plant, ['instantKW', 'totalKWh', 'production'])) return;
-        
+
         const kwEl = this._getDomElement('plant-kw');
         const kwhEl = this._getDomElement('plant-kwh');
         const prodEl = this._getDomElement('plant-production');
@@ -878,7 +878,7 @@ class DigitalTwinApp {
         const isDetails = ['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(this.activeContext.type);
         const isPlantContext = this.activeContext.type === 'plant';
         const isNotPlantMode = this.primaryMode !== 'plant' && this.primaryMode !== 'gemba';
-        
+
         if (isDetails || (isPlantContext && isNotPlantMode)) {
             const mode = this.primaryMode;
             if (mode === 'maintenance') {
@@ -911,7 +911,7 @@ class DigitalTwinApp {
         const contentEl = document.getElementById('left-nav-list');
         const closeBtn = document.getElementById('close-left-panel');
         const header = document.querySelector('#left-sidebar .sidebar-header');
-        
+
         if (!leftPanel || !titleEl || !contentEl || !navEl || !closeBtn || !header) return;
 
         // [LOGIC FIX] Use the centralized context helper to prevent structural flickering
@@ -920,7 +920,7 @@ class DigitalTwinApp {
         // [ARCHITECTURE] Targeted Update Guard: Do not clear content if ID and Type match
         const activeId = contentEl.getAttribute('data-active-id');
         const activeType = contentEl.getAttribute('data-active-type');
-        
+
         if (activeId === id && activeType === type) {
             return; // Structure is already stable
         }
@@ -937,7 +937,7 @@ class DigitalTwinApp {
         navEl.innerHTML = '';
         header.classList.remove('same-row', 'compact');
         closeBtn.style.order = ''; // Reset order
-        
+
         // type and id were declared above 
 
         if (type === 'plant' || !type) {
@@ -947,7 +947,7 @@ class DigitalTwinApp {
             this.renderPlantOverview(contentEl);
         } else if (type === 'zones_scope') {
             header.classList.add('same-row', 'compact');
-            titleEl.textContent = 'ZONES'; 
+            titleEl.textContent = 'ZONES';
             navEl.prepend(titleEl);
             this.renderZonesScope(hierarchy, contentEl);
         } else if (type === 'zone' && id) {
@@ -956,7 +956,7 @@ class DigitalTwinApp {
                     <span class="material-symbols-outlined">arrow_back</span>
                 </button>
             `;
-            header.appendChild(titleEl); 
+            header.appendChild(titleEl);
             titleEl.textContent = (this.departmentLabels[id] || id.replace(/_/g, ' ')).toUpperCase();
             const zoneData = hierarchy.zones[id] || hierarchy.zones[id.toLowerCase()];
             this.renderZonePanel(id, zoneData, contentEl);
@@ -1001,7 +1001,7 @@ class DigitalTwinApp {
         }
 
         // 3. PERSISTENCE: Save the last primary navigation mode for this sidebar
-        if (this.activeContext.type !== 'machine' && this.activeContext.type !== 'asset' && 
+        if (this.activeContext.type !== 'machine' && this.activeContext.type !== 'asset' &&
             this.activeContext.type !== 'maintenance_machine' && this.activeContext.type !== 'alarm_machine') {
             this.lastLeftContext = { ...this.activeContext };
         }
@@ -1032,7 +1032,7 @@ class DigitalTwinApp {
         const contentEl = document.getElementById('right-panel-content');
         const navEl = document.getElementById('right-header-nav');
         const header = document.querySelector('#right-sidebar .sidebar-header');
-        
+
         // [USER] Disable right sidebar for gemba mode
         if (this.primaryMode === 'gemba' || this.activeContext.type === 'gemba') {
             const rightPanel = document.getElementById('right-sidebar');
@@ -1052,7 +1052,7 @@ class DigitalTwinApp {
         const activeId = contentEl.getAttribute('data-active-id');
         const activeType = contentEl.getAttribute('data-active-type');
         const activeMode = contentEl.getAttribute('data-active-mode');
-        
+
         if (activeId === id && activeType === type && activeMode === this.primaryMode) {
             // Structure is already stable — let UIUpdater handle the live values via textContent
             return;
@@ -1066,12 +1066,12 @@ class DigitalTwinApp {
         header.classList.add('same-row', 'compact');
         navEl.innerHTML = '';
         contentEl.innerHTML = '';
-        
+
         // Record new context to prevent future re-renders
         contentEl.setAttribute('data-active-id', id || '');
         contentEl.setAttribute('data-active-type', type || '');
         contentEl.setAttribute('data-active-mode', this.primaryMode || '');
-        
+
         // [USER] Right Sidebar Title based on active view mode
         let titleText = 'MACHINE DIAGNOSTICS'; // default for plant view
         if (type === 'zone' || this.primaryMode === 'zones') {
@@ -1091,7 +1091,7 @@ class DigitalTwinApp {
 
         // Unified Dispatch: PRIORITIZE MACHINE-SPECIFIC VIEWS
         const isDetailsMode = ['alarm_machine', 'maintenance_machine', 'machine', 'asset'].includes(type);
-        
+
         if (isDetailsMode && id) {
             if (type === 'maintenance_machine' || (this.primaryMode === 'maintenance' && type !== 'asset')) {
                 this.renderMaintenanceMachinePanel(id, contentEl);
@@ -1121,47 +1121,35 @@ class DigitalTwinApp {
         const d = data || { instantKW: 0, production: 0, efficiency: 94.2, scrapRate: 2.1 };
         const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
         const unit = isSmelting ? 'kg' : 'units';
-        
+
         let html = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 4px 16px 4px;">
                 <!-- Card 1: Load -->
                 <div class="kpi-mini" style="border-left: 3px solid var(--accent-blue); background: rgba(59,130,246,0.05);">
                     <div class="label">ZONE LOAD</div>
-                    <div class="value" id="metric-${zoneId}-instantKW">
-                        <span class="val-text">${d.instantKW.toFixed(1)}</span>
-                        <small>kW</small>
-                    </div>
+                    <div class="value" id="metric-${zoneId}-instantKW"><span class="val-text">${d.instantKW.toFixed(1)}</span><small>kW</small></div>
                 </div>
                 <!-- Card 2: Output -->
                 <div class="kpi-mini" style="border-left: 3px solid var(--success); background: rgba(34,197,94,0.05);">
                     <div class="label">TOTAL OUTPUT</div>
-                    <div class="value" id="metric-${zoneId}-production">
-                        <span class="val-text">${Math.round(d.production || 0).toLocaleString()}</span>
-                        <small>${unit}</small>
-                    </div>
+                    <div class="value" id="metric-${zoneId}-production"><span class="val-text">${Math.round(d.production || 0).toLocaleString()}</span><small>${unit}</small></div>
                 </div>
                 <!-- Card 3: Efficiency -->
                 <div class="kpi-mini" style="border-left: 3px solid var(--primary); background: rgba(236,91,19,0.05);">
                     <div class="label">EFFICIENCY</div>
-                    <div class="value" id="metric-${zoneId}-efficiency">
-                        <span class="val-text">${(d.efficiency || 94.2).toFixed(1)}</span>
-                        <small>%</small>
-                    </div>
+                    <div class="value" id="metric-${zoneId}-efficiency"><span class="val-text">${(d.efficiency || 94.2).toFixed(1)}</span><small>%</small></div>
                 </div>
                 <!-- Card 4: Scrap -->
                 <div class="kpi-mini" style="border-left: 3px solid var(--danger); background: rgba(239,68,68,0.05);">
                     <div class="label">SCRAP RATE</div>
-                    <div class="value" id="metric-${zoneId}-scrapRate">
-                        <span class="val-text">${(d.scrapRate || 2.1).toFixed(1)}</span>
-                        <small>%</small>
-                    </div>
+                    <div class="value" id="metric-${zoneId}-scrapRate"><span class="val-text">${(d.scrapRate || 2.1).toFixed(1)}</span><small>%</small></div>
                 </div>
             </div>
 
             <div class="sidebar-section-title">MACHINES & ASSETS</div>
             <div class="sidebar-nav-list" data-active-id="${zoneId}" data-active-type="zone-panel">
         `;
-        
+
         const members = this.machineGroups[zoneId] || [];
         members.forEach(mid => {
             const m = this.analytics.data.machines[mid.toUpperCase()] || this.analytics.data.machines[mid] || this._findMachineData(mid);
@@ -1172,7 +1160,7 @@ class DigitalTwinApp {
             const machState = this._getMachineState(mid);
             const machStateLower = machState.toLowerCase();
             const machStateColor = machStateLower === 'running' ? 'var(--success)' : (machStateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
-            
+
             html += `
                 <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('machine', '${mid}')" style="padding: 12px 16px;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
@@ -1180,9 +1168,9 @@ class DigitalTwinApp {
                             <span style="font-weight: 700; color: white;">${displayName}</span>
                             <span style="font-size: 10px; color: ${machStateColor}; font-weight: 800; border: 1px solid ${machStateColor}44; padding: 2px 6px; border-radius: 4px; background: ${machStateColor}11;" id="zone-state-${mid}">${machState}</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span id="metric-${mid}-production" style="font-size: 12px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--success);">${prod}</span>
-                            <span style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">${isSmelting ? 'kg' : 'units'} Produced</span>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span id="metric-${mid}-production" style="font-size: 14px; font-weight: 900; font-family: 'Public Sans', sans-serif; color: var(--success);">${prod}</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">${isSmelting ? 'kg' : 'units'}</span>
                         </div>
                     </div>
                 </a>
@@ -1197,16 +1185,13 @@ class DigitalTwinApp {
         const d = data || { inProcess: 0 };
         const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
         const unit = isSmelting ? 'kg' : 'units';
-        
+
         container.innerHTML = `
             <div class="sidebar-section-title">IN-PROCESS TELEMETRY</div>
             <div style="padding: 4px;">
                 <div class="kpi-mini" style="border-left: 3px solid var(--warning); background: rgba(245,158,11,0.05); width: 100%; box-sizing: border-box;">
                     <div class="label">IN-PROCESS WIP</div>
-                    <div class="value" id="metric-${zoneId}-inprocess">
-                        <span class="val-text">${Math.round(d.inProcess || 0).toLocaleString()}</span>
-                        <small>${unit}</small>
-                    </div>
+                    <div class="value" id="metric-${zoneId}-inprocess"><span class="val-text">${Math.round(d.inProcess || 0).toLocaleString()}</span><small>${unit}</small></div>
                 </div>
             </div>
             <div style="padding: 16px; font-size: 11px; color: var(--text-dim); line-height: 1.5;">
@@ -1244,7 +1229,7 @@ class DigitalTwinApp {
                             <div style="background: rgba(236,91,19,0.05); border-left: 3px solid #ec5b13; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">ID</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${id.toUpperCase()}</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;">${id.toUpperCase()}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">MACHINE</span>
@@ -1256,7 +1241,7 @@ class DigitalTwinApp {
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Serial Number</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${serialNum}</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;">${serialNum}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
                                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Department</span>
@@ -1276,7 +1261,7 @@ class DigitalTwinApp {
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; background: rgba(59,130,246,0.05); margin: 0 -16px; padding: 6px 16px;">
                                     <span style="font-size: 11px; color: var(--accent-blue); text-transform: uppercase; font-weight: 800;">ACTIVE MODEL</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;" id="metadata-${id}-Model_ID">${raw['Model_ID'] || raw['Program_ID'] || '—'}</span>
+                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;" id="metadata-${id}-Model_ID">${raw['Model_ID'] || raw['Program_ID'] || '—'}</span>
                                 </div>
                             </div>
                         </div>
@@ -1313,10 +1298,10 @@ class DigitalTwinApp {
                 } else {
                     html = '';
                 }
-                
+
                 // USER REQUEST: Machine Diagnostics moved to Energy View
                 // Unit Diagnostics moved to Asset Mode (handled in mode === 'metadata')
-                
+
                 if (this.primaryMode === 'energy' || this.primaryMode === 'plant' || this.primaryMode === 'zones' || this.primaryMode === 'maintenance' || this.primaryMode === 'machines') {
                     const gridHtml = this._renderTelemetryGrid(id, raw);
                     const diagContent = gridHtml || `
@@ -1367,9 +1352,9 @@ class DigitalTwinApp {
                 const gn = groupName.toUpperCase();
                 // [USER] Exclude Core Energy from Plant view, include Process/Temperature/Pressure
                 if (gn.includes('CORE ENERGY') || gn.includes('LOAD')) continue;
-                if (!(gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY') || 
-                      gn.includes('PROCESS') || gn.includes('TEMPERATURE') || gn.includes('PRESSURE') || 
-                      gn.includes('ENVIRONMENT'))) continue;
+                if (!(gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY') ||
+                    gn.includes('PROCESS') || gn.includes('TEMPERATURE') || gn.includes('PRESSURE') ||
+                    gn.includes('ENVIRONMENT'))) continue;
 
                 let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
                 for (const tag of tags) {
@@ -1387,7 +1372,7 @@ class DigitalTwinApp {
                     groupHtml += `
                     <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
                         <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
-                        <div style="font-size: 14px; font-weight: 800; color: var(--text-main); font-family: 'JetBrains Mono', monospace;" id="metric-${id}-${tag}">
+                        <div style="font-size: 14px; font-weight: 900; color: var(--text-main); font-family: 'Public Sans', sans-serif;" id="metric-${id}-${tag}">
                             <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${tagUnit}</span>
                         </div>
                     </div>`;
@@ -1429,33 +1414,33 @@ class DigitalTwinApp {
                 let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
                 for (const tag of tags) {
                     let val = this.getValue(raw, tag);
-                    
+
                     // [USER] Sync with Energy Analytics engine for UI-wide consistency
                     const isKW = tag.toLowerCase().includes('kw') || tag.toLowerCase().includes('power') || tag.toLowerCase().includes('load');
                     const isProd = tag.toLowerCase().includes('production') || tag.toLowerCase().includes('count') || tag.toLowerCase().includes('produced');
-                    
+
                     const machineAnalytics = this.analytics && this.analytics.data.machines?.[id.toUpperCase()];
-                    
+
                     if (isKW && machineAnalytics) {
                         val = machineAnalytics.instantKW;
                     } else if (isProd && machineAnalytics) {
                         val = machineAnalytics.production;
                     }
-                    
+
                     // [ARCHITECTURE] Placeholder Pattern: Always render structure, use "---" for missing data
                     const formattedVal = (val === undefined || val === null) ? '---' :
-                        (typeof val === 'number' ? 
+                        (typeof val === 'number' ?
                             (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
                             (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val));
 
                     const unit = this._getUnit(tag);
                     const label = this._formatTagLabel(tag);
-                    
+
                     // Added .val-text for precise target manipulation by UIUpdater
                     groupHtml += `
                     <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); transition: border-color 0.3s;">
                         <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
-                        <div style="font-size: 14px; font-weight: 800; color: var(--text-main); font-family: 'JetBrains Mono', monospace;" id="metric-${id}-${tag}">
+                        <div style="font-size: 14px; font-weight: 900; color: var(--text-main); font-family: 'Public Sans', sans-serif;" id="metric-${id}-${tag}">
                             <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${unit}</span>
                         </div>
                     </div>`;
@@ -1491,15 +1476,15 @@ class DigitalTwinApp {
         let calcHealth = 98.0;
         if (state === 'fault') calcHealth -= 25;
         if (state === 'stopped') calcHealth -= 5;
-        
+
         // Sensor-based penalties (Machine level)
         if (machineData?.vibration > 1.8) calcHealth -= 10;
         if (machineData?.temp > 65) calcHealth -= 10;
         if (machineData?.oil > 0 && machineData?.oil < 92) calcHealth -= 5;
-        
+
         // Damping/Smoothing without Math.random()
         hState.health = (hState.health * 0.95) + (Math.max(0, calcHealth) * 0.05);
-        
+
         // RUL based on actual runtime (Hours)
         const maxLife = 5000;
         hState.rul = Math.max(0, maxLife - (machineData?.runtime || 0));
@@ -1516,7 +1501,7 @@ class DigitalTwinApp {
                     <span style="font-size: 9px; font-weight: 900; color: ${healthColor}; background: ${healthColor}11; padding: 3px 10px; border-radius: 999px; border: 1px solid ${healthColor}22;">${healthText}</span>
                 </div>
                 <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="font-size: 32px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-health">${healthScore}%</span>
+                    <span style="font-size: 32px; font-family: 'Public Sans', sans-serif; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-health">${healthScore}%</span>
                     <span style="font-size: 12px; color: #64748b; font-weight: 700;">/ 100</span>
                 </div>
                 <div style="margin-top: 16px; height: 4px; width: 100%; background: #1e293b; border-radius: 999px; overflow: hidden; border: 1px solid #362e2a;">
@@ -1532,7 +1517,7 @@ class DigitalTwinApp {
                     <span class="material-symbols-outlined" style="color: #ec5b13; background: rgba(236,91,19,0.1); padding: 4px; border-radius: 4px; font-size: 16px;">precision_manufacturing</span>
                 </div>
                 <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="font-size: 24px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-rul">${rul.toLocaleString()}</span>
+                    <span style="font-size: 24px; font-family: 'Public Sans', sans-serif; font-weight: 900; color: white; line-height: 1;" id="diag-${id}-rul">${rul.toLocaleString()}</span>
                     <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Hours</span>
                 </div>
             </div>
@@ -1640,9 +1625,9 @@ class DigitalTwinApp {
 
             container.innerHTML = html;
 
-        if (this.renderer) {
-            this.renderer.setChipDisplayMode('none');
-        }
+            if (this.renderer) {
+                this.renderer.setChipDisplayMode('none');
+            }
         } catch (err) {
             console.error('[UI] Alarm Panel Crash:', err);
             container.innerHTML = `<div style="padding: 20px; color: var(--danger)">Alarm Panel Error: ${err.message}</div>`;
@@ -1659,7 +1644,7 @@ class DigitalTwinApp {
                 const asset = this._findAsset(mid);
                 const isXRay = mid.toUpperCase().includes('INSPECTION');
                 const displayName = (asset && asset.name) ? asset.name : (isXRay ? mid.replace(/INSPECTION/i, 'X-RAY') : mid);
-                
+
                 // Logic for machine dues: Icons colored orange/red
                 const isDue = (mid.length % 3 === 0);
                 const isCriticalDue = (mid.length % 5 === 0);
@@ -1683,7 +1668,7 @@ class DigitalTwinApp {
     renderMaintenanceMachinePanel(id, container) {
         const machineData = this._findMachineData(id);
         const healthScore = 92;
-        
+
         let html = `
             <div style="padding: 8px 4px;">
                 
@@ -1699,7 +1684,7 @@ class DigitalTwinApp {
                             <p style="font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">System Hydraulics</p>
                         </div>
                         <div style="text-align: right;">
-                            <p style="font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #ec5b13; margin: 0 0 4px 0;">12h</p>
+                            <p style="font-size: 13px; font-family: 'Public Sans', sans-serif; font-weight: 900; color: #ec5b13; margin: 0 0 4px 0;">12h</p>
                             <p style="font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Due</p>
                         </div>
                     </div>
@@ -1713,7 +1698,7 @@ class DigitalTwinApp {
                             <p style="font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; margin: 0;">Spindle Unit 04</p>
                         </div>
                         <div style="text-align: right;">
-                            <p style="font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 900; color: #94a3b8; margin: 0 0 4px 0;">48h</p>
+                            <p style="font-size: 13px; font-family: 'Public Sans', sans-serif; font-weight: 900; color: #94a3b8; margin: 0 0 4px 0;">48h</p>
                             <p style="font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Sched</p>
                         </div>
                     </div>
@@ -1728,7 +1713,7 @@ class DigitalTwinApp {
             </div>
         `;
         container.innerHTML = html;
-        
+
         // Frame the machine in the renderer
         if (this.renderer) {
             this.renderer.isolateGroup([id]);
@@ -1824,7 +1809,7 @@ class DigitalTwinApp {
                     <a href="#" class="sidebar-nav-item ${isActive ? 'active' : ''}" style="background: rgba(255,255,255,0.02); margin-bottom: 4px; border-radius: 8px;" onclick="event.preventDefault(); window.app.setContext('asset', '${mid}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <span style="font-weight: 700;">${displayName}</span>
-                            <span style="font-size: 10px; color: ${color}; font-weight: 900; font-family: 'JetBrains Mono', monospace;" id="list-spent-${mid}">${kwh} kWh</span>
+                            <span style="font-size: 10px; color: ${color}; font-weight: 900; font-family: 'Public Sans', sans-serif;" id="list-spent-${mid}">${kwh} kWh</span>
                         </div>
                     </a>
                 `;
@@ -1851,7 +1836,7 @@ class DigitalTwinApp {
             }
         }
         const totalKwh = (rawInitKwh || 0).toFixed(2);
-        
+
         if (this.ui) this.ui.clearCache(); // [FIX] Invalidate cache before re-rendering detailed panels
         container.innerHTML = `
             <div style="padding: 0;">
@@ -1860,13 +1845,13 @@ class DigitalTwinApp {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
                     <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                         <div style="font-size: 9px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Instant Load</div>
-                        <div style="font-size: 24px; font-weight: 900; color: var(--primary); font-family: 'JetBrains Mono', monospace;">
+                        <div style="font-size: 24px; font-weight: 900; color: var(--primary); font-family: 'Public Sans', sans-serif;">
                             <span id="metric-${id}-Instant_kW">${kw}</span><span style="font-size: 12px; margin-left: 4px;">kW</span>
                         </div>
                     </div>
                     <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                         <div style="font-size: 9px; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Total Spent</div>
-                        <div style="font-size: 24px; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace;">
+                        <div style="font-size: 24px; font-weight: 900; color: white; font-family: 'Public Sans', sans-serif;">
                             <span id="metric-${id}-Total_kWh">${totalKwh}</span><span style="font-size: 12px; margin-left: 4px;">kWh</span>
                         </div>
                     </div>
@@ -1876,22 +1861,22 @@ class DigitalTwinApp {
                 <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px; border: 1px solid rgba(255,255,255,0.05);">
                     <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         <span style="font-size: 11px; color: var(--text-dim);">Phase A</span>
-                        <span id="metric-${id}-voltage-a" style="font-size: 11px; color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">415.2V</span>
+                        <span id="metric-${id}-voltage-a" style="font-size: 11px; color: white; font-weight: 700; font-family: 'Public Sans', monospace;">415.2V</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                         <span style="font-size: 11px; color: var(--text-dim);">Phase B</span>
-                        <span id="metric-${id}-voltage-b" style="font-size: 11px; color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">415.8V</span>
+                        <span id="metric-${id}-voltage-b" style="font-size: 11px; color: white; font-weight: 700; font-family: 'Public Sans', monospace;">415.8V</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: 12px;">
                         <span style="font-size: 11px; color: var(--text-dim);">Phase C</span>
-                        <span id="metric-${id}-voltage-c" style="font-size: 11px; color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">414.9V</span>
+                        <span id="metric-${id}-voltage-c" style="font-size: 11px; color: white; font-weight: 700; font-family: 'Public Sans', monospace;">414.9V</span>
                     </div>
                 </div>
 
                 <div class="sidebar-section-title" style="margin-top: 32px;">POWER QUALITY</div>
                 <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px;">
                     <span style="font-size: 11px; color: var(--text-dim);">Power Factor:</span>
-                    <span id="metric-${id}-power-factor" style="font-size: 16px; color: var(--success); font-weight: 900; font-family: 'JetBrains Mono', monospace;">0.98 cos φ</span>
+                    <span id="metric-${id}-power-factor" style="font-size: 16px; color: var(--success); font-weight: 900; font-family: 'Public Sans', sans-serif;">0.98 cos φ</span>
                 </div>
             </div>
         `;
@@ -1930,7 +1915,7 @@ class DigitalTwinApp {
     setEnergyViewType(type) {
         this.energyViewSettings.viewType = type;
         const leftPanel = document.getElementById('left-sidebar');
-        
+
         if (type === 'all' && this.renderer) {
             this.renderer.resetToDefaultView(); // BACK TO INITIAL VIEW
             if (leftPanel) leftPanel.classList.remove('open');
@@ -1967,7 +1952,7 @@ class DigitalTwinApp {
             const label = this.departmentLabels[deptId] || deptId.toUpperCase();
             html += `<div class="sidebar-section-title" style="margin-top:12px">${label}</div>`;
             html += '<div class="sidebar-nav-list">';
-            
+
             for (const mid of members) {
                 const entry = this.stateManager.getDeviceState(mid) || {};
                 const m = hierarchy.machines[mid.toUpperCase()] || this._findMachineData(mid);
@@ -1978,7 +1963,7 @@ class DigitalTwinApp {
                 const state = (entry.state || m?.state || 'OFFLINE').toLowerCase();
                 const isFault = ['stopped', 'fault', 'error'].includes(state);
                 const isLOTO = (entry.data?.Enabled === false);
-                
+
                 let statusText = 'SECURE';
                 let color = 'var(--success)';
                 let icon = 'shield_check';
@@ -2085,7 +2070,7 @@ class DigitalTwinApp {
         `;
         const deviceTypeId = id.toLowerCase();
         let machineAlarms = [];
-        
+
         if (isFault) {
             if (deviceTypeId.includes('furnace')) {
                 machineAlarms = [
@@ -2128,7 +2113,7 @@ class DigitalTwinApp {
         machineAlarms.forEach(log => {
             const dotColor = log.type === 'crit' ? 'var(--danger)' : (log.type === 'warn' ? 'var(--warning)' : '#2196F3');
             const icon = log.type === 'crit' ? 'report' : (log.type === 'warn' ? 'warning' : 'info');
-            
+
             html += `
                 <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,0,0,0.2); border: 1px solid #362e2a; border-radius: 12px; margin-bottom: 12px;">
                     <div style="height: 40px; width: 40px; flex-shrink: 0; background: ${dotColor}11; border: 1px solid ${dotColor}22; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
@@ -2139,7 +2124,7 @@ class DigitalTwinApp {
                         <div style="font-size: 11px; color: #64748b; font-weight: 600;">ALARM SOURCE: ${id.toUpperCase()}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 12px; font-weight: 800; color: white; font-family: 'JetBrains Mono', monospace;">${log.time}</div>
+                        <div style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', monospace;">${log.time}</div>
                         <div style="font-size: 9px; color: #64748b; font-weight: 900; text-transform: uppercase; margin-top: 4px;">LOGGED</div>
                     </div>
                 </div>
@@ -2163,23 +2148,23 @@ class DigitalTwinApp {
     startGembaWalk() {
         if (this.primaryMode !== 'gemba') return;
         this.gembaWaypoints = [
-            { dept: null, ids: ['RAWMATERIALS'],          label: 'Raw Materials' },
-            { dept: null, ids: ['FURNACE_01'],             label: 'Furnace 01' },
-            { dept: null, ids: ['DEGASSER_01'],            label: 'Degasser 01' },
-            { dept: null, ids: ['DEGASSER_02'],            label: 'Degasser 02' },
-            { dept: null, ids: ['LPDC_01'],                label: 'LPDC 01' },
-            { dept: null, ids: ['LPDC_02'],                label: 'LPDC 02' },
-            { dept: null, ids: ['LPDC_03'],                label: 'LPDC 03' },
-            { dept: null, ids: ['COOLING_01'],             label: 'Cooling Tank — LPDC' },
-            { dept: null, ids: ['INSPECTION_01'],          label: 'X-Ray Inspection' },
-            { dept: null, ids: ['HEAT_01', 'HEAT_02'],    label: 'Heat Treatment' },
-            { dept: null, ids: ['COOLING_02'],             label: 'Cooling Tank — Heat Treatment' },
-            { dept: null, ids: ['CNC_01'],                 label: 'CNC 01' },
-            { dept: null, ids: ['CNC_02'],                 label: 'CNC 02' },
-            { dept: null, ids: ['PRETREAT_01'],            label: 'Pretreatment' },
-            { dept: null, ids: ['PAINT_01'],               label: 'Paint Booth 01' },
-            { dept: null, ids: ['PAINT_02'],               label: 'Paint Booth 02 — Ceramic Coat' },
-            { dept: null, ids: ['OUTBOUND_01'],            label: 'Outbound' },
+            { dept: null, ids: ['RAWMATERIALS'], label: 'Raw Materials' },
+            { dept: null, ids: ['FURNACE_01'], label: 'Furnace 01' },
+            { dept: null, ids: ['DEGASSER_01'], label: 'Degasser 01' },
+            { dept: null, ids: ['DEGASSER_02'], label: 'Degasser 02' },
+            { dept: null, ids: ['LPDC_01'], label: 'LPDC 01' },
+            { dept: null, ids: ['LPDC_02'], label: 'LPDC 02' },
+            { dept: null, ids: ['LPDC_03'], label: 'LPDC 03' },
+            { dept: null, ids: ['COOLING_01'], label: 'Cooling Tank — LPDC' },
+            { dept: null, ids: ['INSPECTION_01'], label: 'X-Ray Inspection' },
+            { dept: null, ids: ['HEAT_01', 'HEAT_02'], label: 'Heat Treatment' },
+            { dept: null, ids: ['COOLING_02'], label: 'Cooling Tank — Heat Treatment' },
+            { dept: null, ids: ['CNC_01'], label: 'CNC 01' },
+            { dept: null, ids: ['CNC_02'], label: 'CNC 02' },
+            { dept: null, ids: ['PRETREAT_01'], label: 'Pretreatment' },
+            { dept: null, ids: ['PAINT_01'], label: 'Paint Booth 01' },
+            { dept: null, ids: ['PAINT_02'], label: 'Paint Booth 02 — Ceramic Coat' },
+            { dept: null, ids: ['OUTBOUND_01'], label: 'Outbound' },
         ];
         this.gembaIndex = 0;
         this.gembaPaused = false;
@@ -2189,7 +2174,7 @@ class DigitalTwinApp {
         let navControls = document.getElementById('gemba-nav-controls');
         if (navControls) {
             navControls.style.display = 'flex';
-            
+
             // [TWINZO] Populate Timeline
             const timeline = document.getElementById('gemba-timeline');
             if (timeline) {
@@ -2316,7 +2301,7 @@ class DigitalTwinApp {
 
         const wp = this.gembaWaypoints[this.gembaIndex];
         const deviceIds = this.gembaActiveIds || [];
-        
+
         let telemetryHtml = '';
         deviceIds.forEach(id => {
             telemetryHtml += `

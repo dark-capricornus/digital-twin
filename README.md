@@ -1,76 +1,67 @@
-# Digital Twin: Alloy Wheel Manufacturing Plant (V1)
+# Digital Twin – Alloy Wheel Manufacturing (V1)
+**Version**: V1 – Integrated Process Flow & 3D Visualization  
 
-[![Industrial UI](https://img.shields.io/badge/UI-Premium_Industrial-blue.svg)](https://fonts.google.com/specimen/Public+Sans)
-[![Three.js](https://img.shields.io/badge/3D-Three.js_v0.160-green.svg)](https://threejs.org/)
-[![Python](https://img.shields.io/badge/Backend-Python_3.9+-yellow.svg)](https://www.python.org/)
+## Overview
+V1 represents the first complete "Live Factory" release of the Digital Twin. While V0 validated independent machine actors, **V1** establishes the synchronous, material-driven production chain and high-fidelity 3D user experience required for industrial operations.
 
-A high-fidelity, real-time Digital Twin for an industrial manufacturing facility. This system integrates physical simulation, virtual PLC logic, and premium 3D visualization to provide absolute transparency into production metrics (WIP, KPI, OEE) and asset health.
+The purpose of V1 is to:
+*   **Orchestrate Material Flow**: Connect independent machines into a logical, sequential production line.
+*   **Visualize the Factory Floor**: Provide a real-time, spatial 3D view of the entire plant state.
+*   **Standardize Analytics**: Transition from raw tag values to derived industrial KPIs (OEE, Scrap, Energy Intensity).
+*   **Implement UI/UX Excellence**: Deliver a premium "Control Room" aesthetic using modern web technologies.
 
-## 🚀 Quick Start
+## Objectives of V1
+* **Implement Production Chain Logic**: Establish dependencies where machine "A" provides the material for machine "B."
+* **Establish Real-Time WIP Tracking**: Monitor "Work-In-Process" levels at 13 distinct transition stages.
+* **Integrate 3D GPU Rendering**: Launch a Three.js-based visualization engine for spatial monitoring.
+* **Optimize Data Transport**: Use a "Bridge Middleware" to multiplex PLC tags into an efficient WebSocket delta stream.
 
-### 1. Prerequisite Environment
-- **Python 3.9+**
-- **MQTT Broker** (e.g., Mosquitto) running on port 1883
-- **Web Browser** (Chrome/Edge/Safari)
+## Machines Included
+V1 simulates a complete 21-machine facility across 8 operational zones:
+1.  **Smelting**: Furnace_01, Degasser_01, Degasser_02
+2.  **Die Casting**: LPDC_01, LPDC_02, LPDC_03, Cooling_01
+3.  **Heat Treating**: Heat_01, Heat_02, Cooling_02
+4.  **Machining**: CNC_01, CNC_02
+5.  **Finishing**: Pretreat_01, Paint_01, Paint_02
+6.  **X-Ray / QC**: Inspection_01
+7.  **Shipping**: Outbound_01
+8.  **Logistics**: RawMaterials (Ingot Storage)
 
-### 2. Installation
-```bash
-# 1. Setup Virtual Environment
-python -m venv venv
-call venv\Scripts\activate
+## Core Features
+### 1. Material Flow Orchestration
+* **Buffer Persistence**: Material "piles up" in upstream buffers if a downstream machine stops.
+* **Stop/Start Propagation**: Simulation pauses material transformation correctly during E-Stops.
 
-# 2. Install Dependencies
-pip install -r requirements.txt
-```
+### 2. High-Performance 3D UI
+* **Contextual Focus**: "Ghosting" shader effects to isolate specific zones or assets.
+* **Floating Data Chips**: Real-time status labels anchored in 3D space above physical machinery.
+* **Gemba Walk Mode**: Cinematic, automated camera paths for remote factory tours.
 
-### 3. Execution (4-Terminal Setup)
-To run the full simulation and UI locally, open four terminals and run:
+### 3. Integrated Analytics Engine
+* **OEE Derivations**: Real-time calculation of Availability, Performance, and Quality components.
+* **Energy Monitoring**: Active tracking of Instant kW and Integrated kWh across all departments.
+* **Scrap Analytics**: Real-time visibility into Pass/Fail ratios from the X-Ray stage.
 
-| Terminal | Responsibility | Command |
-| :--- | :--- | :--- |
-| **1. Simulation** | Material Flow & WIP | `cd manufacturing_unit/backend && python -m simulation.orchestrator` |
-| **2. PLC Engine** | Tag Management | `cd manufacturing_unit/backend && python -m plc.engine` |
-| **3. Bridge** | WebSocket Gateway | `cd manufacturing_unit/backend && python -m middleware.bridge` |
-| **4. Frontend** | 3D UI | `cd manufacturing_unit/frontend && python -m http.server 8001` |
+### 4. Advanced Interaction Model
+* **Dual Sidebars**: Left sidebar for plant hierarchy; Right sidebar for deep-dive asset metadata.
+* **Fault Propagation**: UI reflects errors from the PLC (Red Meshes + Warning Icons) instantly.
 
-Open **[http://localhost:8001](http://localhost:8001)** in your browser.
+## Progress & Flow Logic
+In V1, machine progress is no longer just a local timer. It is constrained by **Material Availability**:
+1. **Smelting Ingestion**: Ingots are consumed from `RAWMATERIALS` by mass (kg).
+2. **Sequential Flow**: A part cannot enter `CNC_01` unless it has cleared the `COOLING_02` stage.
+3. **Throughput Scaling**: Global plant throughput (`parts/hr`) is derived from the final `SHIPPING` exit rate.
 
----
+## Explicit Limitations of V1
+V1 does NOT include:
+* **Historical Trend Charts**: Persistence of time-series data (Coming in V2).
+* **Predictive Maintenance**: ML-driven failure prediction models (Coming in V2).
+* **Control Loop Back-Feed**: Changing machine setpoints directly from the UI (Currently Read-Only + Start/Stop).
+* **Multi-Plant Aggregation**: Dashboard only supports a single facility.
 
-## 🛠 Project Documentation
+## Design Philosophy
+* **Legibility Above All**: High-resolution text and unit formatting for industrial environments.
+* **Spatial Truth**: The 3D model is the primary navigation interface, not an afterthought.
+* **Zero Lag UI**: Throttled DOM updates and delta-based WebSockets for fluid performance.
 
-Explore the technical architecture and component guides:
-
-- **[V1 Release Definition](docs/V1_DEFINITION.md)**: Formal scope, objectives, and verification status of V1.
-- **[System Architecture](docs/ARCHITECTURE.md)**: Data flow, component roles, and sync strategy.
-- **[Backend & Simulation](docs/BACKEND.md)**: Production chain rules, material transformation, and fault injection.
-- **[Frontend & 3D visualization](docs/FRONTEND.md)**: Three.js rendering, interaction models, and CSS design system.
-- **[API & Tag Contracts](docs/API_CONTRACTS.md)**: Ignition SCADA tag mapping and WebSocket message schema.
-
----
-
-## 🏗 System Overview
-
-The plant simulates a complete **Alloy Wheel Production Line** across 8 specialized zones:
-1. **Smelting**: Raw material induction into high-temp melting furnaces.
-2. **Die Casting**: Precision low-pressure casting of wheel forms.
-3. **Heat Treating**: Multi-stage thermal processing for material strength.
-4. **Machining**: High-precision CNC milling and turning.
-5. **Finishing**: Chemical pre-treatment and electrostatic paint lines.
-6. **QC (X-Ray)**: Integrated defect detection and automated scrap sorting.
-7. **Shipping**: Final outbound logistics and batch dispatch.
-8. **Logistics**: Raw material (Ingot) inventory and inventory buffers.
-
----
-
-## 💎 Features & Capabilities
-
-- **Industrial UI Excellence**: Leverages **Public Sans**, glassmorphism, and dark mode for a premium "Control Room" aesthetic.
-- **Real-Time Telemetry**: Live updating KPIs with sub-second latency via Optimized WebSocket Bridge.
-- **Energy Analytics Engine**: Intelligent derivation of energy-per-unit, OEE components, and plant-wide load balancing.
-- **Gemba Walk Mode**: Automated cinematic camerawork for remote floor tours.
-- **Fault Simulation**: Inject machine "Faults" and "E-Stops" via terminal to observe UI propagation and safety state management.
-
----
-
-Developed as a state-of-the-art reference for **Advanced Agentic Coding** and **Digital Twin Implementation**.
+## Next Phase (V2) - YET TO BE DECIDED

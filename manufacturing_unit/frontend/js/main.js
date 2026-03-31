@@ -179,9 +179,10 @@ class DigitalTwinApp {
             'die_casting': ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01'],
             'machining': ['CNC_01', 'CNC_02'],
             'heat_treating': ['HEAT_01', 'HEAT_02', 'COOLING_02'],
-            'qc': ['INSPECTION_01'],
             'paint_shop': ['PAINT_01', 'PAINT_02', 'PRETREAT_01'],
-            'logistics': ['RAWMATERIALS', 'OUTBOUND_01'],
+            'qc': ['INSPECTION_01'],
+            'shipping': ['OUTBOUND_01'],
+            'logistics': ['RAWMATERIALS'],
         };
     }
 
@@ -191,9 +192,10 @@ class DigitalTwinApp {
             'die_casting': 'Die Casting Department',
             'machining': 'Machining Zone',
             'heat_treating': 'Heat Treating Department',
-            'paint_shop': 'Paint Shop',
-            'shipping': 'Shipping Department',
-            'logistics': 'Raw Materials',
+            'paint_shop': 'Finishing Department',
+            'qc': 'Quality Control',
+            'shipping': 'Shipping & Outbound',
+            'logistics': 'Raw Materials Storage',
         };
     }
 

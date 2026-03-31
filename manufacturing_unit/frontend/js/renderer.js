@@ -68,8 +68,11 @@ class Renderer {
             'lpdc_01': 'lpdc_01', 'lpdc_02': 'lpdc_02', 'lpdc_03': 'lpdc_03',
             'heat_01': 'heat_01', 'heat_02': 'heat_02',
             'paint_01': 'paint_01', 'paint_02': 'paint_02',
-            'storage_01': 'storage_01001', 'raw_materials': 'storage_01001', 'rawmaterials': 'storage_01001',
-            'outbound_01': 'outbound_01', 'pretreat_01': 'pretreat_01'
+            'paint01': 'paint_01', 'pb1': 'paint_01',
+            'paint02': 'paint_02', 'pb2': 'paint_02',
+            'pretreat_01': 'pretreat_01', 'pretreat01': 'pretreat_01', 'pt': 'pretreat_01',
+            'storage_01': 'storage_01001', 'raw_materials': 'storage_01001', 'rawmaterials': 'storage_01001', 'storage01': 'storage_01001',
+            'outbound_01': 'outbound_01', 'outbound01': 'outbound_01', 'shipping': 'outbound_01'
         };
     }
 
@@ -719,7 +722,7 @@ class Renderer {
                 border: 1px solid rgba(0, 255, 153, 0.3);
                 border-radius: 8px;
                 color: #00ff99;
-                font-family: 'Public Sans', monospace;
+                font-family: 'Public Sans', sans-serif;
                 font-size: 11px;
                 line-height: 1.5;
                 pointer-events: none;

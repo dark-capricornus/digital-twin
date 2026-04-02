@@ -65,13 +65,13 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     inspection = InspectionMachine("INSPECTION_01", "X-Ray Inspection", cycle_time=6.0, fail_rate=0.1)
 
     # 11. Pretreatment
-    pretreat = SimpleMachine("PRETREAT_01", "Pretreatment", cycle_time=5.0)
+    pretreat = SimpleMachine("PRETREAT_01", "Pretreatment", cycle_time=5.0, role="pretreat")
 
     # 12. Paint Booth 1
-    paint1 = SimpleMachine("PAINT_01", "Paint Booth 1", cycle_time=8.0)
+    paint1 = SimpleMachine("PAINT_01", "Paint Booth 1", cycle_time=8.0, role="paint")
 
     # 13. Paint Booth 2
-    paint2 = SimpleMachine("PAINT_02", "Paint Booth 2", cycle_time=8.0)
+    paint2 = SimpleMachine("PAINT_02", "Paint Booth 2", cycle_time=8.0, role="paint")
 
     # 14. Packing (Removed)
 

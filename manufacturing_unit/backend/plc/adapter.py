@@ -43,16 +43,16 @@ class SimulationAdapter:
     TAG_MAP = {
         # Common tags
         "temperature": "Temperature",
-        "target_temp": "TargetTemp",
+        "target_temp": "Target_Temp",
         "progress": "Progress",
-        "fault_code": "FaultCode",
+        "fault_code": "Fault_Code",
         "state": "State",
         "is_running": "IsRunning",
         "enabled": "Enabled",
         "power_kw": "Instant_kW",
         "energy_kwh": "Total_kWh",
-        "runtime_total_hrs": "RuntimeTotalHrs",
-        "processed_count": "ProcessedCount",
+        "runtime_total_hrs": "Runtime_Total_Hrs",
+        "processed_count": "Processed_Count",
         
         # Specialized Thermal
         "bath_temp": "Melt_Bath_Temperature",

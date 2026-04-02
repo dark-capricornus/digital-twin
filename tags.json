@@ -265,6 +265,14 @@
           ]
         },
         {
+          "dataType": "Boolean",
+          "name": "Stop",
+          "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Stop",
+          "opcServer": "Alloywheel_industry",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
           "name": "CNC_01",
           "tagType": "Folder",
           "tags": [
@@ -852,6 +860,14 @@
           ]
         },
         {
+          "dataType": "Boolean",
+          "name": "Start",
+          "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Start",
+          "opcServer": "Alloywheel_industry",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
           "name": "INBOUND_01",
           "tagType": "Folder",
           "tags": [
@@ -1177,14 +1193,6 @@
               "valueSource": "opc"
             }
           ]
-        },
-        {
-          "dataType": "Boolean",
-          "name": "Stop",
-          "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Stop",
-          "opcServer": "Alloywheel_industry",
-          "tagType": "AtomicTag",
-          "valueSource": "opc"
         },
         {
           "name": "HEAT_01",
@@ -2463,165 +2471,6 @@
           ]
         },
         {
-          "name": "PACK_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "dataType": "Boolean",
-              "name": "Is Running",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.IsRunning",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Runtime Total Hrs",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.RuntimeTotalHrs",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Int4",
-              "name": "Part Count",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.part_count",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Pack Instant kW",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Pack_Instant_kW",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Pack Total kWh",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Pack_Total_kWh",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Motor Load Pct",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Motor_Load_Pct",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Boolean",
-              "name": "Accumulating",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Accumulating",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Boolean",
-              "name": "Stop",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Inputs.Stop",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": false,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Vibration mm s",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Vibration_mm_s",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Oil Level Pct",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Oil_Level_Pct",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Air Supply PSI",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Air_Supply_PSI",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Boolean",
-              "name": "Start",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Inputs.Start",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": false,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Float8",
-              "name": "Internal Temp",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Internal_Temp",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Int4",
-              "name": "Processed Count",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.ProcessedCount",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "String",
-              "name": "State",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.State",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "String",
-              "name": "Pack Run Status",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.Pack_Run_Status",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            },
-            {
-              "dataType": "Int4",
-              "name": "Capacity",
-              "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Devices.PACK_01.Status.capacity",
-              "opcServer": "Alloywheel_industry",
-              "readOnly": true,
-              "tagType": "AtomicTag",
-              "valueSource": "opc"
-            }
-          ]
-        },
-        {
           "name": "LPDC_03",
           "tagType": "Folder",
           "tags": [
@@ -3225,55 +3074,112 @@
           ]
         },
         {
-          "name": "FURNACE_01",
+          "name": "Furnace_01",
           "tagType": "Folder",
           "tags": [
-            {
-              "name": "PLC",
-              "tagType": "Folder",
-              "tags": [
-                {
-                  "dataType": "Int4",
-                  "name": "Scan Time ms",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Diagnostics.ScanTime_ms",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "String",
-                  "name": "PLC State",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.State",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Boolean",
-                  "name": "PLC Stop",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Stop",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": false,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Boolean",
-                  "name": "PLC Start",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Start",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": false,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                }
-              ]
-            },
             {
               "name": "Plant WIP",
               "tagType": "Folder",
               "tags": [
+                {
+                  "dataType": "Float8",
+                  "name": "Molten Metal Kg",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.molten_metal_kg",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Scrap Parts",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.scrap_parts",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Heat Treated Parts",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.heat_treated_parts",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Float8",
+                  "name": "Degassed Metal Kg",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.degassed_metal_kg",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Float8",
+                  "name": "Ingots Kg",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.ingots_kg",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Machined Parts",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.machined_parts",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Pretreated Parts",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.pretreated_parts",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Xray Passed",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.xray_passed",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Cooled Parts 2",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cooled_parts_2",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Cooled Parts 1",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cooled_parts_1",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Cast Parts",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cast_parts",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
                 {
                   "dataType": "Int4",
                   "name": "Painted Parts",
@@ -3291,11 +3197,35 @@
                   "readOnly": true,
                   "tagType": "AtomicTag",
                   "valueSource": "opc"
+                }
+              ]
+            },
+            {
+              "name": "Plant KPI",
+              "tagType": "Folder",
+              "tags": [
+                {
+                  "dataType": "Int4",
+                  "name": "Total Scrap",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_scrap",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
                 },
                 {
                   "dataType": "Int4",
-                  "name": "Cooled Parts 2",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cooled_parts_2",
+                  "name": "Total Wheels Produced",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_wheels_produced",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Int4",
+                  "name": "Total Ingots Consumed",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_ingots_consumed",
                   "opcServer": "Alloywheel_industry",
                   "readOnly": true,
                   "tagType": "AtomicTag",
@@ -3303,17 +3233,8 @@
                 },
                 {
                   "dataType": "Float8",
-                  "name": "Degassed Metal Kg",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.degassed_metal_kg",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Heat Treated Parts",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.heat_treated_parts",
+                  "name": "Yield Percent",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.yield_percent",
                   "opcServer": "Alloywheel_industry",
                   "readOnly": true,
                   "tagType": "AtomicTag",
@@ -3321,8 +3242,8 @@
                 },
                 {
                   "dataType": "Float8",
-                  "name": "Ingots Kg",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.ingots_kg",
+                  "name": "Throughput Wheels Hr",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.throughput_wheels_hr",
                   "opcServer": "Alloywheel_industry",
                   "readOnly": true,
                   "tagType": "AtomicTag",
@@ -3330,62 +3251,8 @@
                 },
                 {
                   "dataType": "Int4",
-                  "name": "Cooled Parts 1",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cooled_parts_1",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Machined Parts",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.machined_parts",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Float8",
-                  "name": "Molten Metal Kg",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.molten_metal_kg",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Cast Parts",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.cast_parts",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Xray Passed",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.xray_passed",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Pretreated Parts",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.pretreated_parts",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Scrap Parts",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.WIP.scrap_parts",
+                  "name": "Batches Completed",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.batches_completed",
                   "opcServer": "Alloywheel_industry",
                   "readOnly": true,
                   "tagType": "AtomicTag",
@@ -3633,6 +3500,48 @@
               ]
             },
             {
+              "name": "PLC",
+              "tagType": "Folder",
+              "tags": [
+                {
+                  "dataType": "Int4",
+                  "name": "Scan Time ms",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Diagnostics.ScanTime_ms",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Boolean",
+                  "name": "PLC Stop",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Stop",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": false,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "Boolean",
+                  "name": "PLC Start",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Start",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": false,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                },
+                {
+                  "dataType": "String",
+                  "name": "PLC State",
+                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.State",
+                  "opcServer": "Alloywheel_industry",
+                  "readOnly": true,
+                  "tagType": "AtomicTag",
+                  "valueSource": "opc"
+                }
+              ]
+            },
+            {
               "name": "Outputs",
               "tagType": "Folder",
               "tags": [
@@ -3670,76 +3579,8 @@
                   "valueSource": "opc"
                 }
               ]
-            },
-            {
-              "name": "Plant KPI",
-              "tagType": "Folder",
-              "tags": [
-                {
-                  "dataType": "Int4",
-                  "name": "Total Ingots Consumed",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_ingots_consumed",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Float8",
-                  "name": "Yield Percent",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.yield_percent",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Float8",
-                  "name": "Throughput Wheels Hr",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.throughput_wheels_hr",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Batches Completed",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.batches_completed",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Total Scrap",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_scrap",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                },
-                {
-                  "dataType": "Int4",
-                  "name": "Total Wheels Produced",
-                  "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_wheels_produced",
-                  "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
-                  "tagType": "AtomicTag",
-                  "valueSource": "opc"
-                }
-              ]
             }
           ]
-        },
-        {
-          "dataType": "Boolean",
-          "name": "Start",
-          "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Control.Start",
-          "opcServer": "Alloywheel_industry",
-          "tagType": "AtomicTag",
-          "valueSource": "opc"
         },
         {
           "name": "CNC_02",

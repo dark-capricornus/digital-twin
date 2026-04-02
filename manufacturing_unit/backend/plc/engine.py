@@ -428,37 +428,37 @@ class VirtualPLC:
             },
             # Paint Booths
             "PAINT_01": {
-                "BoothCycleStatus": "Status",
-                "BoothTemperature": "Status",
-                "BoothHumidity": "Status",
-                "AirFlowStatus": "Status",
+                "Booth_Cycle_Status": "Status",
+                "Booth_Temperature": "Status",
+                "Booth_Humidity": "Status",
+                "Air_Flow_Status": "Status",
                 "Progress": "Status",
                 "State": "Status",
                 "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
+                "Power_kW": "Status",
+                "Runtime_Total_Hrs": "Status"
             },
             "PAINT_02": {
-                "BoothCycleStatus": "Status",
-                "BoothTemperature": "Status",
-                "BoothHumidity": "Status",
-                "AirFlowStatus": "Status",
+                "Booth_Cycle_Status": "Status",
+                "Booth_Temperature": "Status",
+                "Booth_Humidity": "Status",
+                "Air_Flow_Status": "Status",
                 "Progress": "Status",
                 "State": "Status",
                 "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
+                "Power_kW": "Status",
+                "Runtime_Total_Hrs": "Status"
             },
             # Pretreatment
             "PRETREAT_01": {
-                "StageStatus": "Status",
-                "ConveyorSpeed": "Status",
-                "DryerTemperature": "Status",
+                "Stage_Status": "Status",
+                "Conveyor_Speed": "Status",
+                "Dryer_Temperature": "Status",
                 "Progress": "Status",
                 "State": "Status",
                 "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
+                "Power_kW": "Status",
+                "Runtime_Total_Hrs": "Status"
             },
             # Cooling Arrays
             "COOLING_01": {

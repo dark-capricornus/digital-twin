@@ -117,13 +117,13 @@ class DigitalTwinApp {
                 'Core Energy': ['Furnace_Instant_kW', 'Furnace_Total_kWh'],
                 'Production': ['Plant_KPI_Ingots_Consumed', 'Plant_WIP_Molten_Metal'],
                 'Temperature': ['Melt_Bath_Temperature', 'Roof_Temperature', 'Zone_Temperatures'],
-                'Status': ['Furnace_Mode', 'Furnace_Run_Status', 'Alarm_Status', 'Melt_Hold_Timer']
+                'Status': ['IsRunning', 'Furnace_Mode', 'Furnace_Run_Status', 'Alarm_Status', 'Melt_Hold_Timer']
             },
             'DEGASSER': {
                 'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh'],
                 'Production': ['Plant_WIP_Degassed_Metal'],
                 'Process': ['Gas_Flow_Rate', 'Rotor_Speed', 'Treatment_Time'],
-                'Status': ['Degasser_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'Degasser_Run_Status', 'Alarm_Status']
             },
             'LPDC': {
                 'Core Energy': ['LPDC_Instant_kW', 'LPDC_Total_kWh'],
@@ -131,56 +131,56 @@ class DigitalTwinApp {
                 'Pressure': ['Riser_Pressure', 'Pressure_Setpoint', 'Holding_Pressure'],
                 'Temperature': ['Holding_Furnace_Temperature', 'Die_Top_Temperature', 'Die_Bottom_Temperature'],
                 'Process': ['Cycle_Time', 'Fill_Time', 'Solidification_Time'],
-                'Status': ['LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status']
             },
             'COOLING': {
                 'Core Energy': ['Cooling_Instant_kW', 'Cooling_Total_kWh'],
                 'Temperature': ['Water_Inlet_Temp', 'Water_Outlet_Temp', 'Tank_Temperature'],
                 'Process': ['Flow_Rate', 'Cooling_Time'],
-                'Status': ['Cooling_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'Cooling_Run_Status', 'Alarm_Status']
             },
             'CNC': {
                 'Core Energy': ['CNC_Instant_kW', 'CNC_Total_kWh'],
                 'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count', 'Program_ID'],
                 'Process': ['Cycle_Time', 'Spindle_Speed'],
-                'Status': ['CNC_Run_Status', 'Cycle_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'CNC_Run_Status', 'Cycle_Status', 'Alarm_Status']
             },
             'HEAT': {
                 'Core Energy': ['HT_Instant_kW', 'HT_Total_kWh'],
                 'Temperature': ['Furnace_Temperature', 'Temperature_Setpoint'],
                 'Process': ['Process_Step', 'Step_Timer'],
-                'Status': ['HT_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'HT_Run_Status', 'Alarm_Status']
             },
             'INSPECTION': {
                 'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh'],
                 'Production': ['Inspected_Count', 'OK_Count', 'NG_Count'],
                 'Process': ['Inspection_Cycle_Time', 'Scan_Status'],
-                'Status': ['XRay_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'XRay_Run_Status', 'Alarm_Status']
             },
             'PRETREAT': {
                 'Core Energy': ['PT_Instant_kW', 'PT_Total_kWh'],
                 'Process': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature'],
-                'Status': ['PT_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'PT_Run_Status', 'Alarm_Status']
             },
             'PAINT_01': {
                 'Core Energy': ['PB1_Instant_kW', 'PB1_Total_kWh'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
                 'Process': ['Booth_Cycle_Status'],
-                'Status': ['PB1_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'PB1_Run_Status', 'Alarm_Status']
             },
             'PAINT_02': {
                 'Core Energy': ['PB2_Instant_kW', 'PB2_Total_kWh'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
                 'Process': ['Booth_Cycle_Status'],
-                'Status': ['PB2_Run_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'PB2_Run_Status', 'Alarm_Status']
             },
             'OUTBOUND': {
                 'Production': ['Plant_KPI_Total_Produced', 'Dispatched_Count'],
-                'Status': ['Outbound_Status', 'Alarm_Status']
+                'Status': ['IsRunning', 'Outbound_Status', 'Alarm_Status']
             },
             'RAWMATERIALS': {
-                'Inventory': ['Plant_WIP_Ingots_Available', 'Plant_KPI_Ingots_Consumed'],
-                'Logistics': ['Incoming_Shipment_ETA']
+                'Storage Status': ['IsRunning', 'capacity'],
+                'Inventory': ['Plant_WIP_Ingots_Available', 'Plant_KPI_Ingots_Consumed']
             },
             'SHIPPING': {
                 'Output': ['Plant_KPI_Total_Produced'],
@@ -356,7 +356,9 @@ class DigitalTwinApp {
             'Plant_WIP_Painted_Parts': 'Painted Total',
             'Plant_KPI_Total_Produced': 'Total Wheels Produced',
             'Plant_KPI_Throughput': 'Plant Throughput',
-            'Plant_KPI_Yield': 'First Pass Yield'
+            'Plant_KPI_Yield': 'First Pass Yield',
+            'IsRunning': 'Operational',
+            'capacity': 'Storage Capacity'
         };
         if (labelMap[tag]) return labelMap[tag];
         return tag.replace(/_/g, ' ');
@@ -378,6 +380,7 @@ class DigitalTwinApp {
         if (upperTag.includes('SPEED')) return 'm/min';
         if (upperTag.includes('HUMIDITY') || upperTag.includes('PCT') || upperTag.includes('%')) return '%';
         if (upperTag.includes('TIME') || upperTag.includes('TIMER')) return 's';
+        if (upperTag === 'CAPACITY') return 'units';
 
         return '';
     }
@@ -1343,9 +1346,9 @@ class DigitalTwinApp {
                     html = `
                         <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
                             <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Machine Running State</div>
-                            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
+                            <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
                                 <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
-                                ${String(stateVal).toUpperCase()}
+                                <span class="val-text">${String(stateVal).toUpperCase()}</span>
                             </div>
                         </div>
                     `;
@@ -1393,7 +1396,7 @@ class DigitalTwinApp {
                 <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Operational State</div>
                 <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
                     <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
-                    ${String(stateVal).toUpperCase()}
+                    <span class="val-text">${String(stateVal).toUpperCase()}</span>
                 </div>
             </div>
         `;
@@ -2445,10 +2448,11 @@ class DigitalTwinApp {
     }
 
     formatValue(val, tag = '') {
+        if (typeof val === 'boolean') return val ? 'ACTIVE' : 'INACTIVE';
         const n = this.parseValue(val);
         if (typeof n !== 'number') return String(n);
-        // [PRECISION] Enforce 2 decimal places to prevent Float8 loss
-        return n.toFixed(2);
+        // [PRECISION] Integers display cleanly, floats get 2 decimal places
+        return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
     }
 
     getValue(data, key) {

@@ -133,7 +133,9 @@ class StateManager {
     }
 
     getDeviceState(rawId) {
-        const key = rawId.toLowerCase();
+        let key = rawId.toLowerCase();
+        if (key === 'inbound_01' || key === 'storage_01') key = 'rawmaterials';
+        
         // 1. Exact match
         if (this.deviceStates.has(key)) return this.deviceStates.get(key);
         // 2. Fuzzy match (strip non-alphanumeric)

@@ -1,3 +1,4 @@
+import random
 import logging
 from .base_machine import BaseMachine, MachineState
 from typing import Dict, Any, List
@@ -174,18 +175,42 @@ class ThermalMachine(BaseMachine):
 
         if self.is_cooling_tank:
             add_tag("Tank_Temperature", temp)
+            add_tag("Water_Inlet_Temp", 18.0 + (self.processed_count % 5) * 0.5)
+            add_tag("Water_Outlet_Temp", temp + 2.5)
             add_tag("Target_Temperature", self.target_temp)
+            add_tag("Flow_Rate", 45.5 if self.state == MachineState.RUNNING else 0.0)
+            add_tag("Cooling_Time", self.cycle_time)
             add_tag("Cooling_Status", self.mode)
             add_tag("Cooling_Mode", self.mode)
+            add_tag("Cooling_Run_Status", self.state.value)
+            add_tag("Cooling_Instant_kW", self.power_kw)
+            add_tag("Cooling_Total_kWh", self.energy_kwh)
+            add_tag("Alarm_Status", self.alarm_status)
+            
         elif "furnace" in self.id.lower():
             add_tag("Melt_Bath_Temperature", tags[f"{self.id}.bath_temp"])
             add_tag("Roof_Temperature", tags[f"{self.id}.roof_temp"])
             add_tag("Wall_Temperature", tags[f"{self.id}.wall_temp"])
+            add_tag("Zone_Temperatures", f"{int(temp)}/{int(temp+10)}/{int(temp-5)}")
             add_tag("Furnace_Mode", self.mode)
+            add_tag("Furnace_Run_Status", self.state.value)
+            add_tag("Melt_Hold_Timer", round(self.step_timer, 1))
+            add_tag("Furnace_Instant_kW", self.power_kw)
+            add_tag("Furnace_Total_kWh", self.energy_kwh)
+            add_tag("Plant_KPI_Ingots_Consumed", 1500 + self.processed_count * 200)
+            add_tag("Plant_WIP_Molten_Metal", 340.5 + (self.processed_count * 15.5) % 1000)
+            add_tag("Alarm_Status", self.alarm_status)
+            
         elif "heat" in self.id.lower():
             add_tag("Furnace_Temperature", temp)
             add_tag("Temperature_Setpoint", self.target_temp)
             add_tag("HT_Mode", self.mode)
+            add_tag("Process_Step", self.mode)
+            add_tag("Step_Timer", round(self.step_timer, 1))
+            add_tag("HT_Run_Status", self.state.value)
+            add_tag("HT_Instant_kW", self.power_kw)
+            add_tag("HT_Total_kWh", self.energy_kwh)
+            add_tag("Alarm_Status", self.alarm_status)
             
         return tags
 

@@ -96,7 +96,7 @@ class UIUpdater {
             const m = hierarchy.machines[mid];
             const statusEl = this._getDomElement(`status-${mid}`);
             if (statusEl) {
-                const state = (m.state || 'OFFLINE').toUpperCase();
+                const state = (m.state || (m.isRunning ? 'running' : '') || 'OFFLINE').toUpperCase();
                 const color = state === 'RUNNING' || state === 'NORMAL' ? 'var(--success)' : 
                              (['FAULT', 'ALARM', 'ERROR', 'STOPPED'].includes(state) ? 'var(--danger)' : 'var(--text-dim)');
                 statusEl.style.background = color;
@@ -303,7 +303,7 @@ class UIUpdater {
         });
 
         // Also update standard metadata if present (State, Health)
-        const state = (this.stateManager.getDeviceState(id)?.state || 'OFFLINE');
+        const state = this.app._getMachineState(id);
         // Use damped health from healthStates to avoid random fluctuation
         const health = (this.app.healthStates && this.app.healthStates.has(id))
             ? Math.round(this.app.healthStates.get(id).health)
@@ -316,8 +316,9 @@ class UIUpdater {
         const stateEl = this._getDomElement(`metric-${id}-state`);
         if (stateEl) {
             const stateUpper = String(state).toUpperCase();
-            if (stateEl.textContent !== stateUpper) {
-                stateEl.textContent = stateUpper;
+            const valNode = stateEl.querySelector('.val-text') || stateEl;
+            if (valNode.textContent !== stateUpper) {
+                valNode.textContent = stateUpper;
                 const container = stateEl.closest('.state-badge-container');
                 if (container) {
                     const color = state.toLowerCase() === 'running' ? 'var(--success)' : 

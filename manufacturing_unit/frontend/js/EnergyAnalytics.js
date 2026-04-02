@@ -157,9 +157,17 @@ class EnergyAnalytics {
                     eff = numericVal;
                 } else if (k === 'calculatedstate' || k === 'state' || k === 'status') {
                     state = String(val).toLowerCase();
+                } else if (k.includes('runstatus') && !state) {
+                    // Capture device-specific Run_Status tags (e.g. Furnace_Run_Status)
+                    state = String(val).toLowerCase();
                 } else if (k === 'isrunning' || k === 'running') {
                     isRunning = (val === true || val === 'true' || val === 1);
                 }
+            }
+
+            // Fallback: use the extracted state from WebSocket handler if no state key found in raw data
+            if (!state && metrics.state) {
+                state = String(metrics.state).toLowerCase();
             }
 
             if (state === 'running' || state === 'active' || state === 'processing' || state === 'heating' || state === 'melting') isRunning = true;

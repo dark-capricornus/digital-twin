@@ -77,12 +77,17 @@ class DegasserMachine(BaseMachine):
         }
 
     def _calculate_power(self) -> float:
-        # High power when vacuum pumps are running
+        """
+        Calculate power based on load and state.
+        """
         is_running = self.state == MachineState.RUNNING
         has_load = self.current_item is not None
         
         if is_running and has_load:
-            return 85.0 # Pumps + Heaters
+            base = 85.0 # Pumps + Heaters
         elif is_running:
-            return 15.0 # Just heaters
-        return 0.0
+            base = 15.0 # Just heaters
+        else:
+            base = 0.0
+            
+        return round(base, 2)

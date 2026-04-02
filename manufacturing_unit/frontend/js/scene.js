@@ -65,8 +65,8 @@ class SceneManager {
             'inbound01': 'storage_01001',
             'buffer_01': 'storage_01001',
             'buffer01': 'storage_01001',
-            'raw_materials': 'storage_01001',
-            'rawmaterials': 'storage_01001',
+            'raw_materials': 'storage_01006',
+            'rawmaterials': 'storage_01006',
             'outbound_01': 'outbound_01',
             'outbound01': 'outbound_01',
             'outbound_02': null,
@@ -1239,99 +1239,49 @@ class SceneManager {
         if (id.toLowerCase() === 'raw_materials') displayName = 'RAW MATERIALS';
         if (id.toLowerCase().includes('storage') || id.toLowerCase().includes('inbound')) displayName = 'RAW MATERIALS';
 
+        // 1. Resolve mesh (with RAWMATERIALS override for center positioning)
         let mesh = this.findMesh(id);
-        // FORCE: Raw materials always anchor to the main storage bin mesh
         if (id === 'RAWMATERIALS') {
-            mesh = this.nodeRegistry.get('storage_01001') || mesh;
+            mesh = this.nodeRegistry.get('storage_01006') || this.nodeRegistry.get('storage_01.006') || this.nodeRegistry.get('storage_01') || mesh;
         }
 
-        if (!mesh) {
-            console.warn(`[Scene] No mesh found for device: ${id}`);
-            return;
-        }
+        if (!mesh) return;
 
-        let positionOverride = null;
-        // Shared mesh heuristic removed: OUTBOUND_02 has its own mesh in manualMap now
+        let labelItem = this.labelRegistry.get(id);
 
-        let label = this.labelRegistry.get(id);
-
-        // UI Reversion: Header/Dot Style as per user's preference
-        if (!label) {
+        if (!labelItem) {
             const div = document.createElement('div');
             div.className = 'machine-chip';
-            div.style.pointerEvents = 'auto'; // Make entire chip clickable
+            div.style.pointerEvents = 'auto';
             div.style.cursor = 'pointer';
-            // Retrieve icon directly from asset metadata (assets.json)
-            // This fixes the overlap by ensuring ONLY defined machines get labels.
+            
             let iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : '';
-
-            // If no explicit icon is defined for this ID, skip label creation.
-            // This prevents "ghost" icons for un-unified or internal IDs.
             if (!iconName) return;
 
             div.innerHTML = `
                 <div class="chip-header">
                     <span class="chip-status-dot material-symbols-outlined">${iconName}</span>
                 </div>
-                <!-- Unified Value Display (Directly replaces dot in Energy Mode) -->
                 <div class="chip-unified-value"></div>
-                <!-- The value container for energy view -->
                 <div class="chip-value"></div>
             `;
 
             div.onclick = (event) => {
                 event.stopPropagation();
-                // [PERF] Yield to the browser's paint thread to improve INP
-                setTimeout(() => {
-                    window.app.setContext('machine', id);
-                }, 0);
+                setTimeout(() => window.app.setContext('machine', id), 0);
             };
 
-            label = new CSS2DObject(div);
+            const labelObj = new CSS2DObject(div);
+            this.scene.add(labelObj);
+            
+            labelItem = { element: div, parent: this.scene, object: labelObj };
+            this.labelRegistry.set(id, labelItem);
 
-            // Precision World-Space Anchoring
-            const box = new THREE.Box3().setFromObject(mesh);
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-
-            // USER REQUEST: Position icons just above machines to avoid "ghostly" floating
-            const suffixMatch = id.match(/_?(\d+)$/);
-            const index = suffixMatch ? parseInt(suffixMatch[1]) : 0;
-
-            // Base offset 0.5 (reduced from 3.5) + cascading step (index * 0.5)
-            const stepOffset = index > 0 ? (index - 1) * 0.5 : 0;
-            const verticalOffset = 0.5 + stepOffset;
-
-            const worldTopCenter = new THREE.Vector3(
-                center.x,
-                box.max.y + verticalOffset,
-                center.z
-            );
-
-            // Save world position BEFORE
-            const warningWorldPos = worldTopCenter.clone();
-
-            label.position.copy(worldTopCenter);
-
-            this.scene.add(label);
-            this.labelRegistry.set(id, { element: div, parent: this.scene, object: label });
-
-            // Attach Warning Mesh at WORLD coordinates (scene root)
-            // Adding to scene root avoids all parent transform issues
+            // Initial Warning Mesh setup
             if (this.baseWarningMesh) {
                 const warningClone = this.baseWarningMesh.clone();
-
-                // Direct world-space scale (no parent compensation needed)
-                const targetSize = 0.8; // User Request: 22px equivalent (~0.8 units)
-                warningClone.scale.set(targetSize, targetSize, targetSize);
-
-                // Force upright in world space
+                warningClone.scale.set(0.8, 0.8, 0.8);
                 warningClone.rotation.set(Math.PI / 2, 0, 0);
-
-                // Position at world-space top center of device + small offset
-                warningClone.position.copy(warningWorldPos);
-                warningClone.position.y += 0.3;
-
                 warningClone.visible = false;
                 warningClone.userData.baseScale = warningClone.scale.clone();
                 warningClone.traverse(child => {
@@ -1346,8 +1296,25 @@ class SceneManager {
             }
         }
 
-        const labelItem = this.labelRegistry.get(id);
-        if (!labelItem || !labelItem.element) return;
+        // 2. ALWAYS Update Position: recalculate bounding box to ensure snapping to correct mesh
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        const suffixMatch = id.match(/_?(\d+)$/);
+        const index = suffixMatch ? parseInt(suffixMatch[1]) : 0;
+        const stepOffset = index > 0 ? (index - 1) * 0.5 : 0;
+        const verticalOffset = 0.5 + stepOffset;
+
+        const worldTopCenter = new THREE.Vector3(center.x, box.max.y + verticalOffset, center.z);
+        labelItem.object.position.copy(worldTopCenter);
+
+        // Sync Warning Mesh position
+        const wMesh = this.warningMeshes.get(id);
+        if (wMesh) {
+            wMesh.position.copy(worldTopCenter);
+            wMesh.position.y += 0.3;
+        }
 
         const element = labelItem.element;
 
@@ -1373,7 +1340,6 @@ class SceneManager {
         }
 
         const state = (this.getValue(data, 'State') || "").toString().toLowerCase();
-        const wMesh = this.warningMeshes.get(id);
         if (wMesh) {
             // Only show flashing warning triangle for explicitly critical states
             const isAlarmState = ['stopped', 'fault', 'error', 'offline'].some(s => state.includes(s));

@@ -119,35 +119,42 @@ class EnergyAnalytics {
 
             for (const [rawKey, val] of Object.entries(metrics.data)) {
                 const k = rawKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                // [ROBUSTNESS] Handle string values from MQTT strings or Base64 fallbacks
+                let numericVal = typeof val === 'number' ? val : parseFloat(val);
+                if (isNaN(numericVal)) numericVal = 0;
 
                 // kwh MUST be checked before kw — "kwh" contains "kw" as a substring
                 if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
-                    kwh = val;
+                    kwh = numericVal;
                 } else if (k.includes('instantkw') || k.includes('powerkw') || k.includes('activepower')) {
-                    kw = val;
+                    kw = numericVal;
+                } else if (k.includes('kw') && !k.includes('kwh')) {
+                    // Specific check for 'kw' that excludes 'kwh'
+                    kw = numericVal;
                 } else if (k.includes('motorload') || k.includes('loadpct')) {
-                    load = val;
-                    this.lastMotorLoad = val;
+                    load = numericVal;
+                    this.lastMotorLoad = numericVal;
                 } else if (k.includes('vibration')) {
-                    vibration = val;
+                    vibration = numericVal;
                 } else if (k.includes('temp')) {
-                    temp = val;
+                    temp = numericVal;
                 } else if (k.includes('oil')) {
-                    oil = val;
-                } else if (k.includes('kw') || k.includes('power') || k.includes('load')) {
-                    // Secondary check for kw if specific ones weren't found
-                    if (kw === 0) kw = val;
+                    oil = numericVal;
+                } else if ((k.includes('power') || k.includes('load')) && !k.includes('kwh') && !k.includes('factor')) {
+                    // Secondary check for kw if specific ones weren't found, excluding energy and pf
+                    if (kw === 0) kw = numericVal;
                 } else if ((k.includes('production') || k.includes('count') || k.includes('produced')) && 
                            !k.includes('scrap') && !k.includes('reject') && !k.includes('ng')) {
-                    prod = val;
+                    prod = numericVal;
                 } else if (k.includes('scrap') || k.includes('reject') || k.includes('ng') || k.includes('ngcount')) {
-                    scrap = val;
+                    scrap = numericVal;
                 } else if (k.includes('cycle') && !k.includes('status')) {
-                    cycle = val;
+                    cycle = numericVal;
                 } else if (k.includes('runtime') || k.includes('hours')) {
-                    runtime = val;
+                    runtime = numericVal;
                 } else if (k.includes('efficiency') || k.includes('yield')) {
-                    eff = val;
+                    eff = numericVal;
                 } else if (k === 'calculatedstate' || k === 'state' || k === 'status') {
                     state = String(val).toLowerCase();
                 } else if (k === 'isrunning' || k === 'running') {
@@ -157,13 +164,7 @@ class EnergyAnalytics {
 
             if (state === 'running' || state === 'active' || state === 'processing' || state === 'heating' || state === 'melting') isRunning = true;
 
-            // [PERF FIX] Apply kW baseline BEFORE virtual accumulation calculation
-            if (isRunning && kw <= 0) {
-                const baseLoad = id.includes('FURNACE') ? 120 : (id.includes('LPDC') ? 45 : (id.includes('CNC') ? 15 : 8));
-                // [DERIVATION] If motor load exists, scale the base load, else use base load as constant
-                const loadFactor = (this.lastMotorLoad > 0) ? (this.lastMotorLoad / 100) : 1.0;
-                kw = baseLoad * loadFactor;
-            }
+            // [AUTHENTICITY] No power baselines. If kW is 0, it's 0.
 
             // [LOGIC] Virtual Accumulation for "Zero Value" PLC counters
             const v = this.virtualTotals.get(id) || { totalKWh: kwh || 0, production: prod || 0, lastUpdate: Date.now() };
@@ -190,12 +191,8 @@ class EnergyAnalytics {
             v.lastUpdateSync = now; // track sync time
             this.virtualTotals.set(id, v);
 
-            // [USER] Industrial Baselines if even virtual prod is 0
+            // [AUTHENTICITY] No efficiency baselines.
             let finalEff = eff > 0 ? eff : (finalProd > 0 ? finalKWh / finalProd : 0);
-            if (isRunning && finalEff <= 0) {
-                // [NOMINAL] Baseline efficiency constants (Stable, no random)
-                finalEff = id.includes('FURNACE') ? 9.8 : (id.includes('LPDC') ? 5.4 : (id.includes('CNC') ? 1.9 : 3.2));
-            }
 
             let finalScrapRate = finalProd > 0 ? (scrap / finalProd) * 100 : 0;
             // No more random fallback for scrap rate. If it's 0, it's 0.
@@ -235,9 +232,11 @@ class EnergyAnalytics {
                     z.totalKWh += finalKWh;
                     
                     // [AUTHENTICITY] Priority Mapping (Ground Truth Anchors)
-                    // Final output tags for serial processes
-                    if (zoneId === 'smelting' && normKeys.has('plantwipdegassedmetal')) {
-                        z.production = metrics.data['Plant_WIP_Degassed_Metal'] || 0;
+                    if (zoneId === 'smelting') {
+                        // Sum of Degasser_01 and Degasser_02 processed counts is the zone production
+                        if (normId === 'DEGASSER01' || normId === 'DEGASSER02') {
+                            z.production += finalProd;
+                        }
                     } else if (zoneId === 'die_casting' && normKeys.has('plantwipcooledparts1')) {
                         z.production = metrics.data['Plant_WIP_Cooled_Parts_1'] || 0;
                     } else if (zoneId === 'machining' && normKeys.has('plantwipmachinedparts')) {
@@ -246,8 +245,22 @@ class EnergyAnalytics {
                         z.production = metrics.data['Plant_KPI_Throughput'] || metrics.data['Plant_WIP_Painted_Parts'] || 0;
                     } else if (zoneId === 'shipping' || zoneId === 'qc' || zoneId === 'logistics') {
                         // [AUTHENTICITY] Logistics shows Inbound Raw Material Consumer (Ingots)
-                        if (zoneId === 'logistics' && normKeys.has('plantkpiingotsconsumed')) {
-                            z.production = metrics.data['Plant_KPI_Ingots_Consumed'] || 0;
+                        if (zoneId === 'logistics') {
+                            if (normKeys.has('plantkpiingotsconsumed')) {
+                                z.production = metrics.data['Plant_KPI_Ingots_Consumed'] || 0;
+                            } else {
+                                z.production += finalProd;
+                            }
+                            // Logistics has no energy data
+                            z.instantKW = 0;
+                        } else if (zoneId === 'shipping') {
+                            if (normKeys.has('plantkpitotalproduced')) {
+                                z.production = metrics.data['Plant_KPI_Total_Produced'] || 0;
+                            } else {
+                                z.production += finalProd;
+                            }
+                            // Shipping has no energy data
+                            z.instantKW = 0;
                         } else if (normKeys.has('plantkpitotalproduced')) {
                             z.production = metrics.data['Plant_KPI_Total_Produced'] || 0;
                         }

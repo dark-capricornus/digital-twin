@@ -3,8 +3,12 @@ import os
 import json
 import asyncio
 import base64
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
 from contextlib import asynccontextmanager
 from typing import List, Union
 from pydantic import BaseModel
@@ -13,7 +17,9 @@ from asyncua import Client, ua
 
 # --- Lifecycle and State ---
 MAIN_LOOP = None
-opc_client = Client(url="opc.tcp://127.0.0.1:4840/freeopcua/server/")
+# Allow overriding OPC-UA host for production readiness
+OPCUA_HOST = os.getenv("OPCUA_HOST", "127.0.0.1")
+opc_client = Client(url=f"opc.tcp://{OPCUA_HOST}:4840/freeopcua/server/")
 
 # --- OPC-UA Polling Cache ---
 _opc_node_cache: dict = {}   # device_id -> {tag_name -> asyncua Node}
@@ -124,22 +130,24 @@ async def poll_opcua_and_broadcast():
 
 
 # --- Fix Path for Imports ---
-# Calculate the project root absolute path (which is 4 levels up: bridge.py -> middleware -> backend -> manufacturing_unit -> root)
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Ensure the current directory (middleware) is in the path for sparkplug_b_pb2
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 # Try to import Sparkplug B decoder
 try:
     import sparkplug_b_pb2
     HAS_SPARKPLUG_DECODER = True
-except ImportError:
+    print("[BRIDGE] Sparkplug B decoder loaded successfully.")
+except ImportError as e:
     HAS_SPARKPLUG_DECODER = False
-    print("WARNING: sparkplug_b_pb2 not found. Sparkplug B messages will be sent as Base64.")
+    print(f"WARNING: sparkplug_b_pb2 not found ({e}). Sparkplug B messages will be sent as Base64.")
 
 # --- Configuration ---
-MQTT_BROKER = "127.0.0.1"
-MQTT_PORT = 1883
+# Allow overriding MQTT host for production readiness
+MQTT_BROKER = os.getenv("MQTT_HOST", "127.0.0.1")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = "#"  # Subscribe to everything (or use "spBv1.0/#")
 
 # --- WebSocket Manager ---
@@ -211,6 +219,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Asset Logging Middleware ---
+class AssetLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # [FIX] Skip middleware for WebSocket upgrades to prevent protocol interference
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+            
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        
+        path = request.url.path
+        if path.endswith(".glb") or path.endswith(".js"):
+            print(f"[BRIDGE][SERVE] {path} | Status: {response.status_code} | {process_time:.2f}ms")
+        return response
+
+app.add_middleware(AssetLoggingMiddleware)
 
 # --- MQTT Client ---
 mqtt_client = mqtt.Client()
@@ -380,7 +406,22 @@ async def publish_message(request: MqttPublishRequest):
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
+# --- Unified Static Serving ---
+# Map to frontend directory
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
+
+@app.get("/assets/models/plant.glb")
+async def serve_glb():
+    glb_path = os.path.join(frontend_dir, "assets", "models", "plant.glb")
+    if os.path.exists(glb_path):
+        return FileResponse(glb_path, media_type="model/gltf-binary")
+    return {"error": "File not found"}, 404
+
+# Mount the rest of the frontend
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
 if __name__ == "__main__":
     import uvicorn
-    print("[BRIDGE] Starting server on ws://localhost:8001/ws")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Use standard port 8000 for unified industrial interface
+    print("[BRIDGE] Starting Unified Server on http://localhost:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

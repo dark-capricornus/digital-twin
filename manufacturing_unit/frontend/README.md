@@ -8,7 +8,7 @@ Three.js-based 3D visualization for the Digital Twin manufacturing unit. Consume
 frontend/
 ├── index.html          # Entry point
 ├── css/
-│   └── style.css       # Styling
+│    └── style.css       # Styling
 ├── js/
 │   ├── main.js         # Application entry
 │   ├── scene.js        # Three.js scene manager
@@ -33,24 +33,18 @@ assets/models/plant.glb
 - `Inspection_01`
 - etc.
 
-### 2. Start a Local Server
-The frontend requires a local HTTP server (due to ES6 modules and CORS):
+### 2. Start the Unified Industrial Server
+The frontend and backend now run on a single unified port to simplify DevTunnel and mobile access.
 
 ```bash
-# Using Python
-python -m http.server 8080
-
-# Using Node.js
-npx http-server -p 8080
-
-# Using VS Code
-# Install "Live Server" extension and click "Go Live"
+# From d:\digital_twin\
+python manufacturing_unit\backend\middleware\bridge.py
 ```
 
 ### 3. Open in Browser
 Navigate to:
 ```
-http://localhost:8080
+http://localhost:8000
 ```
 
 ## Data Flow
@@ -111,9 +105,9 @@ The frontend extracts:
 - Check browser console for warnings
 
 ### WebSocket not connecting
-- Ensure backend middleware is running (`bridge.py`)
-- Verify WebSocket URL: `ws://localhost:8000/ws`
-- Check for CORS or firewall issues
+- Ensure unified server is running: `python manufacturing_unit\backend\middleware\bridge.py`
+- Verify Port 8000 is open and not blocked by another process.
+- For remote access, ensure a single DevTunnel is pointing to Port 8000.
 
 ## Development
 

@@ -1,5 +1,6 @@
 # Digital Twin – Alloy Wheel Manufacturing (V1)
 **Version**: V1 – Integrated Process Flow & 3D Visualization  
+**Status**: Completed, Verified.
 
 ## Overview
 V1 represents the first complete "Live Factory" release of the Digital Twin. While V0 validated independent machine actors, **V1** establishes the synchronous, material-driven production chain and high-fidelity 3D user experience required for industrial operations.
@@ -11,57 +12,13 @@ The purpose of V1 is to:
 *   **Implement UI/UX Excellence**: Deliver a premium "Control Room" aesthetic using modern web technologies.
 
 ## Objectives of V1
-* **Implement Production Chain Logic**: Establish dependencies where machine "A" provides the material for machine "B."
-* **Establish Real-Time WIP Tracking**: Monitor "Work-In-Process" levels at 13 distinct transition stages.
-* **Integrate 3D GPU Rendering**: Launch a Three.js-based visualization engine for spatial monitoring.
-* **Optimize Data Transport**: Use a "Bridge Middleware" to multiplex PLC tags into an efficient WebSocket delta stream.
+* **Implement Production Chain Logic**: Establish dependencies where machine "A" provides the material for machine "B".
+* **3D Scene Integration**: Finalize the layout of the manufacturing unit with correct asset scaling and positioning.
+* **KPI Normalization**: Ensure metrics like production counts, cycle times, and scrap rates are standardized across all departments.
+* **Unified Interface**: Deliver a sidebar-driven navigation system that allows drilling down into specific zones or machines.
 
-## Machines Included
-V1 simulates a complete 21-machine facility across 8 operational zones:
-1.  **Smelting**: Furnace_01, Degasser_01, Degasser_02
-2.  **Die Casting**: LPDC_01, LPDC_02, LPDC_03, Cooling_01
-3.  **Heat Treating**: Heat_01, Heat_02, Cooling_02
-4.  **Machining**: CNC_01, CNC_02
-5.  **Finishing**: Pretreat_01, Paint_01, Paint_02
-6.  **X-Ray / QC**: Inspection_01
-7.  **Shipping**: Outbound_01
-8.  **Logistics**: RawMaterials (Ingot Storage)
-
-## Core Features
-### 1. Material Flow Orchestration
-* **Buffer Persistence**: Material "piles up" in upstream buffers if a downstream machine stops.
-* **Stop/Start Propagation**: Simulation pauses material transformation correctly during E-Stops.
-
-### 2. High-Performance 3D UI
-* **Contextual Focus**: "Ghosting" shader effects to isolate specific zones or assets.
-* **Floating Data Chips**: Real-time status labels anchored in 3D space above physical machinery.
-* **Gemba Walk Mode**: Cinematic, automated camera paths for remote factory tours.
-
-### 3. Integrated Analytics Engine
-* **OEE Derivations**: Real-time calculation of Availability, Performance, and Quality components.
-* **Energy Monitoring**: Active tracking of Instant kW and Integrated kWh across all departments.
-* **Scrap Analytics**: Real-time visibility into Pass/Fail ratios from the X-Ray stage.
-
-### 4. Advanced Interaction Model
-* **Dual Sidebars**: Left sidebar for plant hierarchy; Right sidebar for deep-dive asset metadata.
-* **Fault Propagation**: UI reflects errors from the PLC (Red Meshes + Warning Icons) instantly.
-
-## Progress & Flow Logic
-In V1, machine progress is no longer just a local timer. It is constrained by **Material Availability**:
-1. **Smelting Ingestion**: Ingots are consumed from `RAWMATERIALS` by mass (kg).
-2. **Sequential Flow**: A part cannot enter `CNC_01` unless it has cleared the `COOLING_02` stage.
-3. **Throughput Scaling**: Global plant throughput (`parts/hr`) is derived from the final `SHIPPING` exit rate.
-
-## Explicit Limitations of V1
-V1 does NOT include:
-* **Historical Trend Charts**: Persistence of time-series data (Coming in V2).
-* **Predictive Maintenance**: ML-driven failure prediction models (Coming in V2).
-* **Control Loop Back-Feed**: Changing machine setpoints directly from the UI (Currently Read-Only + Start/Stop).
-* **Multi-Plant Aggregation**: Dashboard only supports a single facility.
-
-## Design Philosophy
-* **Legibility Above All**: High-resolution text and unit formatting for industrial environments.
-* **Spatial Truth**: The 3D model is the primary navigation interface, not an afterthought.
-* **Zero Lag UI**: Throttled DOM updates and delta-based WebSockets for fluid performance.
-
-## Next Phase (V2) - YET TO BE DECIDED
+## Key Features in V1
+* **Aggregated Smelting Production**: Summation of output from multiple degasser machines.
+* **Inventory Tracking**: Live telemetry mapping for Raw Materials and Shipping/Outbound zones.
+- **Premium Visuals**: High-fidelity industrial textures (galvanized iron effect) and dynamic labeling.
+- **Improved State Management**: Machine states are synchronized with PLC status tags for ground-truth accuracy.

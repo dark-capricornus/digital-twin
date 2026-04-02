@@ -112,9 +112,8 @@ class SimpleMachine(BaseMachine):
                 self.cycle_status = "IDLE"
                 return
 
-        # 2. Role-specific Stage Transitions (with 5% Efficiency Jitter)
-        jitter = random.uniform(0.95, 1.05)
-        self.progress += (dt / (self.cycle_time * jitter)) * 100.0
+        # 2. Role-specific Stage Transitions
+        self.progress += (dt / self.cycle_time) * 100.0
         self.stage_timer += dt
 
         if self.role == "casting":
@@ -271,15 +270,17 @@ class SimpleMachine(BaseMachine):
         is_running = self.state == MachineState.RUNNING
         
         if self.role == "machining":
-            return 40.0 if is_running else 2.0
+            base = 40.0 if is_running else 2.0
         elif self.role == "casting":
-            return 60.0 if is_running else 10.0
+            base = 60.0 if is_running else 10.0
         elif "paint" in self.role:
-            return 25.0 if is_running else 4.0
+            base = 25.0 if is_running else 4.0
         elif self.role == "buffer":
-            return 2.0 if is_running else 0.5
+            base = 2.0 if is_running else 0.5
+        else:
+            base = 10.0 if is_running else 1.0
             
-        return 10.0 if is_running else 1.0
+        return round(base, 2)
 
     # --- Legacy / Helper Methods ---
 

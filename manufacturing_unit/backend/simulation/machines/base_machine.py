@@ -157,37 +157,35 @@ class BaseMachine(ABC):
         self.energy_kwh += self.power_kw * (dt / 3600.0)
         
         # --- Simulate Industrial Tags ---
-        import random
         is_running = self.state == MachineState.RUNNING
         
-        # 1. Vibration (Baseline noise + Operational intensity)
-        noise = random.uniform(-0.01, 0.01)
+        # 1. Vibration (Operational intensity without random noise)
         if is_running:
-            target_vib = 1.2 + random.uniform(-0.2, 0.2)
+            target_vib = 1.2
             self.vibration += (target_vib - self.vibration) * 0.1 # Smoothing
         else:
-            self.vibration += (0.05 + noise - self.vibration) * 0.05
+            self.vibration += (0.05 - self.vibration) * 0.05
             
         # 2. Motor Load
         if is_running:
-            target_load = 75.0 + random.uniform(-5, 5)
+            target_load = 75.0
             self.motor_load += (target_load - self.motor_load) * 0.1
         else:
             self.motor_load += (0.0 - self.motor_load) * 0.2
             
-        # 3. Oil Level (Slow bleed simulation)
+        # 3. Oil Level (Slow bleed simulation - logic-based, not random)
         if is_running:
             self.oil_level -= 0.0001 # Extremely slow decrease
             
-        # 4. Air Pressure (Fluctuating around setpoint)
-        self.air_pressure = 92.0 + random.uniform(-1.5, 1.5)
+        # 4. Air Pressure (Steady at setpoint)
+        self.air_pressure = 92.0
         
-        # 5. Internal Temp (Heats up when running)
+        # 5. Internal Temp (Heats up when running - deterministic)
         if is_running:
-            target_temp = 48.0 + random.uniform(-1, 1)
-            self.internal_temp += (target_temp - self.internal_temp) * 0.01
+            target_temp = 48.0
+            self.internal_temp += (target_temp - self.internal_temp) * 0.1
         else:
-            self.internal_temp += (28.5 - self.internal_temp) * 0.005
+            self.internal_temp += (28.5 - self.internal_temp) * 0.05
     
     def set_event_dispatcher(self, dispatcher):
         """Set event dispatcher for event emission"""

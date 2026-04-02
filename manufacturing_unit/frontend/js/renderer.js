@@ -71,7 +71,7 @@ class Renderer {
             'paint01': 'paint_01', 'pb1': 'paint_01',
             'paint02': 'paint_02', 'pb2': 'paint_02',
             'pretreat_01': 'pretreat_01', 'pretreat01': 'pretreat_01', 'pt': 'pretreat_01',
-            'storage_01': 'storage_01001', 'raw_materials': 'storage_01001', 'rawmaterials': 'storage_01001', 'storage01': 'storage_01001',
+            'storage_01': 'storage_01006', 'raw_materials': 'storage_01006', 'rawmaterials': 'storage_01006', 'storage01': 'storage_01006',
             'outbound_01': 'outbound_01', 'outbound01': 'outbound_01', 'shipping': 'outbound_01'
         };
     }
@@ -160,13 +160,29 @@ class Renderer {
         const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
         if (intersects.length > 0) {
             const id = intersects[0].object.userData.deviceId;
-            if (id && window.app) window.app.setContext('machine', id);
+            if (id && window.app) {
+                // [TOGGLE LOGIC] If already selected, deselect to reset view
+                const current = window.app.activeContext;
+                if (current && current.type === 'machine' && current.id === id) {
+                    window.app.resetInteraction();
+                } else {
+                    window.app.setContext('machine', id);
+                }
+            }
         }
     }
 
-    async loadModel(path) {
+    async loadModel(path, onProgress) {
         const loader = new GLTFLoader();
-        const gltf = await loader.loadAsync(path);
+        
+        // Use loadAsync with progress if provided
+        const gltf = await new Promise((resolve, reject) => {
+            loader.load(path, 
+                (data) => resolve(data),
+                (xhr) => { if (onProgress) onProgress(xhr); },
+                (err) => reject(err)
+            );
+        });
 
         // [PERF] Yield before heavy traversal to avoid blocking main thread
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -204,7 +220,6 @@ class Renderer {
         // Reduce glossiness on specific industrial equipment
         const matteTargets = [
             'furnace_01',
-            'degasser_01', 'degasser_02',
             'lpdc_01', 'lpdc_02', 'lpdc_03',
             'heat_01', 'heat_02',
             'inspection_01'
@@ -218,6 +233,18 @@ class Renderer {
                     child.material.metalness = Math.min(child.material.metalness ?? 1, 0.28);
                     child.material.envMapIntensity = 0.4;
                     child.material.needsUpdate = true;
+                }
+                
+                // --- Restore Galvanized Look & Interior Visibility ---
+                const isDegasser = child.name.toLowerCase().includes('degasser');
+                const isStorage = child.name.toLowerCase().includes('storage_01');
+                if (child.isMesh && (isDegasser || isStorage)) {
+                    if (child.material) {
+                        child.material.side = THREE.DoubleSide;
+                        child.material.metalness = Math.max(child.material.metalness ?? 0, 0.65);
+                        child.material.roughness = Math.min(child.material.roughness ?? 1, 0.35);
+                        child.material.needsUpdate = true;
+                    }
                 }
             });
         });
@@ -364,7 +391,10 @@ class Renderer {
         const focusPos = center.clone().add(goldenVector);
 
         // Framing zoom for the whole zone (0.90 for context-rich framing)
-        const targetZoom = (this.viewSize / maxDim) * 0.90;
+        let zoomMult = 0.90;
+        if (zoneId === 'rawmaterials') zoomMult = 0.65; // [USER] Wider pull-back for silo visibility
+
+        const targetZoom = (this.viewSize / maxDim) * zoomMult;
 
         this._startCameraAnim(focusPos, center, targetZoom, 5000);
     }
@@ -528,10 +558,43 @@ class Renderer {
             </div>
         `;
 
-        const label = new CSS2DObject(div);
-        const box = new THREE.Box3().setFromObject(node);
+        // --- Multi-Mesh Center Calculation ---
+        const box = new THREE.Box3();
+        let found = false;
+        const targetId = id.toLowerCase();
+        
+        // Resolve the "base" name from manualMap if it exists (e.g. 'rawmaterials' -> 'storage_01001')
+        const manualTarget = this.manualMap[targetId];
+        // If we have a manual target ending in numbers, strip them to get the base prefix (e.g. 'storage_01')
+        const searchPrefix = manualTarget ? manualTarget.replace(/\d+$/, '') : targetId;
+        
+        this.nodeRegistry.forEach((childNode, name) => {
+            if (!childNode.isMesh) return;
+            const n = name.toLowerCase();
+            
+            // [ROBUST MATCH] 
+            // 1. Exact ID match (e.g. 'cooling_01')
+            // 2. Manual target match (e.g. 'storage_01001')
+            // 3. Prefix match with flexibility for Blender suffix (e.g. 'cooling_01_mesh' or 'cooling_01.001')
+            const isMatch = (n === targetId) || 
+                            (manualTarget && n === manualTarget) || 
+                            (n.startsWith(targetId + '_')) || 
+                            (n.startsWith(targetId + '.'));
+            
+            if (isMatch) {
+                childNode.updateWorldMatrix(true, false);
+                const meshBox = new THREE.Box3().setFromObject(childNode);
+                box.union(meshBox);
+                found = true;
+            }
+        });
+
+        if (!found) box.setFromObject(node);
+
         const center = new THREE.Vector3();
         box.getCenter(center);
+        
+        const label = new CSS2DObject(div);
         label.position.set(center.x, box.max.y + 0.5, center.z);
 
         this.scene.add(label);
@@ -620,11 +683,13 @@ class Renderer {
             if (root) root.traverse(n => { if (n.isMesh) keepNodes.add(n); });
         });
 
-        // Pass 2 — name-prefix scan: catches sibling meshes (e.g. degasser bowl)
-        // that share the device name as a prefix but sit outside the main group node
         this.nodeRegistry.forEach((node, name) => {
             if (!node.isMesh) return;
-            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.'))) {
+            if (targetIds.some(id => {
+                const manual = this.manualMap[id];
+                const prefix = manual ? manual.replace(/\d+$/, '') : id;
+                return name === id || (manual && name === manual) || name.startsWith(prefix);
+            })) {
                 keepNodes.add(node);
             }
         });
@@ -677,7 +742,7 @@ class Renderer {
         });
         this.nodeRegistry.forEach((node, name) => {
             if (!node.isMesh) return;
-            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.'))) {
+            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.') || (name.startsWith(id) && !isNaN(name.slice(id.length))))) {
                 excludeNodes.add(node);
             }
         });
@@ -836,23 +901,26 @@ class Renderer {
             if (now - lastRenderTime < TARGET_MS) return;
             lastRenderTime = now;
 
-            // [INTERPOLATION] Energy chip values
+            // [INTERPOLATION] Energy chip values (Connection-Aware)
             if (this.interpolatedValues.size > 0) {
+                // [FIX] WebSocketHandler uses isConnected, not connected
+                const isConnected = window.app && window.app.websocket && window.app.websocket.isConnected;
+                
                 this.interpolatedValues.forEach((entry) => {
                     const diff = entry.target - entry.current;
                     entry.current = Math.abs(diff) < 0.005 ? entry.target : entry.current + diff * 0.02;
 
-                    const fmtKW = entry.current.toFixed(1);
+                    const fmtKW = isConnected ? entry.current.toFixed(1) : "---";
                     if (fmtKW !== entry.lastFormatted) {
-                        // [PERF] Cache valSpan reference — avoid querySelector every frame
+                        // [PERF] Absolute textContent update — no innerHTML mid-render
                         if (!entry.valSpan && entry.element) {
+                            // Initial setup: create the structure once (Synchronized to Instant Load)
+                            entry.element.innerHTML = `<div style="font-size:12px;font-weight:900;color:var(--primary);"><span class="chip-val-text">---</span> <small style="font-size:8px;opacity:0.7;">kW</small></div>`;
                             entry.valSpan = entry.element.querySelector('.chip-val-text');
                         }
+                        
                         if (entry.valSpan) {
                             entry.valSpan.textContent = fmtKW;
-                        } else if (entry.element) {
-                            entry.element.innerHTML = `<div style="font-size:12px;font-weight:900;color:var(--primary);"><span class="chip-val-text">${fmtKW}</span> <small style="font-size:8px;opacity:0.7;">kW</small></div>`;
-                            entry.valSpan = entry.element.querySelector('.chip-val-text');
                         }
                         entry.lastFormatted = fmtKW;
                     }

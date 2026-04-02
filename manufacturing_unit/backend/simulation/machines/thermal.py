@@ -52,16 +52,11 @@ class ThermalMachine(BaseMachine):
         
         self.physics.step(dt, {'heater_power': self.heater_power})
 
-        # Update Zone Temperatures (Simulate noise/variation)
-        import random
+        # Update Zone Temperatures (Deterministic variation based on bath temp)
         base_temp = self.physics.T_current
         self.zone_temps["bath"] = base_temp
-        self.zone_temps["roof"] = base_temp + random.uniform(5.0, 15.0)
-        self.zone_temps["wall"] = base_temp - random.uniform(2.0, 8.0)
-        
-        # Simulate local sensors
-        if random.random() < 0.01:
-             self.zone_temps["roof"] += random.uniform(-1.0, 1.0)
+        self.zone_temps["roof"] = base_temp + 10.0
+        self.zone_temps["wall"] = base_temp - 5.0
 
         # 2. Logic Step (Base implementation handles state transitions)
         super().tick(dt)
@@ -201,13 +196,15 @@ class ThermalMachine(BaseMachine):
         is_running = self.state == MachineState.RUNNING
         
         if "furnace" in self.id.lower():
-            return 120.0 if is_running else 15.0
+            base = 120.0 if is_running else 15.0
         elif "heat" in self.id.lower():
-            return 80.0 if is_running else 10.0
+            base = 80.0 if is_running else 10.0
         elif "cooling" in self.id.lower():
-            return 5.0 if is_running else 1.0
+            base = 5.0 if is_running else 1.0
+        else:
+            base = 10.0 if is_running else 1.0
             
-        return 10.0 if is_running else 1.0
+        return round(base, 2)
 
     # --- Legacy Helper ---
     def receive_item(self, item: Any) -> bool:

@@ -85,10 +85,9 @@ class InspectionMachine(BaseMachine):
 
     def _calculate_power(self) -> float:
         """
-        Calculate power based on state.
+        Calculate power based on load and state.
         """
-        is_running = self.state == MachineState.RUNNING
-        return 15.0 if is_running else 2.0
+        return 15.0 if self.state == MachineState.RUNNING else 2.0
 
     # --- Legacy Helper ---
 

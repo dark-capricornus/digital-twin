@@ -648,6 +648,10 @@ class DigitalTwinApp {
 
         // Close Sidebars - Universal "Reset to Initial View" Rule
         document.getElementById('close-left-panel')?.addEventListener('click', () => {
+            // In zones mode viewing a specific zone, reset context so reopening shows zone selection
+            if (this.primaryMode === 'zones' && this.activeContext.type === 'zone') {
+                this.activeContext = { type: 'zones_scope', id: null };
+            }
             // Close left sidebar and reset camera to initial position in ALL views
             this.toggleLeftSidebar(false);
             if (this.renderer) {
@@ -1848,8 +1852,8 @@ class DigitalTwinApp {
                 const displayName = (asset && asset.name) ? asset.name : mid;
                 const machineData = this._findMachineData(mid);
                 const state = (machineData?.state || '').toLowerCase();
-                // Use raw WebSocket tag for Total_kWh
-                const kwh = (machineData?.totalKWh || 0).toFixed(2);
+                const analyticsM = this.analytics.data.machines[mid.toUpperCase()];
+                const kwh = (analyticsM?.totalKWh || 0).toFixed(2);
                 const isActive = (this.activeContext.id === mid);
                 const color = state === 'running' ? 'var(--primary)' : (state === '' ? 'var(--text-dim)' : 'var(--text-dim)');
                 html += `
@@ -2204,17 +2208,13 @@ class DigitalTwinApp {
         this.gembaWaypoints = [
             { dept: null, ids: ['RAWMATERIALS'], label: 'Raw Materials' },
             { dept: null, ids: ['FURNACE_01'], label: 'Furnace 01' },
-            { dept: null, ids: ['DEGASSER_01'], label: 'Degasser 01' },
-            { dept: null, ids: ['DEGASSER_02'], label: 'Degasser 02' },
-            { dept: null, ids: ['LPDC_01'], label: 'LPDC 01' },
-            { dept: null, ids: ['LPDC_02'], label: 'LPDC 02' },
-            { dept: null, ids: ['LPDC_03'], label: 'LPDC 03' },
+            { dept: null, ids: ['DEGASSER_01', 'DEGASSER_02'], label: 'Degassers' },
+            { dept: null, ids: ['LPDC_01', 'LPDC_02', 'LPDC_03'], label: 'Die Castings' },
             { dept: null, ids: ['COOLING_01'], label: 'Cooling Tank — LPDC' },
             { dept: null, ids: ['INSPECTION_01'], label: 'X-Ray Inspection' },
-            { dept: null, ids: ['HEAT_01', 'HEAT_02'], label: 'Heat Treatment' },
+            { dept: null, ids: ['HEAT_01', 'HEAT_02'], label: 'Heat Treating Department' },
             { dept: null, ids: ['COOLING_02'], label: 'Cooling Tank — Heat Treatment' },
-            { dept: null, ids: ['CNC_01'], label: 'CNC 01' },
-            { dept: null, ids: ['CNC_02'], label: 'CNC 02' },
+            { dept: null, ids: ['CNC_01', 'CNC_02'], label: 'Machining' },
             { dept: null, ids: ['PRETREAT_01'], label: 'Pretreatment' },
             { dept: null, ids: ['PAINT_01'], label: 'Paint Booth 01' },
             { dept: null, ids: ['PAINT_02'], label: 'Paint Booth 02 — Ceramic Coat' },

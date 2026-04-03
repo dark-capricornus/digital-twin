@@ -3227,7 +3227,7 @@
                   "name": "Total Ingots Consumed",
                   "opcItemPath": "nsu\u003dhttp://digitaltwin.plc;s\u003dVirtualPLC.Plant.KPI.total_ingots_consumed",
                   "opcServer": "Alloywheel_industry",
-                  "readOnly": true,
+         d         "readOnly": true,
                   "tagType": "AtomicTag",
                   "valueSource": "opc"
                 },

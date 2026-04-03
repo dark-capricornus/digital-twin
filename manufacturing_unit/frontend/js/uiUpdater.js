@@ -103,19 +103,11 @@ class UIUpdater {
                 statusEl.style.boxShadow = (color === 'var(--success)') ? '0 0 6px var(--success)66' : 'none';
             }
             
-            // 2. [USER] Targeted Spent Update for Sidebar List — use raw WebSocket tag
+            // 2. Targeted Spent Update for Sidebar List — use analytics engine (same source as right sidebar)
             const spentEl = this._getDomElement(`list-spent-${mid}`);
             if (spentEl) {
-                const deviceData = this.stateManager.getDeviceState(mid)?.data || {};
-                let rawKwh = 0;
-                for (const [key, val] of Object.entries(deviceData)) {
-                    const k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    if (k.includes('kwh') || k.includes('totalenergy') || k.includes('totalkwh')) {
-                        rawKwh = val;
-                        break;
-                    }
-                }
-                const kwh = (rawKwh || 0).toFixed(2);
+                const analyticsM = this.app.analytics.data.machines[mid.toUpperCase()];
+                const kwh = (analyticsM?.totalKWh || 0).toFixed(2);
                 if (spentEl.textContent !== `${kwh} kWh`) spentEl.textContent = `${kwh} kWh`;
             }
 

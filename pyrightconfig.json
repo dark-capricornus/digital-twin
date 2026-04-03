@@ -1,0 +1,12 @@
+{
+  "venvPath": ".",
+  "venv": "env",
+  "pythonVersion": "3.11",
+  "reportMissingImports": "warning",
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": "manufacturing_unit/backend"
+    }
+  ]
+}

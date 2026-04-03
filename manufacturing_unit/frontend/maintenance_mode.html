@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Aluminium Wheel Unit | Maintenance Mode</title>
+    <link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#1a1614",
+                        "panel-dark": "#221c1a",
+                        "border-dark": "#362e2a",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+
+        .scada-grid {
+            background-size: 40px 40px;
+            background-image: radial-gradient(circle, #362e2a 1px, transparent 1px);
+        }
+
+        .marker-hex {
+            clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+        }
+    </style>
+</head>
+
+<body class="bg-[#1a1614] font-display text-slate-100 overflow-hidden h-screen p-6">
+    <div
+        class="flex h-full w-full flex-col bg-background-dark border border-border-dark rounded-xl overflow-hidden shadow-2xl">
+        <!-- Top Sub-Header -->
+        <div class="h-10 bg-black/40 flex items-center px-8 border-b border-border-dark justify-between">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-slate-500 scale-75">dashboard_customize</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Maintenance Mode
+                    Overlay</span>
+            </div>
+        </div>
+        <!-- Top Status Strip -->
+        <header class="flex h-20 items-center justify-between border-b border-border-dark bg-panel-dark px-8">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3 text-primary">
+                    <div class="bg-primary/10 p-2 rounded-lg">
+                        <span class="material-symbols-outlined text-2xl font-black">factory</span>
+                    </div>
+                    <h2 class="text-sm font-black uppercase tracking-[0.2em] text-white">Aluminium Wheel Unit | Unit
+                        TW-08</h2>
+                </div>
+                <div class="h-6 w-px bg-border-dark mx-2"></div>
+                <div class="flex items-center gap-3 bg-primary/5 px-4 py-1.5 rounded-full border border-primary/20">
+                    <span class="size-2 rounded-full bg-primary animate-pulse"></span>
+                    <span class="text-[10px] font-black uppercase text-primary tracking-tighter">Maintenance Mode
+                        Active</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-8">
+                <div class="flex gap-6 border-r border-border-dark pr-8">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[9px] uppercase text-slate-500 font-black tracking-wider">Total Maintenance
+                            Cost (Month)</span>
+                        <span class="text-base font-mono font-black text-white">$12,450.00</span>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[9px] uppercase text-slate-500 font-black tracking-wider">Avg. Downtime</span>
+                        <span class="text-base font-mono font-black text-white">1.2 hrs <span
+                                class="text-primary text-[10px] font-bold">-12%</span></span>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button
+                        class="flex size-10 items-center justify-center rounded-xl bg-charcoal text-slate-400 hover:text-primary transition-all border border-border-dark">
+                        <span class="material-symbols-outlined text-xl">search</span>
+                    </button>
+                    <button
+                        class="flex size-10 items-center justify-center rounded-xl bg-charcoal text-slate-400 hover:text-primary transition-all border border-border-dark">
+                        <span class="material-symbols-outlined text-xl">notifications</span>
+                    </button>
+                    <button
+                        class="flex size-10 items-center justify-center rounded-xl bg-charcoal text-slate-400 hover:text-primary transition-all border border-border-dark">
+                        <span class="material-symbols-outlined text-xl">settings</span>
+                    </button>
+                    <div
+                        class="h-10 w-10 rounded-xl border border-border-dark overflow-hidden bg-primary/20 flex items-center justify-center cursor-pointer">
+                        <span class="material-symbols-outlined text-primary">person</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- Main Workspace -->
+        <main class="flex flex-1 overflow-hidden bg-background-dark">
+            <div class="relative flex-1 bg-black overflow-hidden group">
+                <div class="absolute inset-0 bg-cover bg-center brightness-[0.4] grayscale-[0.2]"
+                    data-alt="Digital twin 3D rendering"
+                    style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBAJ5VosZAVpg5naG_7P2GSrepzurAl6sVfpIwzs-rlEkBB808QGIoskTMSTCsRojnCMN1F7Nu1WrweWfsKH8HG8ncH94PldsxChoOptuJVSFG6FRkfmLE27R1JpXzqWvSb33Xo8DYZd3cAQSa7TFG2R2MTh7adc35yvjQq-ouhTz7DtnClUcvd596cv6wnBx3T4zS3wwYhFLev62qntDFQF0otEvf6sjXLjH-GmqgOiQvzF1LwHvY6FptLCjlgqww3GUmiOiPVRiY-');">
+                </div>
+                <div class="absolute inset-0 scada-grid opacity-[0.4]"></div>
+                <!-- 3D Markers (Hex Style) -->
+                <div class="absolute top-[35%] left-[45%] flex flex-col items-center gap-3">
+                    <div
+                        class="marker-hex bg-red-600 size-12 shadow-2xl shadow-red-500/50 flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer">
+                        <span class="material-symbols-outlined text-white text-xl font-black">build</span>
+                    </div>
+                    <div
+                        class="bg-black/80 backdrop-blur border border-red-900/50 px-3 py-1 text-[9px] font-black uppercase tracking-tighter text-white whitespace-nowrap">
+                        Bearing Unit C-12
+                    </div>
+                </div>
+                <div class="absolute top-[55%] left-[20%] flex flex-col items-center gap-3">
+                    <div
+                        class="marker-hex bg-yellow-500 size-12 shadow-2xl shadow-yellow-500/50 flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer">
+                        <span class="material-symbols-outlined text-black text-xl font-black">build</span>
+                    </div>
+                    <div
+                        class="bg-black/80 backdrop-blur border border-yellow-900/50 px-3 py-1 text-[9px] font-black uppercase tracking-tighter text-white whitespace-nowrap">
+                        Coolant Filter F-09
+                    </div>
+                </div>
+                <div class="absolute top-[42%] left-[72%] flex flex-col items-center gap-3">
+                    <div
+                        class="marker-hex bg-emerald-500 size-12 shadow-2xl shadow-emerald-500/50 flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer">
+                        <span class="material-symbols-outlined text-white text-xl font-black">build</span>
+                    </div>
+                    <div
+                        class="bg-black/80 backdrop-blur border border-emerald-900/50 px-3 py-1 text-[9px] font-black uppercase tracking-tighter text-white whitespace-nowrap">
+                        Main Drive M-01
+                    </div>
+                </div>
+                <div class="absolute bottom-10 left-10 flex flex-col gap-3">
+                    <button
+                        class="size-10 bg-panel-dark/80 backdrop-blur border border-border-dark flex items-center justify-center text-slate-500 hover:text-primary rounded shadow-lg transition-all active:scale-90">
+                        <span class="material-symbols-outlined font-bold">add</span>
+                    </button>
+                    <button
+                        class="size-10 bg-panel-dark/80 backdrop-blur border border-border-dark flex items-center justify-center text-slate-500 hover:text-primary rounded shadow-lg transition-all active:scale-90">
+                        <span class="material-symbols-outlined font-bold">remove</span>
+                    </button>
+                    <button
+                        class="size-10 bg-panel-dark/80 backdrop-blur border border-border-dark flex items-center justify-center text-slate-500 hover:text-primary rounded shadow-lg transition-all active:scale-90 mt-2">
+                        <span class="material-symbols-outlined font-bold">center_focus_strong</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Contextual Panel (Right) -->
+            <aside class="w-[420px] bg-panel-dark border-l border-border-dark flex flex-col shadow-2xl">
+                <div class="p-8 border-b border-border-dark">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">Unit Analytics
+                    </h3>
+                    <!-- Machine Health Score -->
+                    <div
+                        class="bg-black/20 border border-border-dark p-6 rounded-2xl mb-6 hover:border-primary/30 transition-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Machine Health
+                                Score</span>
+                            <span
+                                class="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">OPTIMAL</span>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-5xl font-mono font-black text-white tracking-tighter">92%</span>
+                            <span class="text-xs text-slate-500 font-bold uppercase">/ 100</span>
+                        </div>
+                        <div
+                            class="mt-6 h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-border-dark">
+                            <div class="h-full bg-primary rounded-full shadow-[0_0_8px_rgba(236,91,19,0.5)]"
+                                style="width: 92%"></div>
+                        </div>
+                    </div>
+                    <!-- Predictive RUL -->
+                    <div
+                        class="bg-black/20 border border-border-dark p-6 rounded-2xl hover:border-primary/30 transition-shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Predictive
+                                RUL</span>
+                            <span
+                                class="material-symbols-outlined text-primary bg-primary/10 p-1 rounded font-bold">precision_manufacturing</span>
+                        </div>
+                        <div class="text-[9px] text-slate-500 font-black uppercase mb-4 tracking-tighter">Remaining
+                            Useful Life</div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-mono font-black text-white tracking-tighter">1,248</span>
+                            <span class="text-xs text-slate-500 font-bold uppercase">Hours</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-8">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">Upcoming
+                        Maintenance</h3>
+                    <div class="space-y-4">
+                        <!-- Maintenance Item 1 -->
+                        <div
+                            class="flex items-center gap-5 p-5 bg-black/20 border border-border-dark rounded-2xl hover:border-primary/40 transition-colors cursor-pointer group">
+                            <div
+                                class="size-12 flex-shrink-0 bg-primary/10 border border-primary/20 flex items-center justify-center rounded-xl">
+                                <span class="material-symbols-outlined text-primary font-black">filter_alt</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-white truncate">Filter Change</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase tracking-tight">System
+                                    Hydraulics</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-mono font-black text-primary">12h</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase">Due</p>
+                            </div>
+                        </div>
+                        <!-- Maintenance Item 2 -->
+                        <div
+                            class="flex items-center gap-5 p-5 bg-black/20 border border-border-dark rounded-2xl hover:border-primary/40 transition-colors cursor-pointer group">
+                            <div
+                                class="size-12 flex-shrink-0 bg-slate-800 border border-border-dark flex items-center justify-center rounded-xl">
+                                <span class="material-symbols-outlined text-slate-400 font-bold">opacity</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-white truncate">Bearing Lubrication</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase tracking-tight">Spindle Unit 04
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-mono font-black text-slate-400">48h</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase">Sched</p>
+                            </div>
+                        </div>
+                        <!-- Maintenance Item 3 -->
+                        <div
+                            class="flex items-center gap-5 p-5 bg-black/20 border border-border-dark rounded-2xl opacity-60 hover:opacity-100 transition-all cursor-pointer group">
+                            <div
+                                class="size-12 flex-shrink-0 bg-slate-800 border border-border-dark flex items-center justify-center rounded-xl">
+                                <span class="material-symbols-outlined text-slate-400">bolt</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-white truncate">Sensor Calibration</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase tracking-tight">Laser Gauge L2
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-mono font-black text-slate-400">126h</p>
+                                <p class="text-[9px] text-slate-500 font-black uppercase">Sched</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-8 border-t border-border-dark bg-black/20">
+                    <button
+                        class="w-full bg-primary hover:bg-[#ea580c] text-white font-black py-4 px-6 rounded-xl transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 shadow-lg shadow-primary/30 active:scale-95">
+                        <span class="material-symbols-outlined text-base">assignment_turned_in</span>
+                        Generate Maintenance Report
+                    </button>
+                </div>
+            </aside>
+        </main>
+        <!-- Bottom Control Bar -->
+        <footer class="h-20 bg-panel-dark border-t border-border-dark flex items-center justify-between px-10 z-10">
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='index.html'"
+                    class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-white transition-all group">
+                    <span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Dashboard</span>
+                </button>
+                <button onclick="window.location.href='level3_machine.html'"
+                    class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-white transition-all group">
+                    <span
+                        class="material-symbols-outlined group-hover:scale-110 transition-transform">inventory_2</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Assets</span>
+                </button>
+                <div class="h-6 w-px bg-border-dark"></div>
+                <button
+                    class="flex items-center gap-3 px-8 py-3 text-primary bg-primary/10 rounded-full border border-primary/20 transition-all font-black relative overflow-hidden">
+                    <span class="material-symbols-outlined font-black">construction</span>
+                    <span class="text-[10px] uppercase tracking-[0.25em]">Maintenance</span>
+                    <div class="absolute bottom-0 left-0 w-full h-0.5 bg-primary"></div>
+                </button>
+                <div class="h-6 w-px bg-border-dark"></div>
+                <button class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-white transition-all group">
+                    <span class="material-symbols-outlined group-hover:scale-110 transition-transform">monitoring</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Telemetry</span>
+                </button>
+                <button class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-white transition-all group">
+                    <span
+                        class="material-symbols-outlined group-hover:scale-110 transition-transform">description</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Reports</span>
+                </button>
+            </div>
+            <div
+                class="flex items-center gap-8 text-slate-500 font-mono text-[9px] font-bold uppercase tracking-widest">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-base text-slate-600">wifi</span>
+                    <span>SIGNAL: 100%</span>
+                </div>
+                <div class="flex items-center gap-3 border-l border-border-dark pl-8">
+                    <span class="material-symbols-outlined text-base text-slate-600">database</span>
+                    <span>SYNC: 0.2ms</span>
+                </div>
+                <div class="flex items-center gap-3 border-l border-border-dark pl-8">
+                    <span class="material-symbols-outlined text-base text-slate-600">schedule</span>
+                    <span>T-GMT: 14:42:01</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>

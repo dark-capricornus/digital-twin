@@ -1,4 +1,4 @@
-import time
+import asyncio
 from typing import Dict, Any, Optional
 from data_gateway.core.interfaces import ISource, ISink
 
@@ -13,9 +13,9 @@ class DataEngine:
         self.mapping = mapping
         self.running = False
 
-    def step(self):
+    async def step(self):
         # 1. Read
-        raw_data = self.source.read()
+        raw_data = await self.source.read()
         if not raw_data:
             return
 
@@ -23,7 +23,7 @@ class DataEngine:
         normalized_data = self.process(raw_data)
 
         # 3. Write
-        self.sink.write(normalized_data)
+        await self.sink.write(normalized_data)
 
     def process(self, raw_data: Dict[str, Any]) -> Dict[Any, Any]:
         """
@@ -40,13 +40,16 @@ class DataEngine:
                 output[channel_id] = value
         return output
 
-    def run(self, interval: float = 1.0):
+    async def run(self, interval: float = 1.0):
         self.running = True
         try:
             print(f">>> Gateway Started. Polling every {interval}s...")
             while self.running:
-                self.step()
-                time.sleep(interval)
-        except KeyboardInterrupt:
+                await self.step()
+                await asyncio.sleep(interval)
+        except asyncio.CancelledError:
             self.running = False
-            print(">>> Gateway Stopped.")
+            print(">>> Gateway Stopped (Cancelled).")
+        except Exception as e:
+            self.running = False
+            print(f">>> Gateway Stopped. Error: {e}")

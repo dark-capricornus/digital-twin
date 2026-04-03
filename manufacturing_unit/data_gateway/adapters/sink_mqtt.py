@@ -19,20 +19,24 @@ class MQTTSink(ISink, IAdapter):
         self.topic = topic
         self.client = mqtt.Client()
     
-    def connect(self):
+    async def connect(self):
         try:
             logger.info(f"Connecting to MQTT Broker {self.broker}:{self.port}...")
+            # Paho connect is blocking, so we might want to wrap it if it takes time, 
+            # but usually it's fast enough or we can leave it blocking for startup.
+            # To be strictly async-safe:
+            # await asyncio.to_thread(self.client.connect, self.broker, self.port, 60)
             self.client.connect(self.broker, self.port, 60)
             self.client.loop_start()
             logger.info("MQTT Connected ✔")
         except Exception as e:
             logger.error(f"MQTT Connection Failed: {e}")
 
-    def disconnect(self):
+    async def disconnect(self):
         self.client.loop_stop()
         self.client.disconnect()
 
-    def write(self, data: Dict[int, Any]) -> None:
+    async def write(self, data: Dict[int, Any]) -> None:
         if not data:
             return
 
@@ -48,6 +52,7 @@ class MQTTSink(ISink, IAdapter):
             payload = json.dumps(data)
             logger.info(f"Publishing to MQTT topic {self.topic}: {payload}")
             
+            # publish is non-blocking (returns MessageInfo)
             self.client.publish(
                 self.topic,
                 payload,

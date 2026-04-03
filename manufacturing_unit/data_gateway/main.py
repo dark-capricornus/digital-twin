@@ -1,6 +1,12 @@
 import time
 import sys
 import argparse
+import os
+import asyncio
+
+# --- Fix Path for Imports ---
+# Allow importing 'data_gateway' from its parent directory (manufacturing_unit)
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_gateway.core.engine import DataEngine
 from data_gateway.core.interfaces import ISource, ISink
 from data_gateway.adapters.sink_mqtt import MQTTSink
@@ -9,8 +15,9 @@ import requests
 from typing import Dict, Any
 
 from data_gateway.adapters.source_rest import RestSourceAdapter
+from data_gateway.adapters.source_opcua import OPCUASourceAdapter
 
-def main():
+async def main():
     # Parse Arguments
     parser = argparse.ArgumentParser(description="Digital Twin Data Gateway")
     parser.add_argument("--sink", choices=["mqtt", "file"], default="mqtt", help="Select data sink (mqtt or file)")
@@ -19,10 +26,10 @@ def main():
     print(f">>> Initializing Data Gateway using {args.sink.upper()} Sink...")
     
     # 1. Configuration
-    API_URL = "http://localhost:8000/api/state"
+    OPCUA_ENDPOINT = "opc.tcp://localhost:4840/freeopcua/server/"
     
     # 2. Components
-    source = RestSourceAdapter(API_URL)
+    source = OPCUASourceAdapter(OPCUA_ENDPOINT)
     sink: ISink
     
     if args.sink == "mqtt":
@@ -41,18 +48,17 @@ def main():
          mapping = {str(i): i for i in range(100, 1000)}
     
     engine = DataEngine(source, sink, mapping)
-    
     # 3. Start
     try:
-        sink.connect()
-        engine.run(interval=1.0)
+        await sink.connect()
+        await engine.run(interval=1.0)
     except KeyboardInterrupt:
         pass
     except Exception as e:
         print(f"[FATAL] Gateway Error: {e}")
     finally:
         if 'sink' in locals():
-            sink.disconnect()
+            await sink.disconnect()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

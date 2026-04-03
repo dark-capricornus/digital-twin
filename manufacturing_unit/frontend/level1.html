@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=1440, height=900, initial-scale=1.0" name="viewport" />
+    <title>Al-Wheel Unit #04 - Strategic Overview</title>
+    <link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "industrial-blue": "#1a3a5a",
+                        "accent-blue": "#3b82f6",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#120d0b",
+                        "panel-dark": "#1c1411",
+                        "surface-dark": "#2a1e19",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            width: 1440px;
+            height: 900px;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .perspective-container {
+            perspective: 1000px;
+        }
+
+        .machine-label {
+            transform: rotateX(20deg) rotateY(-10deg);
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark text-slate-100 font-display">
+    <div class="relative h-full w-full flex flex-col overflow-hidden">
+        <!-- Top Status Strip -->
+        <header class="flex h-14 items-center justify-between border-b border-surface-dark bg-panel-dark px-6">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center bg-primary rounded p-1">
+                    <span class="material-symbols-outlined text-white text-xl">factory</span>
+                </div>
+                <h2 class="text-slate-100 text-lg font-bold tracking-tight">AL-WHEEL UNIT #04</h2>
+            </div>
+            <div class="flex flex-1 items-center justify-center gap-8 px-10">
+                <div class="flex items-center gap-2">
+                    <span class="size-2 rounded-full bg-green-500"></span>
+                    <span class="text-slate-300 text-xs font-medium uppercase tracking-wider">System Online</span>
+                </div>
+                <div class="flex items-center gap-2 border-l border-surface-dark pl-8">
+                    <span class="material-symbols-outlined text-accent-blue text-sm">hub</span>
+                    <span class="text-slate-300 text-xs font-medium">Node 12ms</span>
+                </div>
+                <div class="flex items-center gap-2 border-l border-surface-dark pl-8">
+                    <span class="material-symbols-outlined text-slate-400 text-sm">schedule</span>
+                    <span class="text-slate-300 text-xs font-medium">14:22:05 UTC</span>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button
+                    class="flex min-w-[100px] cursor-pointer items-center justify-center rounded bg-primary text-white text-xs font-bold uppercase tracking-wider h-8 px-4 hover:bg-primary/90">
+                    <span>Export</span>
+                </button>
+                <button
+                    class="flex min-w-[100px] cursor-pointer items-center justify-center rounded bg-surface-dark border border-primary/20 text-white text-xs font-bold uppercase tracking-wider h-8 px-4 hover:bg-surface-dark/80">
+                    <span>Report</span>
+                </button>
+                <div class="ml-2 flex items-center gap-3">
+                    <div
+                        class="h-8 w-8 rounded bg-accent-blue/20 flex items-center justify-center border border-accent-blue/30 text-accent-blue">
+                        <span class="material-symbols-outlined text-lg">person</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- KPI Strip -->
+        <div class="flex w-full gap-4 bg-background-dark p-4">
+            <div class="flex flex-1 flex-col gap-1 rounded border-l-4 border-accent-blue bg-panel-dark p-4 shadow-lg">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Total Load</p>
+                <div class="flex items-end justify-between">
+                    <p class="text-white text-2xl font-bold">4.2 <span
+                            class="text-sm font-medium text-slate-500">MW</span></p>
+                    <span class="text-green-500 text-xs font-bold">+1.2%</span>
+                </div>
+            </div>
+            <div class="flex flex-1 flex-col gap-1 rounded border-l-4 border-accent-blue bg-panel-dark p-4 shadow-lg">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Throughput</p>
+                <div class="flex items-end justify-between">
+                    <p class="text-white text-2xl font-bold">1,402 <span
+                            class="text-sm font-medium text-slate-500">units</span></p>
+                    <span class="text-primary text-xs font-bold">-0.5%</span>
+                </div>
+            </div>
+            <div class="flex flex-1 flex-col gap-1 rounded border-l-4 border-accent-blue bg-panel-dark p-4 shadow-lg">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">OEE</p>
+                <div class="flex items-end justify-between">
+                    <p class="text-white text-2xl font-bold">88.4 <span
+                            class="text-sm font-medium text-slate-500">%</span></p>
+                    <span class="text-green-500 text-xs font-bold">+2.1%</span>
+                </div>
+            </div>
+            <div class="flex flex-1 flex-col gap-1 rounded border-l-4 border-accent-blue bg-panel-dark p-4 shadow-lg">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Energy/Unit</p>
+                <div class="flex items-end justify-between">
+                    <p class="text-white text-2xl font-bold">3.2 <span
+                            class="text-sm font-medium text-slate-500">kWh</span></p>
+                    <span class="text-primary text-xs font-bold">-1.0%</span>
+                </div>
+            </div>
+            <div class="flex flex-1 flex-col gap-1 rounded border-l-4 border-accent-blue bg-panel-dark p-4 shadow-lg">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Utilization</p>
+                <div class="flex items-end justify-between">
+                    <p class="text-white text-2xl font-bold">92 <span
+                            class="text-sm font-medium text-slate-500">%</span></p>
+                    <span class="text-green-500 text-xs font-bold">+0.8%</span>
+                </div>
+            </div>
+        </div>
+        <!-- Main 3D Viewport Content -->
+        <main class="relative flex-1 bg-background-dark overflow-hidden perspective-container">
+            <!-- Simulated 3D Environment Background -->
+            <div class="absolute inset-0 bg-cover bg-center" data-alt="Dark industrial plant with 3D factory machinery"
+                style="background-image: linear-gradient(to bottom, rgba(18, 13, 11, 0.7), rgba(18, 13, 11, 0.95)), url('https://lh3.googleusercontent.com/aida-public/AB6AXuAjDElbqmiHkArxP1t0aG_KcPYh-Nz887W4IAhECLYd8jsbtqXtHk-TGXw4Bvq6UrjzS0upj1djcwTXbRA5DogjdHoLpAGhltSQQnYvHwm8RBUQKH9_NOVp98GUXtJ4NglO3ROg7DtID6DS-33S1h95mMEXfE-QF0ceRvOOPUg7GN33ibIET0GA5X30XqnZ1gAdcpe4IgbQRtb07GV_aqFwjq-7XZymmY6bEhAtjw3Vw8rOrW06iNdPxhfqhvx0aG3LoG13Ej7Z1rxe')">
+            </div>
+            <!-- Floor Grid (Visual Aid for 3D depth) -->
+            <div class="absolute inset-0"
+                style="background-image: radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.05) 1px, transparent 0); background-size: 40px 40px; transform: rotateX(60deg) translateY(-200px); opacity: 0.3;">
+            </div>
+            <!-- Floating Machine Labels -->
+            <!-- Label A-1 -->
+            <div
+                class="absolute left-[20%] top-[40%] machine-label bg-surface-dark border border-accent-blue/40 p-2 rounded flex items-center gap-3 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                <div
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-green-500/10 border border-green-500">
+                    <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Machine A-1</span>
+                    <span class="text-xs text-white font-medium">98.2% Load</span>
+                </div>
+            </div>
+            <!-- Label A-2 -->
+            <div
+                class="absolute left-[45%] top-[30%] machine-label bg-surface-dark border border-accent-blue/40 p-2 rounded flex items-center gap-3 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                <div
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-green-500/10 border border-green-500">
+                    <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Machine A-2</span>
+                    <span class="text-xs text-white font-medium">102.5% Load</span>
+                </div>
+            </div>
+            <!-- Label B-1 -->
+            <div
+                class="absolute right-[25%] top-[45%] machine-label bg-surface-dark border border-accent-blue/40 p-2 rounded flex items-center gap-3 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                <div
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-green-500/10 border border-green-500">
+                    <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Machine B-1</span>
+                    <span class="text-xs text-white font-medium">85.0% Load</span>
+                </div>
+            </div>
+            <!-- Label B-2 -->
+            <div
+                class="absolute right-[10%] top-[35%] machine-label bg-surface-dark border border-accent-blue/40 p-2 rounded flex items-center gap-3 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                <div
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-green-500/10 border border-green-500">
+                    <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Machine B-2</span>
+                    <span class="text-xs text-white font-medium">94.1% Load</span>
+                </div>
+            </div>
+            <!-- Navigation Controls Overlay -->
+            <div class="absolute bottom-6 right-6 flex flex-col gap-2">
+                <button
+                    class="size-10 flex items-center justify-center rounded bg-surface-dark border border-slate-700 text-white hover:bg-slate-700">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+                <button
+                    class="size-10 flex items-center justify-center rounded bg-surface-dark border border-slate-700 text-white hover:bg-slate-700">
+                    <span class="material-symbols-outlined">remove</span>
+                </button>
+                <button
+                    class="size-10 flex items-center justify-center rounded bg-surface-dark border border-slate-700 text-white hover:bg-slate-700">
+                    <span class="material-symbols-outlined">view_in_ar</span>
+                </button>
+            </div>
+        </main>
+        <!-- Bottom Control Bar -->
+        <footer class="h-16 bg-panel-dark border-t border-surface-dark px-10 flex items-center justify-between">
+            <div class="flex gap-4">
+                <!-- Navigation Items -->
+                <button class="group flex flex-col items-center justify-center gap-1 w-20 border-b-2 border-primary">
+                    <span class="material-symbols-outlined text-primary">factory</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight text-primary">Plant</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">map</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Zones</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Machines</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">bolt</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Energy</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">notifications</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Alarms</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">security</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Isolation</span>
+                </button>
+                <button
+                    class="group flex flex-col items-center justify-center gap-1 w-20 text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">accessibility</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight">Gemba</span>
+                </button>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Search</span>
+                    <div class="relative">
+                        <input
+                            class="h-8 w-48 rounded border-none bg-surface-dark text-xs text-white placeholder:text-slate-600 focus:ring-1 focus:ring-primary/50"
+                            placeholder="Zones, Machine ID..." type="text" />
+                        <span
+                            class="material-symbols-outlined absolute right-2 top-1.5 text-sm text-slate-500">search</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>

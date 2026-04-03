@@ -16,10 +16,10 @@ from datetime import datetime
 
 class MachineState(Enum):
     """Simplified ISA-88 aligned state machine"""
-    IDLE = "Idle"
-    RUNNING = "Running"
-    STOPPED = "Stopped"
-    FAULTED = "Faulted"
+    IDLE = "IDLE"
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    FAULTED = "FAULTED"
 
 
 class BaseMachine(ABC):
@@ -47,6 +47,18 @@ class BaseMachine(ABC):
         
         # Counters
         self.processed_count = 0
+        self.runtime_total_hrs = 0.0 # Accumulated session runtime
+        
+        # Metrics
+        self.power_kw = 0.0 # Instantaneous power consumption
+        self.energy_kwh = 0.0 # Cumulative energy consumed
+        
+        # --- NEW: Simulated Industrial Tags (Not yet in SCADA) ---
+        self.vibration = 0.05       # Base vibration (mm/s)
+        self.motor_load = 0.0       # % load
+        self.oil_level = 98.5       # % level
+        self.air_pressure = 92.0    # PSI
+        self.internal_temp = 28.5   # Celsius
         
         # Internal flags
         self._process_done = False
@@ -135,7 +147,45 @@ class BaseMachine(ABC):
         
         # Execute device-specific logic
         if self.state == MachineState.RUNNING:
+            self.runtime_total_hrs += dt / 3600.0
             self._execute_running_logic(dt)
+        
+        # Calculate power (State-dependent)
+        self.power_kw = self._calculate_power()
+        
+        # Accumulate energy (kW * hours)
+        self.energy_kwh += self.power_kw * (dt / 3600.0)
+        
+        # --- Simulate Industrial Tags ---
+        is_running = self.state == MachineState.RUNNING
+        
+        # 1. Vibration (Operational intensity without random noise)
+        if is_running:
+            target_vib = 1.2
+            self.vibration += (target_vib - self.vibration) * 0.1 # Smoothing
+        else:
+            self.vibration += (0.05 - self.vibration) * 0.05
+            
+        # 2. Motor Load
+        if is_running:
+            target_load = 75.0
+            self.motor_load += (target_load - self.motor_load) * 0.1
+        else:
+            self.motor_load += (0.0 - self.motor_load) * 0.2
+            
+        # 3. Oil Level (Slow bleed simulation - logic-based, not random)
+        if is_running:
+            self.oil_level -= 0.0001 # Extremely slow decrease
+            
+        # 4. Air Pressure (Steady at setpoint)
+        self.air_pressure = 92.0
+        
+        # 5. Internal Temp (Heats up when running - deterministic)
+        if is_running:
+            target_temp = 48.0
+            self.internal_temp += (target_temp - self.internal_temp) * 0.1
+        else:
+            self.internal_temp += (28.5 - self.internal_temp) * 0.05
     
     def set_event_dispatcher(self, dispatcher):
         """Set event dispatcher for event emission"""
@@ -169,9 +219,20 @@ class BaseMachine(ABC):
         """
         base_tags = {
             f"{self.id}.state": self.state.value,
+            f"{self.id}.is_running": self.state == MachineState.RUNNING,
             f"{self.id}.enabled": self.enabled,
             f"{self.id}.fault_code": self.fault_code,
             f"{self.id}.processed_count": self.processed_count,
+            f"{self.id}.power_kw": round(self.power_kw, 2),
+            f"{self.id}.energy_kwh": round(self.energy_kwh, 4),
+            f"{self.id}.runtime_total_hrs": round(self.runtime_total_hrs, 4),
+            
+            # Simulated Industrial Tags
+            f"{self.id}.vibration": round(self.vibration, 3),
+            f"{self.id}.motor_load": round(self.motor_load, 1),
+            f"{self.id}.oil_level": round(self.oil_level, 2),
+            f"{self.id}.air_pressure": round(self.air_pressure, 1),
+            f"{self.id}.internal_temp": round(self.internal_temp, 1),
         }
         
         # Add device-specific tags
@@ -207,6 +268,11 @@ class BaseMachine(ABC):
     @abstractmethod
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         """Override: Return dict of device-specific tags"""
+        pass
+    
+    @abstractmethod
+    def _calculate_power(self) -> float:
+        """Override: Return current power consumption in kW"""
         pass
     
     # ============================================================

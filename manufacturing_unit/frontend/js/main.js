@@ -506,7 +506,7 @@ class DigitalTwinApp {
      */
     _getWebSocketUrl() {
         if (window.location.protocol === "file:") {
-            return "ws://localhost:8001/ws";
+            return "ws://localhost:8000/ws";
         }
 
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -524,6 +524,7 @@ class DigitalTwinApp {
 
         try {
             updateLoading('Initializing Digital Twin...');
+            console.log('[App] Initializing application...');
             const container = document.getElementById('container');
             if (!container) throw new Error('Root container #container not found');
 
@@ -531,6 +532,12 @@ class DigitalTwinApp {
             const wsUrl = this._getWebSocketUrl();
             updateLoading(`Connecting to Bridge...`);
             
+            if (typeof WebSocketHandler === 'undefined') {
+                console.error('[App] CRITICAL: WebSocketHandler is missing/undefined!');
+                updateLoading('JS ERROR: WebSocketHandler missing');
+                return;
+            }
+
             this.websocket = new WebSocketHandler(
                 wsUrl,
                 this.stateManager,

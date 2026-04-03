@@ -11,8 +11,8 @@ frontend/
 │    └── style.css       # Styling
 ├── js/
 │   ├── main.js         # Application entry
-│   ├── scene.js        # Three.js scene manager
-│   ├── websocket.js    # WebSocket handler
+│   ├── renderer.js     # Three.js rendering engine
+│   ├── websocketHandler.js # WebSocket handler (Decoupled)
 │   └── stateManager.js # State management
 └── assets/
     └── models/         # Place GLB models here

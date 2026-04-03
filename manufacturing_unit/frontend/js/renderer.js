@@ -4,11 +4,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
+/**
+ * Renderer Class (Restored from SceneManager)
+ * Comprehensive Digital Twin Rendering Engine
+ */
 class Renderer {
-    constructor(container, stateManager) {
+    constructor(container, stateManager, app = null) {
         this.container = container;
         this.stateManager = stateManager;
-
+        this.app = app; // Direct reference for asset lookups
         this.scene = null;
         this.camera = null;
         this.renderer = null;
@@ -16,69 +20,106 @@ class Renderer {
         this.controls = null;
         this.model = null;
 
-        this.nodeRegistry = new Map();
-        this.normNodeRegistry = new Map();
+        this.meshRegistry = new Map(); // Used only for raycasting
+        this.nodeRegistry = new Map(); // Used for device lookup (Groups + Meshes)
+        this.normNodeRegistry = new Map(); // [PERF] Pre-calculated normalized names
         this.labelRegistry = new Map();
-        this.warningMeshes = new Map();
+        this.warningMeshes = new Map(); // Map of deviceId -> warning mesh instance
+        this.hoveredDeviceId = null;
+        this.hoverTimeout = null;
+        this.pendingHoverId = null;
         this.hitGroup = null;
         this.hitBoxMeshes = [];
-        this.manualMap = this._getManualMap();
+
+        // Manual mapping overrides for known discrepancies
+        this.manualMap = {
+            'cnc_01': 'cnc_01',
+            'cnc_02': 'cnc_02',
+            'cnc01': 'cnc_01',
+            'cnc02': 'cnc_02',
+            'inspection_01': 'inspection_01',
+            'inspection01': 'inspection_01',
+            'furnace_01': 'furnace_01',
+            'furnace01': 'furnace_01',
+            'cooling_01': 'cooling_01',
+            'cooling_02': 'cooling_02',
+            'cooling01': 'cooling_01',
+            'cooling02': 'cooling_02',
+            'degasser_01': 'degasser_01',
+            'degasser_02': 'degasser_02',
+            'degasser01': 'degasser_01',
+            'degasser02': 'degasser_02',
+            'lpdc_01': 'lpdc_01',
+            'lpdc_02': 'lpdc_02',
+            'lpdc_03': 'lpdc_03',
+            'lpdc01': 'lpdc_01',
+            'lpdc02': 'lpdc_02',
+            'lpdc03': 'lpdc_03',
+            'heat_01': 'heat_01',
+            'heat_02': 'heat_02',
+            'heat01': 'heat_01',
+            'heat02': 'heat_02',
+            'heattreatment_01': 'heat_01',
+            'heattreatment_02': 'heat_02',
+            'paint_01': 'paint_01',
+            'paint_02': 'paint_02',
+            'paint01': 'paint_01',
+            'paint02': 'paint_02',
+            'storage_01': 'storage_01001',
+            'storage01': 'storage_01001',
+            'inbound_01': 'storage_01001',
+            'inbound01': 'storage_01001',
+            'buffer_01': 'storage_01001',
+            'buffer01': 'storage_01001',
+            'raw_materials': 'storage_01006',
+            'rawmaterials': 'storage_01006',
+            'outbound_01': 'outbound_01',
+            'outbound01': 'outbound_01',
+            'pretreat_01': 'pretreat_01',
+            'pretreat01': 'pretreat_01',
+            'pretreatment_01': 'pretreat_01',
+        };
+
+        // Exact extra mesh names that belong to a device but don't share its name prefix
+        this.associatedMeshNames = {
+            'degasser_01': ['aluminium_container001'],
+            'degasser_02': ['aluminium_container003'],
+        };
+
+        this.persistentValues = new Map();
+        this.chipDisplayMode = 'none';
 
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
         this.pointerMoved = false;
-        this.hoveredDeviceId = null;
-        this.hoverTimeout = null;
-        this.pendingHoverId = null;
 
-        this._cameraAnim = null;
+        // [PRECISION] Custom Camera Zoom Map
+        this.customZooms = {
+            'rawmaterials': 6.052,
+            'storage_01006': 6.052,
+            'furnace_01': 3.91,
+            'inspection_01': 11.478,
+            'degasser_01': 5.9777,
+            'degasser_02': 5.9777,
+            'lpdc_02': 5.801,
+            'lpdc_03': 5.801,
+            'pretreat_01': 9.424
+        };
+
         this.lastCameraZoom = 0;
         this.lastCameraPos = new THREE.Vector3();
         this.frameCounter = 0;
         this.interpolatedValues = new Map();
-        this.chipDisplayMode = 'none';
-
-        // [PERF] Per-frame utility objects to avoid GC pressure
-        this.frustum = new THREE.Frustum();
-        this.projScreenMatrix = new THREE.Matrix4();
-        this.viewCachePosition = new THREE.Vector3();
+        this.pendingLabelIds = new Set();
 
         this.init();
-
-        // [PERF] Subdivide secondary setup into micro-tasks to stay under 50ms frame budget
-        setTimeout(() => {
-            this._initSecondary();
-        }, 10);
-
-        // Environment is now initialised explicitly from main.js (after model load + compileAsync)
-        // so shaders compile once with the correct env map already set.
-
-        setTimeout(() => {
-            this.setupInteraction();
-        }, 50);
-    }
-
-    _getManualMap() {
-        return {
-            'cnc_01': 'cnc_01', 'cnc_02': 'cnc_02', 'cnc01': 'cnc_01', 'cnc02': 'cnc_02',
-            'inspection_01': 'inspection_01', 'inspection01': 'inspection_01',
-            'furnace_01': 'furnace_01', 'furnace01': 'furnace_01',
-            'cooling_01': 'cooling_01', 'cooling_02': 'cooling_02',
-            'degasser_01': 'degasser_01', 'degasser_02': 'degasser_02',
-            'lpdc_01': 'lpdc_01', 'lpdc_02': 'lpdc_02', 'lpdc_03': 'lpdc_03',
-            'heat_01': 'heat_01', 'heat_02': 'heat_02',
-            'paint_01': 'paint_01', 'paint_02': 'paint_02',
-            'paint01': 'paint_01', 'pb1': 'paint_01',
-            'paint02': 'paint_02', 'pb2': 'paint_02',
-            'pretreat_01': 'pretreat_01', 'pretreat01': 'pretreat_01', 'pt': 'pretreat_01',
-            'storage_01': 'storage_01006', 'raw_materials': 'storage_01006', 'rawmaterials': 'storage_01006', 'storage01': 'storage_01006',
-            'outbound_01': 'outbound_01', 'outbound01': 'outbound_01', 'shipping': 'outbound_01'
-        };
+        this.setupInteraction();
     }
 
     init() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0d1117);
+
         this.viewSize = 40;
         const aspect = window.innerWidth / window.innerHeight;
         this.camera = new THREE.OrthographicCamera(
@@ -90,25 +131,21 @@ class Renderer {
             10000
         );
 
-        this.defaultTarget = new THREE.Vector3(-7.38, -2.83, 9.68);
-        this.defaultPosition = new THREE.Vector3(692.89, 526.86, 941.85);
-        this.defaultZoom = 1.252;
+        this.defaultTarget = new THREE.Vector3(-6.84, -4.58, 10.27);
+        this.defaultPosition = new THREE.Vector3(793.43, 594.61, 810.54);
+        this.defaultZoom = 1.13;
 
+        this.camera.up.set(0, 1, 0);
         this.camera.position.copy(this.defaultPosition);
         this.camera.lookAt(this.defaultTarget);
         this.camera.zoom = this.defaultZoom;
         this.camera.updateProjectionMatrix();
 
-        // [PERF] Primary renderer setup
         this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = false;
         this.container.appendChild(this.renderer.domElement);
-        window.addEventListener('resize', () => this.onWindowResize());
-    }
 
-    _initSecondary() {
         this.labelRenderer = new CSS2DRenderer();
         this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
         this.labelRenderer.domElement.style.position = 'absolute';
@@ -119,30 +156,72 @@ class Renderer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.target.copy(this.defaultTarget);
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.02;  // Ultra-smooth, gliding stop
-        this.controls.rotateSpeed = 0.45;    // Professional interaction level
-        this.controls.zoomSpeed = 0.70;      // Precise zoom
-        this.controls.panSpeed = 0.45;       // Stately panning
+        this.controls.dampingFactor = 0.05;
+        this.controls.zoomSpeed = 1.2;
+        this.controls.minZoom = 0.01;
+        this.controls.maxZoom = 100;
         this.controls.update();
+
+        window.addEventListener('resize', () => this.onWindowResize());
+        this._setupCoordinateTracker();
     }
 
     _initEnvironment() {
         if (!this.renderer || !this.scene) return;
-
-        // PMREM runs synchronously here — called before compileAsync + start() in main.js
-        // so shaders compile once with the correct env map, eliminating mid-loop recompiles.
-        const pmrem = new THREE.PMREMGenerator(this.renderer);
-        this.scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
-        pmrem.dispose();
-
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.25);
-        dirLight.position.set(50, 100, 50);
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
         this.scene.add(dirLight);
-        const pointLight = new THREE.PointLight(0xffffff, 0.8);
-        pointLight.position.set(-50, 40, -50);
-        this.scene.add(pointLight);
-        this.scene.background = new THREE.Color(0x0d1117);
+        pmremGenerator.dispose();
+    }
+
+    _setupCoordinateTracker() {
+        this.coordsOverlay = document.createElement('div');
+        this.coordsOverlay.id = 'scene-coords-overlay';
+        this.coordsOverlay.style.cssText = `
+            position: absolute;
+            bottom: 85px;
+            right: 20px;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(19, 146, 236, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-family: 'Public Sans', monospace;
+            font-size: 11px;
+            display: none; 
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+        `;
+        this.container.appendChild(this.coordsOverlay);
+    }
+
+    _updateCoordinateTracker() {
+        if (!this.coordsOverlay || !this.controls || !this.camera) return;
+        const mode = window.app ? window.app.primaryMode : '';
+        const isEnergyMode = mode === 'energy' || mode === 'energy_analytics';
+        this.coordsOverlay.style.display = isEnergyMode ? 'block' : 'none';
+        if (!isEnergyMode) return;
+
+        const params = this.identifyCameraParameters();
+        const target = this.controls.target;
+        this.coordsOverlay.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px;">
+                <span><small style="color:var(--primary)">X:</small>${target.x.toFixed(2)}</span>
+                <span><small style="color:var(--primary)">Y:</small>${target.y.toFixed(2)}</span>
+                <span><small style="color:var(--primary)">Z:</small>${target.z.toFixed(2)}</span>
+                <span><small style="color:var(--primary)">Z:</small>${this.camera.zoom.toFixed(2)}</span>
+                <span><small style="color:var(--primary)">H:</small>${params.hAngle}°</span>
+                <span><small style="color:var(--primary)">V:</small>${params.vAngle}°</span>
+                <span><small style="color:var(--primary)">D:</small>${params.distance}</span>
+                <span><small style="color:var(--primary)">S:</small>${this.viewSize}</span>
+            </div>
+        `;
     }
 
     setupInteraction() {
@@ -159,105 +238,74 @@ class Renderer {
         this.raycaster.setFromCamera(this.pointer, this.camera);
         const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
         if (intersects.length > 0) {
-            const id = intersects[0].object.userData.deviceId;
-            if (id && window.app) {
-                // [TOGGLE LOGIC] If already selected, deselect to reset view
-                const current = window.app.activeContext;
-                if (current && current.type === 'machine' && current.id === id) {
-                    window.app.resetInteraction();
-                } else {
-                    window.app.setContext('machine', id);
-                }
-            }
+            const deviceId = intersects[0].object.userData.deviceId;
+            if (deviceId) this.selectDevice(deviceId);
+        }
+    }
+
+    handleHover() {
+        if (!this.raycaster || !this.camera || !this.hitBoxMeshes.length) return;
+        if (!this.pointerMoved) return;
+        this.pointerMoved = false;
+
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
+        let hoveredId = intersects.length > 0 ? intersects[0].object.userData.deviceId : null;
+
+        this.renderer.domElement.style.cursor = hoveredId ? 'pointer' : 'default';
+
+        if (this.hoveredDeviceId !== hoveredId) {
+            clearTimeout(this.hoverTimeout);
+            this.pendingHoverId = hoveredId;
+            this.hoverTimeout = setTimeout(() => {
+                this.hoveredDeviceId = hoveredId;
+                this.pendingHoverId = null;
+                this.labelRegistry.forEach((data, id) => {
+                    if (data.element) {
+                        if (id === hoveredId) data.element.classList.add('hovered');
+                        else data.element.classList.remove('hovered');
+                    }
+                });
+            }, hoveredId === null ? 200 : 50);
         }
     }
 
     async loadModel(path, onProgress) {
         const loader = new GLTFLoader();
-        
-        // Use loadAsync with progress if provided
         const gltf = await new Promise((resolve, reject) => {
-            loader.load(path, 
-                (data) => resolve(data),
-                (xhr) => { if (onProgress) onProgress(xhr); },
-                (err) => reject(err)
-            );
+            loader.load(path, resolve, (xhr) => { if (onProgress) onProgress(xhr); }, reject);
         });
-
-        // [PERF] Yield before heavy traversal to avoid blocking main thread
-        await new Promise(resolve => setTimeout(resolve, 0));
-
         this.model = gltf.scene;
         this.scene.add(this.model);
 
+        let baseWarningMesh = null;
         this.model.traverse(c => {
+            // Store originalMaterial on ALL meshes so isolateGroup can ghost them
+            if (c.isMesh && !c.userData.originalMaterial) {
+                c.userData.originalMaterial = Array.isArray(c.material)
+                    ? c.material.slice() : c.material;
+            }
+
             if (!c.name) return;
             const normName = c.name.toLowerCase();
+            if (normName === 'error' || normName === 'warning') {
+                if (!baseWarningMesh) baseWarningMesh = c.clone();
+                c.visible = false;
+                return;
+            }
+
             this.nodeRegistry.set(normName, c);
             this.normNodeRegistry.set(normName.replace(/[^a-z0-9]/g, ''), c);
 
-            if (c.isMesh && c.material) {
-                c.material = c.material.clone();
-                if (normName.includes('floor')) { c.material.roughness = 1.0; c.material.metalness = 0; }
+            if (c.isMesh) {
+                this.meshRegistry.set(normName, c);
             }
         });
 
-        // Hide source meshes at their original Blender positions.
-        // Compute error mesh size BEFORE hiding — Box3.setFromObject uses traverseVisible
-        // and would return an empty box on a hidden node.
-        this.errorMeshTemplate = this.nodeRegistry.get('error') || null;
-        const palletMesh = this.nodeRegistry.get('pallet') || null;
-
-        if (this.errorMeshTemplate) {
-            const tBox = new THREE.Box3().setFromObject(this.errorMeshTemplate);
-            const tSize = new THREE.Vector3();
-            tBox.getSize(tSize);
-            this.errorMeshSize = Math.max(tSize.x, tSize.y, tSize.z) || 1;
-            this.errorMeshTemplate.visible = false;
-        }
-        if (palletMesh) palletMesh.visible = false;
-
-        // Reduce glossiness on specific industrial equipment
-        const matteTargets = [
-            'furnace_01',
-            'lpdc_01', 'lpdc_02', 'lpdc_03',
-            'heat_01', 'heat_02',
-            'inspection_01'
-        ];
-        matteTargets.forEach(id => {
-            const node = this.nodeRegistry.get(id);
-            if (!node) return;
-            node.traverse(child => {
-                if (child.isMesh && child.material) {
-                    child.material.roughness = Math.max(child.material.roughness ?? 0, 0.72);
-                    child.material.metalness = Math.min(child.material.metalness ?? 1, 0.28);
-                    child.material.envMapIntensity = 0.4;
-                    child.material.needsUpdate = true;
-                }
-                
-                // --- Restore Galvanized Look & Interior Visibility ---
-                const isDegasser = child.name.toLowerCase().includes('degasser');
-                const isStorage = child.name.toLowerCase().includes('storage_01');
-                if (child.isMesh && (isDegasser || isStorage)) {
-                    if (child.material) {
-                        child.material.side = THREE.DoubleSide;
-                        child.material.metalness = Math.max(child.material.metalness ?? 0, 0.65);
-                        child.material.roughness = Math.min(child.material.roughness ?? 1, 0.35);
-                        child.material.needsUpdate = true;
-                    }
-                }
-            });
-        });
-
-        // [PERF] Yield before generating hitboxes
-        await new Promise(resolve => setTimeout(resolve, 0));
+        this.baseWarningMesh = baseWarningMesh;
+        this.model.updateMatrixWorld(true);
         this._updateHitZones();
-
-        // Snap to default view after load (no animation — camera is already positioned)
-        if (this.controls) {
-            this.controls.target.copy(this.defaultTarget);
-            this.controls.update();
-        }
+        this.resetInteraction();
         return gltf;
     }
 
@@ -271,13 +319,20 @@ class Renderer {
             if (!targetName) continue;
             const node = this.nodeRegistry.get(targetName.toLowerCase());
             if (!node) continue;
+
             const box = new THREE.Box3().setFromObject(node);
             if (box.isEmpty()) continue;
-            box.expandByScalar(0.15);
+            box.expandByScalar(0.2);
 
-            const size = new THREE.Vector3(), center = new THREE.Vector3();
-            box.getSize(size); box.getCenter(center);
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshBasicMaterial({ visible: false }));
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(size.x, size.y, size.z),
+                new THREE.MeshBasicMaterial({ visible: false, transparent: true, opacity: 0 })
+            );
             mesh.position.copy(center);
             mesh.userData.deviceId = id;
             this.hitGroup.add(mesh);
@@ -285,573 +340,334 @@ class Renderer {
         }
     }
 
-    handleHover() {
-        if (!this.pointerMoved || !this.hitBoxMeshes.length) return;
-        this.pointerMoved = false;
-        this.raycaster.setFromCamera(this.pointer, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.hitBoxMeshes);
-        const hoveredId = intersects.length > 0 ? intersects[0].object.userData.deviceId : null;
-
-        if (this.hoveredDeviceId !== hoveredId) {
-            this.hoveredDeviceId = hoveredId;
-            this.renderer.domElement.style.cursor = hoveredId ? 'pointer' : 'default';
-        }
-    }
-
-    _startCameraAnim(toPos, toTarget, toZoom = null, duration = 5000) {
-        this._cameraAnim = {
-            fromPos: this.camera.position.clone(),
-            fromTarget: this.controls.target.clone(),
-            fromZoom: this.camera.zoom,
-            toPos: toPos.clone(),
-            toTarget: toTarget.clone(),
-            toZoom: toZoom !== null ? toZoom : this.camera.zoom,
-            startTime: performance.now(),
-            duration: duration
-        };
-        this.controls.enabled = false;
-    }
-
-    resetToDefaultView() {
-        if (this.camera && this.controls) {
-            this._startCameraAnim(this.defaultPosition, this.defaultTarget, this.defaultZoom);
+    selectDevice(id) {
+        if (!id || !window.app) return;
+        const current = window.app.activeContext;
+        if (current && current.type === 'machine' && current.id === id) {
+            window.app.resetInteraction();
+        } else {
+            window.app.setContext('machine', id);
         }
     }
 
     focusOnDevice(id) {
-        if (!this.camera || !this.controls) return;
+        this.focusOnMachine(id);
+    }
 
-        let center = null;
-        let maxDim = 50; // fallback size assumption
-
-        // Try mesh bounding box first
-        const node = this.findMesh(id);
-        if (node) {
-            const box = new THREE.Box3().setFromObject(node);
-            if (!box.isEmpty()) {
-                center = new THREE.Vector3();
-                box.getCenter(center);
-                const size = new THREE.Vector3();
-                box.getSize(size);
-                maxDim = Math.max(size.x, size.y, size.z);
+    focusOnMachine(id) {
+        let targetZoom = null;
+        if (window.app) {
+            const mode = (window.app.primaryMode || '').toLowerCase();
+            const noZoomModes = ['zones', 'energy', 'maintenance', 'alarm', 'alarms'];
+            if (noZoomModes.includes(mode)) {
+                console.log(`[Renderer] Panning only (No Zoom) for mode: ${mode}`);
+                targetZoom = this.camera.zoom; // Keep current zoom
+                this.isolateGroup([id]); // Keep visual highlight
             }
         }
 
-        // Fallback: use pre-built hitbox center (always reliable)
-        if (!center) {
-            const hitbox = this.hitBoxMeshes.find(m => m.userData.deviceId === id);
-            if (hitbox) center = hitbox.position.clone();
-        }
+        const mesh = this.findMesh(id);
+        if (!mesh) return;
 
-        if (!center) return;
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
 
-        // --- 1. Target the Mesh/Hitbox center + Balanced Chip Offset ---
-        // We shift the target upwards slightly (from 0.18 to 0.14) to keep
-        // the machine's full base in view while still centering the chip.
-        const focusTarget = center.clone().add(new THREE.Vector3(0, (maxDim * 0.14) + 0.15, 0));
+        const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
+        const cameraTargetPosition = center.clone().add(isometricOffset);
 
-        // --- 2. Standardized Golden Angle ---
-        const goldenVector = new THREE.Vector3(700.27, 529.69, 932.17);
-        const focusPos = focusTarget.clone().add(goldenVector);
-
-        // --- 4. Calibrated Multi-Asset Framing Zoom ---
-        // We use a multiplier of 0.72 (architectural pullback) to provide roughly 28% extra margin.
-        // This ensures a very generous, high-end "SCADA" field for larger equipment.
-        const targetZoom = (this.viewSize / maxDim) * 0.72;
-
-        this._startCameraAnim(focusPos, focusTarget, targetZoom, 5000);
+        const customZoom = this.customZooms[id.toLowerCase()] || 3.5;
+        const finalZoom = targetZoom !== null ? targetZoom : customZoom;
+        this.animateCamera(cameraTargetPosition, center, finalZoom);
     }
 
     focusOnZone(zoneId) {
-        if (!this.camera || !this.controls || !window.app) return;
-        const machineIds = window.app.machineGroups[zoneId] || [];
-        if (machineIds.length === 0) return;
+        if (!window.app || !window.app.machineGroups) return;
+        const group = window.app.machineGroups[zoneId];
+        if (group) {
+            const nodes = group.machines.map(m => this.findMesh(m)).filter(Boolean);
+            this.frameGroup(nodes);
+            this.isolateGroup(group.machines);
+        }
+    }
 
-        const zoneBox = new THREE.Box3();
-        let found = false;
-
-        machineIds.forEach(mid => {
-            const node = this.findMesh(mid);
-            if (node) {
-                zoneBox.expandByObject(node);
-                found = true;
-            }
-        });
-
-        if (!found) return;
-
+    frameGroup(nodes) {
+        if (!nodes || nodes.length === 0) return;
+        const bounds = new THREE.Box3();
+        nodes.forEach(n => bounds.union(new THREE.Box3().setFromObject(n)));
+        
         const center = new THREE.Vector3();
-        zoneBox.getCenter(center);
+        bounds.getCenter(center);
         const size = new THREE.Vector3();
-        zoneBox.getSize(size);
+        bounds.getSize(size);
+
+        const aspect = window.innerWidth / window.innerHeight;
         const maxDim = Math.max(size.x, size.y, size.z);
+        let targetZoom = (this.viewSize * aspect) / (maxDim * 1.2);
+        targetZoom = Math.max(0.8, Math.min(targetZoom, 2.5));
 
-        // Same Golden Angle
-        const goldenVector = new THREE.Vector3(700.27, 529.69, 932.17);
-        const focusPos = center.clone().add(goldenVector);
-
-        // Framing zoom for the whole zone (0.90 for context-rich framing)
-        let zoomMult = 0.90;
-        if (zoneId === 'rawmaterials') zoomMult = 0.65; // [USER] Wider pull-back for silo visibility
-
-        const targetZoom = (this.viewSize / maxDim) * zoomMult;
-
-        this._startCameraAnim(focusPos, center, targetZoom, 5000);
+        const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
+        this.animateCamera(center.clone().add(isometricOffset), center, targetZoom);
     }
 
-    _getGembaOffset(ids) {
-        // Per-machine camera angle offsets for better gemba framing
-        // Y: higher = more overhead, X/Z ratio = viewing direction
-        const map = {
-            'rawmaterials': new THREE.Vector3(620, 580, 860),
-            'furnace_01': new THREE.Vector3(680, 560, 910),
-            'degasser_01': new THREE.Vector3(700, 530, 930),
-            'degasser_02': new THREE.Vector3(700, 530, 930),
-            'lpdc_01': new THREE.Vector3(740, 600, 900),
-            'lpdc_02': new THREE.Vector3(740, 600, 900),
-            'lpdc_03': new THREE.Vector3(740, 600, 900),
-            'cooling_01': new THREE.Vector3(700, 580, 920),
-            'cooling_02': new THREE.Vector3(700, 580, 920),
-            'inspection_01': new THREE.Vector3(700, 540, 930),
-            'heat_01': new THREE.Vector3(720, 550, 940),
-            'heat_02': new THREE.Vector3(720, 550, 940),
-            'cnc_01': new THREE.Vector3(660, 540, 910),
-            'cnc_02': new THREE.Vector3(660, 540, 910),
-            'pretreat_01': new THREE.Vector3(700, 530, 920),
-            'paint_01': new THREE.Vector3(700, 530, 930),
-            'paint_02': new THREE.Vector3(700, 530, 930),
-            'outbound_01': new THREE.Vector3(640, 520, 870),
+    animateCamera(targetPos, targetLookAt, targetZoom) {
+        const startPos = this.camera.position.clone();
+        const startTarget = this.controls.target.clone();
+        const startZoom = this.camera.zoom;
+        const startTime = performance.now();
+        const duration = 2000;
+
+        this.controls.enabled = false;
+
+        const animate = (time) => {
+            const t = Math.min((time - startTime) / duration, 1);
+            const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
+            this.camera.position.lerpVectors(startPos, targetPos, ease);
+            this.controls.target.lerpVectors(startTarget, targetLookAt, ease);
+            this.camera.zoom = THREE.MathUtils.lerp(startZoom, targetZoom, ease);
+            this.camera.updateProjectionMatrix();
+            this.controls.update();
+
+            if (t < 1) requestAnimationFrame(animate);
+            else this.controls.enabled = true;
         };
-        const key = (ids[0] || '').toLowerCase();
-        return map[key] || new THREE.Vector3(700.27, 529.69, 932.17);
+        requestAnimationFrame(animate);
     }
 
-    focusOnGroup(ids) {
-        if (!this.camera || !this.controls || !ids || ids.length === 0) return;
-        const groupBox = new THREE.Box3();
-        let found = false;
-        ids.forEach(id => {
-            const node = this.findMesh(id);
-            if (node) { groupBox.expandByObject(node); found = true; }
-            else {
-                const hitbox = this.hitBoxMeshes.find(m => m.userData.deviceId === id);
-                if (hitbox) { groupBox.expandByPoint(hitbox.position); found = true; }
-            }
-        });
-        if (!found) return;
-        const center = new THREE.Vector3();
-        groupBox.getCenter(center);
-        const size = new THREE.Vector3();
-        groupBox.getSize(size);
-        const maxDim = Math.max(size.x, size.y, size.z) || 50;
-        // Wider zoom for dept groups, tighter for single machines
-        const zoomMult = ids.length > 2 ? 0.70 : 0.82;
-        const targetZoom = (this.viewSize / maxDim) * zoomMult;
-        const offset = this._getGembaOffset(ids);
-        const focusPos = center.clone().add(offset);
-        // Cinematic Gemba transition (Majestic 7s sweep)
-        this._startCameraAnim(focusPos, center, targetZoom, 7000);
-    }
+    _collectActiveMeshes(deviceIds) {
+        const activeMeshesSet = new Set();
+        const activePrefixes = new Set();
 
-    applyUpdatedIds(updatedIds) {
-        if (!updatedIds || updatedIds.size === 0) return;
-        // Queue IDs — rAF loop drains them in small batches to avoid frame spikes
-        if (!this.pendingLabelIds) this.pendingLabelIds = new Set();
-        updatedIds.forEach(id => this.pendingLabelIds.add(id));
-    }
+        deviceIds.forEach(id => {
+            const rawId = id.toLowerCase();
 
-    setChipDisplayMode(mode) {
-        this.chipDisplayMode = mode;
-        // Force update all labels immediately to reflect mode change
-        this.labelRegistry.forEach((label, id) => {
-            const state = this.stateManager.getDeviceState(id);
-            if (state) this.updateDeviceLabel(id, state.data);
-        });
-    }
+            // Resolve through manualMap to get the actual mesh name
+            const mapped = (this.manualMap[rawId] || '').toLowerCase();
 
-    updateDeviceLabel(id, data) {
-        if (!this.scene) return;
-
-        // 1. Check/Create Label
-        if (!this.labelRegistry.has(id)) {
-            const node = this.findMesh(id);
-            if (!node) return;
-            this._createLabel(id, node);
-        }
-
-        const labelItem = this.labelRegistry.get(id);
-        if (!labelItem || !labelItem.element) return;
-
-        // [PERF] Cache sub-element references on first access
-        if (!labelItem.cache) {
-            const el = labelItem.element;
-            labelItem.cache = {
-                dot: el.querySelector('.chip-status-dot'),
-                unified: el.querySelector('.chip-unified-value'),
-                header: el.querySelector('.chip-header')
-            };
-        }
-        const cache = labelItem.cache;
-
-        // 2. Update Status Dot — with change detection
-        const stateStr = (this.getValue(data, 'State') || this.getValue(data, 'CalculatedState') || '').toString().toLowerCase();
-        const isRunning = data.IsRunning === true || stateStr === 'running';
-        const dotClass = isRunning ? 'running' : 'stopped';
-        if (cache.dot && labelItem._lastDotClass !== dotClass) {
-            cache.dot.className = `chip-status-dot ${dotClass}`;
-            labelItem._lastDotClass = dotClass;
-        }
-
-        // 3. Update Warning Mesh — with change detection
-        const state = (this.getValue(data, 'State') || "").toString().toLowerCase();
-        const wMesh = this.warningMeshes.get(id);
-        if (wMesh) {
-            const isAlarmState = ['stopped', 'fault', 'error', 'offline'].some(s => state.includes(s));
-            if (wMesh.visible !== isAlarmState) wMesh.visible = isAlarmState;
-        }
-
-        // 4. Energy Mode Values
-        if (this.chipDisplayMode === 'energy') {
-            if (cache.header && labelItem._lastMode !== 'energy') {
-                cache.header.style.display = 'none';
-                labelItem._lastMode = 'energy';
-            }
-
-            const m = window.app && window.app.analytics ? window.app.analytics.data.machines[id.toUpperCase()] : null;
-            let targetKW = m ? m.instantKW : 0;
-
-            if (!this.interpolatedValues.has(id)) {
-                this.interpolatedValues.set(id, {
-                    current: targetKW,
-                    target: targetKW,
-                    element: cache.unified,
-                    valSpan: null,
-                    lastFormatted: '',
-                });
+            // Special case: any storage/raw_materials/inbound/buffer ID → all storage meshes
+            if (mapped.startsWith('storage') || rawId === 'rawmaterials' || rawId === 'raw_materials'
+                || rawId.startsWith('storage') || rawId.startsWith('inbound') || rawId.startsWith('buffer')) {
+                activePrefixes.add('storage');
             } else {
-                const entry = this.interpolatedValues.get(id);
-                entry.target = targetKW;
+                // Use the resolved mesh name as prefix to catch sibling meshes
+                if (mapped) {
+                    activePrefixes.add(mapped);
+                    activePrefixes.add(mapped.replace(/[^a-z0-9]/g, ''));
+                }
+                activePrefixes.add(rawId);
+                activePrefixes.add(rawId.replace(/[^a-z0-9]/g, ''));
             }
-            if (cache.unified) cache.unified.style.display = 'block';
-        } else {
-            if (cache.header && labelItem._lastMode !== 'normal') {
-                cache.header.style.display = 'flex';
-                labelItem._lastMode = 'normal';
+
+            // Traverse children of the resolved node directly
+            const node = this.findMesh(id);
+            if (node) {
+                node.traverse(n => {
+                    if (n.isMesh) activeMeshesSet.add(n);
+                });
             }
-            if (cache.unified) cache.unified.style.display = 'none';
-        }
-    }
 
-    _createLabel(id, node) {
-        const div = document.createElement('div');
-        div.className = 'machine-chip';
-        div.id = `chip-${id}`;
-
-        // Use mapping for icon/name from assets.json if possible
-        const asset = window.app ? window.app._findAsset(id) : null;
-        const icon = asset ? (asset.icon || 'settings') : 'settings';
-        const fallbackName = id.replace(/_/g, ' ').toUpperCase();
-        div.innerHTML = `
-            <div class="chip-unified-value" style="display: none;">--- kW</div>
-            <div class="chip-header">
-                <div class="chip-status-dot">${icon}</div>
-            </div>
-        `;
-
-        // --- Multi-Mesh Center Calculation ---
-        const box = new THREE.Box3();
-        let found = false;
-        const targetId = id.toLowerCase();
-        
-        // Resolve the "base" name from manualMap if it exists (e.g. 'rawmaterials' -> 'storage_01001')
-        const manualTarget = this.manualMap[targetId];
-        // If we have a manual target ending in numbers, strip them to get the base prefix (e.g. 'storage_01')
-        const searchPrefix = manualTarget ? manualTarget.replace(/\d+$/, '') : targetId;
-        
-        this.nodeRegistry.forEach((childNode, name) => {
-            if (!childNode.isMesh) return;
-            const n = name.toLowerCase();
-            
-            // [ROBUST MATCH] 
-            // 1. Exact ID match (e.g. 'cooling_01')
-            // 2. Manual target match (e.g. 'storage_01001')
-            // 3. Prefix match with flexibility for Blender suffix (e.g. 'cooling_01_mesh' or 'cooling_01.001')
-            const isMatch = (n === targetId) || 
-                            (manualTarget && n === manualTarget) || 
-                            (n.startsWith(targetId + '_')) || 
-                            (n.startsWith(targetId + '.'));
-            
-            if (isMatch) {
-                childNode.updateWorldMatrix(true, false);
-                const meshBox = new THREE.Box3().setFromObject(childNode);
-                box.union(meshBox);
-                found = true;
+            // Exact associated mesh names (e.g., aluminium containers for degassers)
+            const extraNames = this.associatedMeshNames[rawId];
+            if (extraNames) {
+                extraNames.forEach(name => {
+                    const n = this.nodeRegistry.get(name.toLowerCase());
+                    if (n) {
+                        n.traverse(c => { if (c.isMesh) activeMeshesSet.add(c); });
+                    }
+                });
             }
         });
 
-        if (!found) box.setFromObject(node);
+        // Prefix-match pass: catch sibling meshes sharing the resolved name prefix
+        this.model.traverse(node => {
+            if (node.isMesh && !activeMeshesSet.has(node)) {
+                const nodeName = (node.name || '').toLowerCase();
+                const nodeNorm = nodeName.replace(/[^a-z0-9]/g, '');
+                for (const prefix of activePrefixes) {
+                    if (nodeName.startsWith(prefix) || nodeNorm.startsWith(prefix)) {
+                        activeMeshesSet.add(node);
+                        return;
+                    }
+                }
+            }
+        });
 
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        
-        const label = new CSS2DObject(div);
-        label.position.set(center.x, box.max.y + 0.5, center.z);
-
-        this.scene.add(label);
-        this.labelRegistry.set(id, { element: div, object: label });
-
-        // Add Warning Mesh (Triangle) — built synchronously, no network fetch
-        this._addWarningToDevice(id, box, center);
+        return activeMeshesSet;
     }
 
-    _addWarningToDevice(id, box, center) {
-        let wClone;
-
-        // Shared solid material — overrides whatever wireframe/outline the Blender
-        // material exported. depthTest:false keeps the indicator always on top.
-        if (!this.warnMaterial) {
-            this.warnMaterial = new THREE.MeshBasicMaterial({
-                color: 0xff3300,
-                side: THREE.DoubleSide,
-                depthTest: false
+    _makeGhost(node) {
+        if (!node.userData.ghostMat) {
+            node.userData.ghostMat = new THREE.MeshStandardMaterial({
+                color: 0x888888, transparent: true, opacity: 0.15, depthWrite: false
             });
         }
-
-        if (this.errorMeshTemplate && this.errorMeshTemplate.geometry) {
-            // Reference the geometry only — avoids deep-cloning Blender children
-            // (line edges, alloy wheel sub-meshes, etc.) that cause the visual noise.
-            wClone = new THREE.Mesh(this.errorMeshTemplate.geometry, this.warnMaterial);
-            wClone.rotation.copy(this.errorMeshTemplate.rotation);
-            const sf = 1.2 / (this.errorMeshSize || 1);
-            wClone.scale.setScalar(sf);
+        const orig = node.userData.originalMaterial;
+        if (Array.isArray(orig)) {
+            node.material = orig.map(() => node.userData.ghostMat);
         } else {
-            // Fallback: programmatic triangle warning cone
-            if (!this.baseWarningMesh) {
-                this.baseWarningMesh = new THREE.Mesh(
-                    new THREE.ConeGeometry(0.5, 1, 3),
-                    this.warnMaterial
-                );
-            }
-            wClone = this.baseWarningMesh.clone();
-            wClone.scale.set(0.9, 0.9, 0.9);
+            node.material = node.userData.ghostMat;
         }
-
-        wClone.position.set(center.x, box.max.y + 1.8, center.z);
-        wClone.visible = false;
-        wClone.userData.pulseBaseScale = wClone.scale.clone();
-        // [AUTHENTICITY] Deterministic staggering based on ID hash instead of random jitter
-        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        wClone.userData.pulsePhase = (hash % 100) / 100 * Math.PI * 2;
-        this.scene.add(wClone);
-        this.warningMeshes.set(id, wClone);
     }
 
-    findMesh(id) {
-        const target = this.manualMap[id.toLowerCase()];
-        if (target) return this.nodeRegistry.get(target.toLowerCase());
-        return this.nodeRegistry.get(id.toLowerCase()) || this.normNodeRegistry.get(id.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    _restoreOriginal(node) {
+        node.material = Array.isArray(node.userData.originalMaterial)
+            ? node.userData.originalMaterial.slice() : node.userData.originalMaterial;
     }
 
-    getValue(data, key) {
-        if (!data || !key) return undefined;
-        const ln = key.toLowerCase();
-        if (data[key] !== undefined) return data[key];
-        for (const [k, v] of Object.entries(data)) {
-            if (k.toLowerCase().includes(ln)) return v;
-        }
-        return undefined;
-    }
-
-
-    isolateGroup(ids) {
+    isolateGroup(deviceIds) {
         if (!this.model) return;
-        if (!ids || ids.length === 0) {
-            // Restore all original materials
-            this.model.traverse(node => {
-                if (node.isMesh && node.userData.originalMaterial) {
-                    node.material = node.userData.originalMaterial;
-                }
+        if (!deviceIds || deviceIds.length === 0) {
+            this.model.traverse(n => {
+                if (n.isMesh && n.userData.originalMaterial) this._restoreOriginal(n);
             });
             return;
         }
-        const targetIds = ids.map(id => id.toLowerCase());
 
-        // Pass 1 — findMesh + traverse: catches all proper child meshes
-        const keepNodes = new Set();
-        ids.forEach(id => {
-            const root = this.findMesh(id);
-            if (root) root.traverse(n => { if (n.isMesh) keepNodes.add(n); });
-        });
-
-        this.nodeRegistry.forEach((node, name) => {
-            if (!node.isMesh) return;
-            if (targetIds.some(id => {
-                const manual = this.manualMap[id];
-                const prefix = manual ? manual.replace(/\d+$/, '') : id;
-                return name === id || (manual && name === manual) || name.startsWith(prefix);
-            })) {
-                keepNodes.add(node);
-            }
-        });
+        const activeMeshesSet = this._collectActiveMeshes(deviceIds);
 
         this.model.traverse(node => {
-            if (node.isMesh) {
-                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
-                if (keepNodes.has(node)) {
-                    node.material = node.userData.originalMaterial;
+            if (node.isMesh && node.userData.originalMaterial) {
+                if (activeMeshesSet.has(node)) {
+                    this._restoreOriginal(node);
                 } else {
-                    this._ghostNode(node);
+                    this._makeGhost(node);
                 }
             }
         });
     }
 
-    _resolveDeviceIdFromObject(node) {
-        let curr = node;
-        while (curr) {
-            if (curr.name) {
-                const norm = curr.name.toLowerCase();
-                for (const [id, target] of Object.entries(this.manualMap)) {
-                    if (target === norm || id === norm) return id;
-                }
-            }
-            curr = curr.parent;
-        }
-        return null;
-    }
-
-    _ghostNode(node) {
-        if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
-        if (!this.ghostMaterial) {
-            this.ghostMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, transparent: true, opacity: 0.2, metalness: 0, roughness: 1 });
-        }
-        node.material = this.ghostMaterial;
-    }
-
-    setAllGrey(excludeIds = []) {
+    setAllGrey(exceptIds) {
         if (!this.model) return;
-        if (!this.greyMaterial) {
-            this.greyMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, transparent: false, opacity: 1, metalness: 0, roughness: 1 });
-        }
-        // Build set of excluded mesh nodes — same dual-pass as isolateGroup
-        const targetIds = excludeIds.map(id => id.toLowerCase());
-        const excludeNodes = new Set();
-        excludeIds.forEach(id => {
-            const root = this.findMesh(id);
-            if (root) root.traverse(n => { if (n.isMesh) excludeNodes.add(n); });
-        });
-        this.nodeRegistry.forEach((node, name) => {
-            if (!node.isMesh) return;
-            if (targetIds.some(id => name === id || name.startsWith(id + '_') || name.startsWith(id + '.') || (name.startsWith(id) && !isNaN(name.slice(id.length))))) {
-                excludeNodes.add(node);
-            }
-        });
+        const activeMeshesSet = exceptIds ? this._collectActiveMeshes(exceptIds) : new Set();
+
         this.model.traverse(node => {
-            if (node.isMesh) {
-                if (!node.userData.originalMaterial) node.userData.originalMaterial = node.material;
-                if (excludeNodes.has(node)) {
-                    node.material = node.userData.originalMaterial;
+            if (node.isMesh && node.userData.originalMaterial) {
+                if (activeMeshesSet.has(node)) {
+                    this._restoreOriginal(node);
                 } else {
-                    node.material = this.greyMaterial;
+                    this._makeGhost(node);
                 }
             }
         });
     }
 
     resetInteraction() {
-        this.isolateGroup([]);
+        this.isolateGroup(null);
         this.resetToDefaultView();
+        this.labelRegistry.forEach(l => l.element.style.display = 'block');
+    }
+
+    resetToDefaultView() {
+        this.animateCamera(this.defaultPosition, this.defaultTarget, this.defaultZoom);
+    }
+
+    setChipDisplayMode(mode) {
+        this.chipDisplayMode = mode;
+        this.labelRegistry.forEach((obj, id) => {
+            const data = this.persistentValues.get(id);
+            if (data) this.updateDeviceLabel(id, data);
+        });
+    }
+
+    updateDeviceLabel(rawId, data) {
+        let id = rawId.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (id.includes('storage') || id.includes('inbound') || id.includes('raw')) id = 'RAWMATERIALS';
+        else id = id.toUpperCase();
+
+        this.persistentValues.set(id, data);
+
+        let mesh = this.findMesh(id);
+        if (id === 'RAWMATERIALS') mesh = this.nodeRegistry.get('storage_01006') || mesh;
+        if (!mesh) return;
+
+        // [FIX] Asset Info Lookup for Icon Mapping
+        const assetInfo = (this.app && this.app._findAsset) ? this.app._findAsset(id) : null;
+        if (assetInfo) {
+            console.log(`[Renderer] Matched Asset: ${id} -> Icon: ${assetInfo.icon}`);
+        } else {
+            console.warn(`[Renderer] No Asset data for ID: ${id}`);
+        }
+
+        let labelItem = this.labelRegistry.get(id);
+        if (!labelItem) {
+            const div = document.createElement('div');
+            div.className = 'machine-chip';
+            // Start with a skeleton and populate dynamically
+            div.innerHTML = `
+                <div class="chip-header">
+                    <span class="chip-status-dot material-symbols-outlined">settings</span>
+                </div>
+                <div class="chip-unified-value"></div>
+                <div class="chip-val" style="display: none;"></div>
+            `;
+            div.onclick = () => window.app.setContext('machine', id);
+            const obj = new CSS2DObject(div);
+            this.scene.add(obj);
+            labelItem = { element: div, object: obj };
+            this.labelRegistry.set(id, labelItem);
+        }
+
+        const el = labelItem.element;
+
+        // [FIX] Dynamic Icon and Status Update
+        const dotIndicator = el.querySelector('.chip-status-dot');
+        if (dotIndicator) {
+            const iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : 'settings';
+            if (dotIndicator.textContent !== iconName) {
+                dotIndicator.textContent = iconName;
+            }
+
+            // [FIX] Use unified state resolution from App to ensure consistency with sidebar and zone views
+            const resolvedState = (this.app ? this.app._getMachineState(id) : 'UNKNOWN').toString().toUpperCase();
+            const isRunning = resolvedState === 'RUNNING' || resolvedState === 'NORMAL' || resolvedState === 'ONLINE';
+            dotIndicator.className = `chip-status-dot material-symbols-outlined ${isRunning ? 'running' : 'stopped'}`;
+        }
+
+        // Always sync position
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        labelItem.object.position.set(center.x, box.max.y + 0.5, center.z);
+
+        const valEl = el.querySelector('.chip-val');
+        if (this.chipDisplayMode === 'energy') {
+            const kw = data.Instant_kW || 0;
+            if (valEl) {
+                valEl.textContent = `${parseFloat(kw).toFixed(1)} kW`;
+                valEl.style.display = 'block';
+            }
+            const header = el.querySelector('.chip-header');
+            if (header) header.style.display = 'none';
+        } else {
+            if (valEl) valEl.style.display = 'none';
+            const header = el.querySelector('.chip-header');
+            if (header) header.style.display = 'flex';
+        }
     }
 
     onWindowResize() {
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
         const aspect = window.innerWidth / window.innerHeight;
         this.camera.left = -aspect * this.viewSize / 2;
         this.camera.right = aspect * this.viewSize / 2;
-        this.camera.top = this.viewSize / 2;
-        this.camera.bottom = -this.viewSize / 2;
         this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    _updateCameraDebug() {
-        if (!this.debugEl) {
-            this.debugEl = document.createElement('div');
-            this.debugEl.className = 'camera-debug-overlay';
-            this.debugEl.style.cssText = `
-                position: absolute;
-                bottom: 110px;
-                right: 24px;
-                padding: 12px;
-                background: rgba(13, 17, 23, 0.85);
-                border: 1px solid rgba(0, 255, 153, 0.3);
-                border-radius: 8px;
-                color: #00ff99;
-                font-family: 'Public Sans', sans-serif;
-                font-size: 11px;
-                line-height: 1.5;
-                pointer-events: none;
-                z-index: 10000;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                backdrop-filter: blur(4px);
-            `;
-            this.container.appendChild(this.debugEl);
-        }
-
-        const p = this.camera.position;
-        const t = this.controls.target;
-
-        let typeInfo = '';
-        if (this.camera.isOrthographicCamera) {
-            typeInfo = `TYPE: ORTHOGRAPHIC<br>ZOOM: ${this.camera.zoom.toFixed(3)}`;
-        } else {
-            typeInfo = `TYPE: PERSPECTIVE<br>FOV:  ${this.camera.fov.toFixed(1)}<br>ZOOM: ${this.camera.zoom.toFixed(3)}`;
-        }
-
-        this.debugEl.innerHTML = `
-            <div style="font-weight: 900; margin-bottom: 8px; border-bottom: 1px solid rgba(0,255,153,0.2); padding-bottom: 4px; letter-spacing: 1px;">CAMERA CORE PARAMS</div>
-            POS: [${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}]<br>
-            TAR: [${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)}]<br>
-            ${typeInfo}
-        `;
+    applyUpdatedIds(ids) {
+        if (!ids) return;
+        ids.forEach(id => this.pendingLabelIds.add(id));
     }
 
     start() {
-        const LABELS_PER_FRAME = 3;
-        const TARGET_MS = 33; // ~30fps cap — each render takes ~30-50ms on integrated GPU;
-        // capping prevents back-to-back renders from piling up
-        let lastRenderTime = 0;
         const loop = () => {
             requestAnimationFrame(loop);
+            this.controls.update();
 
-            // Two independent dirty flags:
-            //  needsWebGL  — scene geometry/materials changed → call renderer.render()
-            //  needsLabels — camera moved → call labelRenderer.render() to reproject CSS2D positions
-            // Energy chip interpolation updates innerHTML directly and needs neither.
-            let needsWebGL = false;
-            let needsLabels = false;
-
-            // [CAMERA ANIMATION]
-            if (this._cameraAnim) {
-                const anim = this._cameraAnim;
-                const elapsed = performance.now() - anim.startTime;
-                const t = Math.min(elapsed / anim.duration, 1);
-                const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                this.camera.position.lerpVectors(anim.fromPos, anim.toPos, ease);
-                this.controls.target.lerpVectors(anim.fromTarget, anim.toTarget, ease);
-                if (this.camera.isOrthographicCamera && anim.toZoom) {
-                    this.camera.zoom = THREE.MathUtils.lerp(anim.fromZoom, anim.toZoom, ease);
-                    this.camera.updateProjectionMatrix();
-                }
-                if (t >= 1) { this._cameraAnim = null; this.controls.enabled = true; }
-                needsWebGL = true; needsLabels = true;
-            }
-
-            // OrbitControls: returns true while damping/pan/zoom is still settling
-            if (this.controls.update()) { needsWebGL = true; needsLabels = true; }
-
-            // Label content drain — new labels need both a scene render and reprojection
-            if (this.pendingLabelIds && this.pendingLabelIds.size > 0) {
+            // [PERF] Label Update Batching
+            if (this.pendingLabelIds.size > 0) {
+                const LABELS_PER_FRAME = 3;
                 let n = 0;
                 for (const id of this.pendingLabelIds) {
                     const state = this.stateManager.getDeviceState(id);
@@ -859,115 +675,39 @@ class Renderer {
                     this.pendingLabelIds.delete(id);
                     if (++n >= LABELS_PER_FRAME) break;
                 }
-                needsWebGL = true; needsLabels = true;
             }
 
-            if (this.pointerMoved && this.frameCounter % 4 === 0) {
-                this.handleHover();
-                this.pointerMoved = false;
-            }
-
-            // [PULSE] Warning meshes scale in 3D
-            if (this.warningMeshes.size > 0) {
-                const pNow = performance.now() / 1000;
-
-                // Update frustum if not already updated by labels this frame
-                if (!needsLabels) {
-                    this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
-                    this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
-                }
-
-                this.warningMeshes.forEach(wMesh => {
-                    if (!wMesh.visible) return;
-
-                    // Frustum check: if hazard is off-screen, don't pulse it
-                    if (!this.frustum.containsPoint(wMesh.position)) return;
-
-                    needsWebGL = true;
-                    const phase = wMesh.userData.pulsePhase || 0;
-                    const t = 0.5 + 0.5 * Math.sin(pNow * 2.5 + phase);
-                    const base = wMesh.userData.pulseBaseScale;
-                    if (base) {
-                        const s = 0.85 + t * 0.30;
-                        wMesh.scale.set(base.x * s, base.y * s, base.z * s);
-                    }
-                });
-            }
-
-            this.frameCounter++;
-
-            // Throttle actual work (Rendering & DOM Updates) to ~30fps
-            const now = performance.now();
-            if (now - lastRenderTime < TARGET_MS) return;
-            lastRenderTime = now;
-
-            // [INTERPOLATION] Energy chip values (Connection-Aware)
-            if (this.interpolatedValues.size > 0) {
-                // [FIX] WebSocketHandler uses isConnected, not connected
-                const isConnected = window.app && window.app.websocket && window.app.websocket.isConnected;
-                
-                this.interpolatedValues.forEach((entry) => {
-                    const diff = entry.target - entry.current;
-                    entry.current = Math.abs(diff) < 0.005 ? entry.target : entry.current + diff * 0.02;
-
-                    const fmtKW = isConnected ? entry.current.toFixed(1) : "---";
-                    if (fmtKW !== entry.lastFormatted) {
-                        // [PERF] Absolute textContent update — no innerHTML mid-render
-                        if (!entry.valSpan && entry.element) {
-                            // Initial setup: create the structure once (Synchronized to Instant Load)
-                            entry.element.innerHTML = `<div style="font-size:12px;font-weight:900;color:var(--primary);"><span class="chip-val-text">---</span> <small style="font-size:8px;opacity:0.7;">kW</small></div>`;
-                            entry.valSpan = entry.element.querySelector('.chip-val-text');
-                        }
-                        
-                        if (entry.valSpan) {
-                            entry.valSpan.textContent = fmtKW;
-                        }
-                        entry.lastFormatted = fmtKW;
-                    }
-                });
-            }
-
-            if (!needsWebGL && !needsLabels) return;
-
-            if (needsWebGL) {
-                // Drop pixel ratio while camera is in motion (animation OR user drag/zoom)
-                // to halve GPU shading cost; restore immediately once settled.
-                const cameraMoving = this._cameraAnim || needsLabels;
-                if (cameraMoving) {
-                    this.renderer.setPixelRatio(1);
-                    this._wasMoving = true;
-                } else if (this._wasMoving) {
-                    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                    this._wasMoving = false;
-                }
-
-                this.renderer.render(this.scene, this.camera);
-            }
-
-            // [PERF] Intelligent Label Management
-            // CSS2DRenderer is the main-thread bottleneck. We use manual frustum culling
-            // and distance gating to prune the work before calling .render()
-            if (needsLabels) {
-                // 1. Update Camera Frustum
-                this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
-                this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
-
-                // 2. Individual Visibility Check (Culling & Distance)
-                const isTooDistant = this.camera.zoom < 0.1; // Hide labels when zoomed out too far
-                this.labelRegistry.forEach((entry) => {
-                    const obj = entry.object;
-                    if (isTooDistant) {
-                        obj.visible = false;
-                    } else {
-                        obj.visible = this.frustum.containsPoint(obj.position);
-                    }
-                });
-
-                this.labelRenderer.render(this.scene, this.camera);
-                this._updateCameraDebug();
-            }
+            this.handleHover();
+            this._updateCoordinateTracker();
+            this.renderer.render(this.scene, this.camera);
+            this.labelRenderer.render(this.scene, this.camera);
         };
         loop();
+    }
+
+    findMesh(id) {
+        if (!id) return null;
+        const norm = id.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (this.manualMap[id]) return this.nodeRegistry.get(this.manualMap[id]);
+        return this.normNodeRegistry.get(norm) || null;
+    }
+
+    identifyCameraParameters() {
+        const pos = this.camera.position;
+        const tar = this.controls.target;
+        const off = new THREE.Vector3().subVectors(pos, tar);
+        const dist = off.length();
+        const hAngle = THREE.MathUtils.radToDeg(Math.atan2(off.x, off.z));
+        const vAngle = THREE.MathUtils.radToDeg(Math.asin(off.y / dist));
+        return { hAngle: hAngle.toFixed(1), vAngle: vAngle.toFixed(1), distance: dist.toFixed(1) };
+    }
+
+    refreshAllLabels() {
+        if (this.persistentValues.size === 0) return;
+        console.log(`[Renderer] Force refreshing ${this.persistentValues.size} labels...`);
+        for (const [id, data] of this.persistentValues.entries()) {
+            this.updateDeviceLabel(id, data);
+        }
     }
 }
 

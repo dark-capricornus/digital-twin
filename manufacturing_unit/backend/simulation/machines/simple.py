@@ -288,15 +288,20 @@ class SimpleMachine(BaseMachine):
             add_tag("Plant_WIP_Ingots_Available", 5000 - self.part_count)
             add_tag("Plant_KPI_Ingots_Consumed", 1500 + self.part_count)
             
-        elif self.role == "outbound" or "outbound" in self.id.lower():
+        elif "outbound" in self.role or "outbound" in self.id.lower():
             add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("part_count", self.part_count)
+            add_tag("capacity", self.capacity)
             add_tag("Pallet_Count", self.part_count)
+            add_tag("Accumulating", self.part_count > 0)
             add_tag("Shipping_Status", "READY" if self.part_count > 0 else "WAITING")
             add_tag("Outbound_Status", "READY" if self.part_count > 0 else "WAITING")
             add_tag("Queue_Depth", len(self.queue_in))
             add_tag("System_Idle", "YES" if self.cycle_status == "IDLE" else "NO")
             add_tag("Plant_KPI_Total_Produced", 12500 + self.processed_count)
             add_tag("Dispatched_Count", self.processed_count)
+            add_tag("Outbound_Instant_kW", self.power_kw)
+            add_tag("Outbound_Total_kWh", self.energy_kwh)
             add_tag("Alarm_Status", self.alarm_status)
             
         return tags

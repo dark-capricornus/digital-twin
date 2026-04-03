@@ -77,10 +77,11 @@ def build_factory(plc_ref=None) -> SimulationEngine:
 
     # 15. Outbound
     outbound = SimpleMachine("OUTBOUND_01", "Shipping Dock", cycle_time=2.0)
+    outbound2 = SimpleMachine("OUTBOUND_02", "Shipping Dock 2", cycle_time=2.0)
 
     # Add all to engine
     machines = [inbound, storage, furnace, degasser, degasser2, cooling1, lpdc, lpdc2, lpdc3, heat_treat, heat_treat2, 
-                cooling2, cnc, cnc2, inspection, pretreat, paint1, paint2, outbound]
+                cooling2, cnc, cnc2, inspection, pretreat, paint1, paint2, outbound, outbound2]
     
     for m in machines:
         engine.add_machine(m)

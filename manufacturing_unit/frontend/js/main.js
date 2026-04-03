@@ -319,19 +319,21 @@ class DigitalTwinApp {
      */
     getDeviceType(deviceId) {
         if (!deviceId) return null;
-        const id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        let id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        
+        // [FIX] Explicit matching for RAWMATERIALS variants from scene/assets
+        if (id.includes('RAWMATERIALS') || id.includes('STORAGE') || id.includes('INBOUND') || id.includes('RAW')) {
+            return 'RAWMATERIALS';
+        }
+
         // Explicit PAINT booth matching (PAINT_01, PAINT01, etc.)
         if (/PAINT.?01|PB1/i.test(id)) return 'PAINT_01';
         if (/PAINT.?02|PB2/i.test(id)) return 'PAINT_02';
+
         // Prefix-based matching
         const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'PAINT'];
         for (const p of prefixes) {
             if (id.includes(p)) return p;
-        }
-
-        // Consolidated Logistics/Storage/Inbound into RAWMATERIALS branding
-        if (id.includes('RAWMATERIALS') || id.includes('STORAGE') || id.includes('INBOUND')) {
-            return 'RAWMATERIALS';
         }
 
         return null;
@@ -523,7 +525,9 @@ class DigitalTwinApp {
         try {
             updateLoading('Initializing Digital Twin...');
             const container = document.getElementById('container');
+            if (!container) throw new Error('Root container #container not found');
 
+            this.renderer = new Renderer(container, this.stateManager, this);
             const wsUrl = this._getWebSocketUrl();
             updateLoading(`Connecting to Bridge...`);
             
@@ -534,9 +538,6 @@ class DigitalTwinApp {
             );
             this.websocket.connect();
 
-            await new Promise(resolve => setTimeout(resolve, 0));
-            this.renderer = new Renderer(container, this.stateManager);
-
             updateLoading('Fetching assets metadata...');
             const assetPromise = fetch('./assets.json').then(r => {
                 if (!r.ok) throw new Error(`assets.json: ${r.status} ${r.statusText}`);
@@ -544,6 +545,7 @@ class DigitalTwinApp {
             }).then(json => {
                 this.assetData = (json && json.assets) ? json.assets : json;
                 this.assets = this.assetData;
+                this.renderer?.refreshAllLabels(); // [FIX] Force update icons once metadata is ready
                 return json;
             }).catch(e => {
                 console.warn('[App] Assets metadata load failed (non-critical):', e);
@@ -1340,21 +1342,18 @@ class DigitalTwinApp {
                 const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
 
                 const deviceType = this.getDeviceType(id);
-                const isNonDevice = (deviceType === 'RAWMATERIALS' || deviceType === 'STORAGE' || deviceType === 'INBOUND' || deviceType === 'OUTBOUND');
-
-                if (!isNonDevice) {
-                    html = `
-                        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Machine Running State</div>
-                            <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
-                                <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
-                                <span class="val-text">${String(stateVal).toUpperCase()}</span>
-                            </div>
+                // [FIX] Every asset, including Raw Materials, should show its operational "Pulse" status
+                const stateLabel = (deviceType === 'RAWMATERIALS') ? 'Storage Security' : 'Machine Running State';
+                
+                html = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">${stateLabel}</div>
+                        <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
+                            <span class="material-symbols-outlined" style="font-size: 14px">${deviceType === 'RAWMATERIALS' ? 'shield' : 'power_settings_new'}</span>
+                            <span class="val-text">${String(stateVal).toUpperCase()}</span>
                         </div>
-                    `;
-                } else {
-                    html = '';
-                }
+                    </div>
+                `;
 
                 // USER REQUEST: Machine Diagnostics moved to Energy View
                 // Unit Diagnostics moved to Asset Mode (handled in mode === 'metadata')
@@ -2459,18 +2458,27 @@ class DigitalTwinApp {
         if (!data || !key) return undefined;
         const lowerTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // 1. Exact or Case-Insensitive direct match
+        // 1. [ROBUSTNESS] Fallback to global PLANT data for WIP/KPI tags if missing in machine context
+        const plantData = this.stateManager?.getDeviceState('PLANT')?.data || {};
+        
+        // 2. Exact or Case-Insensitive direct match
         if (data[key] !== undefined) return data[key];
         if (data[key.toUpperCase()] !== undefined) return data[key.toUpperCase()];
+        if (data[key.toLowerCase()] !== undefined) return data[key.toLowerCase()];
 
-        // 2. [VIRTUAL MAPPING] Fallback for devices without direct simulation (e.g. RAWMATERIALS)
-        // If data is empty or missing specific keys, look into the global "Plant" namespace
-        // The StateManager merges all tags, so we can search the entire data object
-        if (lowerTarget === 'materialcount' || lowerTarget === 'palletcount' || lowerTarget === 'fillinglevel') {
-            if (data['Plant.WIP.ingots_kg'] !== undefined) return data['Plant.WIP.ingots_kg'];
+        // 3. [VIRTUAL MAPPING] Fallback for devices without direct simulation (e.g. RAWMATERIALS)
+        if (lowerTarget.includes('wip') || lowerTarget.includes('ingot') || lowerTarget.includes('kpi') || lowerTarget.includes('material')) {
+            // Check plant data fallback
+            const plantVal = plantData[key] || plantData[key.toUpperCase()] || plantData[key.toLowerCase()];
+            if (plantVal !== undefined) return plantVal;
+            
+            // Fuzzy plant search
+            for (const [pk, pv] of Object.entries(plantData)) {
+                if (pk.toLowerCase().replace(/[^a-z0-9]/g, '').includes(lowerTarget)) return pv;
+            }
         }
 
-        // 3. [ROBUSTNESS] Special Handling for State/Mode
+        // 4. [ROBUSTNESS] Special Handling for State/Mode
         if (lowerTarget === 'state') {
             if (data['CalculatedState'] !== undefined) return data['CalculatedState'];
             if (data['state'] !== undefined) return data['state'];
@@ -2478,12 +2486,12 @@ class DigitalTwinApp {
         if (lowerTarget === 'mode' || lowerTarget.includes('mode')) {
             if (data[key] !== undefined && data[key] !== '---') return data[key];
             for (const [k, v] of Object.entries(data)) {
-                const nk = k.toLowerCase();
-                if (nk.includes('runstatus') || nk.includes('run_status') || nk.includes('.mode')) return v;
+                const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (nk.includes('runstatus') || nk.includes('runstatus') || nk.includes('mode')) return v;
             }
         }
 
-        // 4. [ROBUSTNESS] Special Handling for Energy Load vs Energy Consumption
+        // 5. [ROBUSTNESS] Special Handling for Energy Load
         const isRequestingInstantPower = lowerTarget.includes('kw') && !lowerTarget.includes('kwh');
         const isRequestingLoad = (lowerTarget.includes('load') || lowerTarget.includes('power')) && !lowerTarget.includes('factor');
         
@@ -2498,14 +2506,16 @@ class DigitalTwinApp {
             }
         }
 
-        // 5. [FUZZY MATCH] Prefix-aware search (e.g. COOLING_01.Tank_Temperature)
+        // 6. [FUZZY MATCH] Deep recursive/prefix-aware search
+        // Normalized match: strip all formatting and compare
         for (const [k, v] of Object.entries(data)) {
             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            // Match if:
-            // - Normalized keys are identical
-            // - Key ends with the target (e.g. "cooling01tanktemperature" ends with "tanktemperature")
-            if (normK === lowerTarget || normK.endsWith(lowerTarget)) return v;
+            if (normK === lowerTarget || normK.includes(lowerTarget) || lowerTarget.includes(normK)) return v;
         }
+
+        // 7. Last Ditch: check Plant data for ANY tag that might be there
+        const lastDitchPlant = plantData[key];
+        if (lastDitchPlant !== undefined) return lastDitchPlant;
 
         return undefined;
     }

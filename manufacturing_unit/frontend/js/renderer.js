@@ -183,20 +183,18 @@ class Renderer {
         this.coordsOverlay.id = 'scene-coords-overlay';
         this.coordsOverlay.style.cssText = `
             position: absolute;
-            bottom: 85px;
-            right: 20px;
-            background: rgba(13, 17, 23, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(19, 146, 236, 0.3);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: white;
-            font-family: 'Public Sans', monospace;
-            font-size: 11px;
+            bottom: 24px;
+            left: 24px;
+            background: #0A0A0A;
+            border: 1px solid #1C1C1C;
+            padding: 12px;
+            color: #FFFFFF;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
             display: none; 
             z-index: 1000;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             pointer-events: none;
+            text-transform: uppercase;
         `;
         this.container.appendChild(this.coordsOverlay);
     }
@@ -211,15 +209,20 @@ class Renderer {
         const params = this.identifyCameraParameters();
         const target = this.controls.target;
         this.coordsOverlay.innerHTML = `
-            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px;">
-                <span><small style="color:var(--primary)">X:</small>${target.x.toFixed(2)}</span>
-                <span><small style="color:var(--primary)">Y:</small>${target.y.toFixed(2)}</span>
-                <span><small style="color:var(--primary)">Z:</small>${target.z.toFixed(2)}</span>
-                <span><small style="color:var(--primary)">Z:</small>${this.camera.zoom.toFixed(2)}</span>
-                <span><small style="color:var(--primary)">H:</small>${params.hAngle}°</span>
-                <span><small style="color:var(--primary)">V:</small>${params.vAngle}°</span>
-                <span><small style="color:var(--primary)">D:</small>${params.distance}</span>
-                <span><small style="color:var(--primary)">S:</small>${this.viewSize}</span>
+            <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 4px 16px;">
+                <div style="border-left: 2px solid var(--primary); padding-left: 8px;">
+                    <span style="color:var(--text-dim)">P_X</span> ${target.x.toFixed(2)}<br/>
+                    <span style="color:var(--text-dim)">P_Y</span> ${target.y.toFixed(2)}<br/>
+                    <span style="color:var(--text-dim)">P_Z</span> ${target.z.toFixed(2)}
+                </div>
+                <div style="border-left: 2px solid var(--primary); padding-left: 8px;">
+                    <span style="color:var(--text-dim)">Z_LVL</span> ${this.camera.zoom.toFixed(2)}<br/>
+                    <span style="color:var(--text-dim)">ANG_H</span> ${params.hAngle}°<br/>
+                    <span style="color:var(--text-dim)">ANG_V</span> ${params.vAngle}°
+                </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 8px; color: var(--text-dim); border-top: 1px solid #1C1C1C; padding-top: 4px;">
+                HUD_RENDER_ENGINE_V1.1 // SYSTEM_CALIBRATED
             </div>
         `;
     }

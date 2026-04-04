@@ -8,11 +8,13 @@ import WebSocketHandler from './websocketHandler.js';
 import StateManager from './stateManager.js';
 import UIUpdater from './uiUpdater.js';
 import EnergyAnalytics from './EnergyAnalytics.js';
+import SidebarController from './sidebarController.js';
 
 class DigitalTwinApp {
     constructor() {
         this.renderer = null;
         this.stateManager = new StateManager();
+        this.sidebar = new SidebarController();
         this.ui = new UIUpdater(this, this.stateManager);
         this.websocket = null;
         this.analytics = new EnergyAnalytics();
@@ -579,6 +581,22 @@ class DigitalTwinApp {
             this.startUpdateLoop();
             this.initialRenderChips();
 
+            // Initialize V1.2 Unified Sidebar (initial view = plant)
+            this.sidebar.init(this.machineGroups, this.departmentLabels, {
+                onAssetSelect: (id) => {
+                    this.renderer?.focusOnDevice(id);
+                    this.activeContext = { type: 'machine', id };
+                    this.forceRefresh = true;
+                },
+                onZoneChange: (zoneId) => {
+                    this.renderer?.focusOnZone(zoneId);
+                },
+                onCollapse: () => {
+                    if (this.renderer) this.renderer.resetToDefaultView();
+                    this.activeContext = { type: 'plant', id: null };
+                }
+            });
+
             const infoBtn = document.getElementById('branding-info-btn');
             const kpiSummaryRow = document.getElementById('kpi-summary-row');
             if (infoBtn && kpiSummaryRow) {
@@ -771,6 +789,14 @@ class DigitalTwinApp {
     }
 
     setContext(type, id = null) {
+        // [FIX] Normalize storage/inbound/buffer mesh IDs to RAWMATERIALS
+        if (id) {
+            const normId = id.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normId.startsWith('storage') || normId.startsWith('inbound') || normId.startsWith('buffer') || normId === 'rawmaterials' || normId === 'rawmaterial') {
+                id = 'RAWMATERIALS';
+            }
+        }
+
         console.log(`[App] Transition: ${this.activeContext.type}->${type}${id ? ':' + id : ''}`);
 
         // [Routing Interception] If clicking a generic machine while in Maintenance mode, route it to Maintenance Machine.
@@ -809,6 +835,12 @@ class DigitalTwinApp {
         }
 
         this.activeContext = { type, id };
+
+        // ─── Sync V1.2 Sidebar ─────────────────────────────────────────
+        if (['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(type) && id && this.sidebar?.isInitialized) {
+            this.sidebar.setAsset(id);
+            this.sidebar.expand(); // Reopen sidebar on 3D click
+        }
 
         // ─── Direct Interaction Dispatch ────────────────────────────────
         const rightPanel = document.getElementById('right-sidebar');

@@ -45,22 +45,15 @@ class UIUpdater {
             }
             this.app.forceRefresh = false;
 
-            // 2. Dashboard & Top Strip
-            this.updateDashboard(plant);
-            this.updateTopStrip(plant);
+            // 2. V1.2 Unified Sidebar — Build section data from active asset
+            if (this.app.sidebar?.isInitialized) {
+                const sidebarData = this._buildSidebarData(hierarchy, plant);
+                this.app.sidebar.update(sidebarData);
 
-            // 3. Detail Sidebar
-            const activeCtx = this.app.activeContext;
-            if (activeCtx.id && ['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(activeCtx.type)) {
-                const data = this.stateManager.getDeviceState(activeCtx.id)?.data;
-                if (data) {
-                    this.updateLiveSidebar(activeCtx.id, data);
-                    if (this.app.primaryMode === 'energy') {
-                        this.app.updateDeviceEnergyPanel(activeCtx.id, data);
-                    } else if (this.app.primaryMode === 'zones') {
-                        this.updateMachineProductionPanel(activeCtx.id);
-                    }
-                }
+                // Update asset pill status dots
+                this.app.sidebar.updateAssetStatuses((id) => {
+                    return (this.app._getMachineState(id) || 'OFFLINE').toLowerCase();
+                });
             }
 
             // 4. Left Sidebar (Targeted Structural Check)
@@ -419,6 +412,220 @@ class UIUpdater {
         chip.classList.toggle('has-alarms', alarmCount > 0);
     }
 
+    /**
+     * Build structured data for V1.2 Sidebar — 5 sections
+     * 1. Asset Details, 2. Plant Data, 3. Production, 4. Alarms, 5. Maintenance
+     */
+    _buildSidebarData(hierarchy, plant) {
+        const sidebar = this.app.sidebar;
+        const assetId = sidebar.currentAssetId;
+        const deviceState = assetId ? this.stateManager.getDeviceState(assetId) : null;
+        const raw = deviceState?.data || {};
+        const deviceType = assetId ? this.app.getDeviceType(assetId) : null;
+        const schema = deviceType ? this.app.sidebarSchemas[deviceType] : null;
+        const machineData = assetId ? this.app._findMachineData(assetId) : null;
+
+        return {
+            asset: this._buildAssetDetails(assetId, raw, schema, machineData),
+            plant: this._buildPlantData(plant, hierarchy),
+            production: this._buildProductionData(assetId, raw, schema, machineData, plant),
+            alarms: this._buildAlarms(assetId, raw, hierarchy),
+            maintenance: this._buildMaintenance(assetId),
+        };
+    }
+
+    // ─── Icon resolver ─────────────────────────────────────
+    _getIcon(tag) {
+        const lower = tag.toLowerCase();
+        const map = {
+            'temperature': 'thermostat', 'temp': 'thermostat',
+            'pressure': 'speed', 'psi': 'speed', 'bar': 'speed', 'riser': 'speed', 'holding': 'speed',
+            'kw': 'bolt', 'power': 'bolt',
+            'kwh': 'battery_charging_full', 'energy': 'battery_charging_full',
+            'production': 'inventory_2', 'count': 'inventory_2', 'output': 'inventory_2', 'part': 'precision_manufacturing',
+            'speed': 'shutter_speed', 'rpm': 'shutter_speed', 'spindle': 'shutter_speed',
+            'flow': 'water_drop', 'humidity': 'humidity_percentage', 'water': 'water_drop',
+            'time': 'timer', 'timer': 'timer', 'cycle': 'refresh',
+            'running': 'power_settings_new', 'status': 'info', 'mode': 'tune',
+            'capacity': 'warehouse', 'ingot': 'inventory_2',
+            'metal': 'science', 'molten': 'local_fire_department',
+            'air': 'air', 'booth': 'meeting_room', 'conveyor': 'conveyor_belt',
+            'rotor': 'rotate_right', 'gas': 'propane',
+            'scan': 'qr_code_scanner', 'inspection': 'search',
+            'reject': 'cancel', 'ok': 'check_circle', 'ng': 'cancel', 'good': 'check_circle',
+            'die': 'thermostat', 'fill': 'water_drop', 'solidification': 'ac_unit',
+            'cooling': 'ac_unit', 'dryer': 'air', 'step': 'format_list_numbered',
+        };
+        for (const [key, icon] of Object.entries(map)) {
+            if (lower.includes(key)) return icon;
+        }
+        return 'analytics';
+    }
+
+    _fv(v) {
+        if (v === undefined || v === null) return '---';
+        if (typeof v === 'boolean') return v ? 'ON' : 'OFF';
+        if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1);
+        return String(v);
+    }
+
+    // ─── 1. Asset Details (static metadata from assets.json) ───
+    _buildAssetDetails(assetId, raw, schema, machineData) {
+        if (!assetId) return [{ icon: 'info', value: 'Select an asset', unit: '', color: 'var(--text-dim)' }];
+
+        const items = [];
+        const asset = this.app._findAsset(assetId);
+
+        if (asset) {
+            if (asset.model) items.push({ icon: 'precision_manufacturing', value: asset.model, unit: '', color: 'var(--text-dim)' });
+            if (asset.serial_number) items.push({ icon: 'tag', value: asset.serial_number, unit: '', color: 'var(--text-dim)' });
+            if (asset.vendor) items.push({ icon: 'storefront', value: asset.vendor, unit: '', color: 'var(--text-dim)' });
+            if (asset.department) items.push({ icon: 'domain', value: asset.department, unit: '', color: 'var(--text-dim)' });
+            if (asset.install_date) items.push({ icon: 'event', value: asset.install_date, unit: '', color: 'var(--text-dim)' });
+            if (asset.icon) items.push({ icon: asset.icon, value: assetId, unit: '', color: 'var(--primary)' });
+        } else {
+            items.push({ icon: 'help', value: 'No metadata', unit: '', color: 'var(--text-dim)' });
+        }
+
+        return items;
+    }
+
+    // ─── 2. Plant Data (plant-level KPIs) ──────────────────────
+    _buildPlantData(plant, hierarchy) {
+        const items = [];
+        const p = plant || {};
+
+        items.push({ icon: 'bolt', value: this._fv(p.instantKW), unit: 'kW', color: 'var(--warning)' });
+        items.push({ icon: 'battery_charging_full', value: this._fv(p.totalKWh), unit: 'kWh', color: 'var(--text-dim)' });
+        items.push({ icon: 'inventory_2', value: this._fv(p.production), unit: 'units', color: 'var(--success)' });
+        items.push({ icon: 'speed', value: this._fv(p.utilization), unit: '%', color: 'var(--text-dim)' });
+        items.push({ icon: 'monitoring', value: this._fv(p.oee || p.totalOEE), unit: '%', color: 'var(--primary)' });
+
+        const allIds = Object.values(this.app.machineGroups || {}).flat();
+        let running = 0;
+        allIds.forEach(id => {
+            const s = this.stateManager.getDeviceState(id);
+            if (s?.data?.IsRunning === true || s?.data?.is_running === true) running++;
+        });
+        items.push({ icon: 'precision_manufacturing', value: `${running}/${allIds.length}`, unit: '', color: 'var(--success)' });
+
+        return items;
+    }
+
+    // ─── 3. Production Data (live telemetry + production tags) ──
+    _buildProductionData(assetId, raw, schema, machineData, plant) {
+        const items = [];
+
+        // All schema tags (except Status) as live telemetry
+        if (schema) {
+            for (const [groupName, tags] of Object.entries(schema)) {
+                if (groupName.toUpperCase().includes('STATUS')) continue;
+                for (const tag of tags) {
+                    let val = this.app.getValue(raw, tag);
+                    // Sync with analytics for kW/production
+                    if (machineData) {
+                        const tl = tag.toLowerCase();
+                        if (tl.includes('kw') && !tl.includes('kwh')) val = machineData.instantKW ?? val;
+                        else if (tl.includes('kwh')) val = machineData.totalKWh ?? val;
+                    }
+                    // Fallback to plant data for Plant_ prefixed tags
+                    if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
+                        const plantData = this.stateManager.getDeviceState('PLANT')?.data || {};
+                        val = this.app.getValue(plantData, tag);
+                    }
+                    items.push({
+                        icon: this._getIcon(tag),
+                        value: this._fv(val),
+                        unit: this.app._getUnit(tag),
+                        color: 'var(--text-dim)',
+                    });
+                }
+            }
+        }
+
+        // Fallback if no schema
+        if (items.length === 0 && machineData) {
+            if (machineData.instantKW !== undefined) items.push({ icon: 'bolt', value: this._fv(machineData.instantKW), unit: 'kW', color: 'var(--text-dim)' });
+            if (machineData.totalKWh !== undefined) items.push({ icon: 'battery_charging_full', value: this._fv(machineData.totalKWh), unit: 'kWh', color: 'var(--text-dim)' });
+            if (machineData.production !== undefined) items.push({ icon: 'inventory_2', value: this._fv(machineData.production), unit: 'units', color: 'var(--text-dim)' });
+        }
+
+        return items;
+    }
+
+    // ─── 4. Alarms ─────────────────────────────────────────────
+    _buildAlarms(assetId, raw, hierarchy) {
+        const items = [];
+
+        // Check all machines for alarm state
+        const allIds = Object.values(this.app.machineGroups || {}).flat();
+        for (const id of allIds) {
+            const state = this.app._getMachineState(id);
+            const stateLower = state.toLowerCase();
+            const deviceRaw = this.stateManager.getDeviceState(id)?.data || {};
+            const alarmTag = this.app.getValue(deviceRaw, 'Alarm_Status');
+            const isFault = ['fault', 'error', 'alarm'].includes(stateLower);
+            const hasAlarm = alarmTag === true || alarmTag === 'true' || alarmTag === 1 || isFault;
+
+            if (hasAlarm) {
+                items.push({
+                    icon: 'error',
+                    iconColor: 'var(--danger)',
+                    title: id,
+                    desc: `State: ${state}${alarmTag ? ' | Alarm active' : ''}`,
+                    time: new Date().toTimeString().slice(0, 8),
+                });
+            }
+        }
+
+        if (items.length === 0) {
+            items.push({
+                icon: 'check_circle',
+                iconColor: 'var(--success)',
+                title: 'ALL CLEAR',
+                desc: 'No active alarms across plant.',
+                time: new Date().toTimeString().slice(0, 8),
+            });
+        }
+
+        return items;
+    }
+
+    // ─── 5. Maintenance ────────────────────────────────────────
+    _buildMaintenance(assetId) {
+        // Pull from health states if available
+        const items = [];
+        const healthStates = this.app.healthStates;
+
+        if (healthStates && healthStates.size > 0) {
+            for (const [id, hState] of healthStates) {
+                const rul = Math.floor(hState.rul);
+                const health = Math.round(hState.health);
+                if (health < 85 || rul < 1000) {
+                    items.push({
+                        icon: 'build',
+                        iconColor: health < 75 ? 'var(--danger)' : 'var(--warning)',
+                        title: id,
+                        desc: `Health: ${health}% | RUL: ${rul.toLocaleString()}h`,
+                        time: health < 75 ? 'URGENT' : 'SCHEDULED',
+                    });
+                }
+            }
+        }
+
+        if (items.length === 0) {
+            items.push({
+                icon: 'check_circle',
+                iconColor: 'var(--success)',
+                title: 'ALL SYSTEMS NOMINAL',
+                desc: 'No maintenance tasks pending.',
+                time: '',
+            });
+        }
+
+        return items;
+    }
+
     clearCache() {
         this.domCache.clear();
     }
@@ -427,7 +634,7 @@ class UIUpdater {
         if (this.domCache.has(id)) return this.domCache.get(id);
         const el = document.getElementById(id);
         // [PERF] Cache even null results to avoid redundant, expensive ID lookups for missing components
-        this.domCache.set(id, el); 
+        this.domCache.set(id, el);
         return el;
     }
 }

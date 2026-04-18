@@ -33,6 +33,18 @@ class DigitalTwinApp {
         this.lastChipMode = 'status';
 
         this.sidebarSchemas = this._getSidebarSchemas();
+        
+        // [USER] Machine-specific Primary Tags for high-density Summary View
+        this.primaryTags = {
+            'FURNACE': ['Temperature', 'Furnace_Instant_kW', 'Processed_Count'],
+            'DEGASSER': ['Temperature', 'Degasser_Instant_kW', 'Processed_Count', 'Vibration_mm_s'],
+            'LPDC': ['Riser_Pressure', 'Cycle_Time', 'Shot_Count', 'Internal_Temp'],
+            'COOLING': ['Internal_Temp', 'Cooling_Instant_kW', 'Cooling_Run_Status'],
+            'CNC': ['Spindle_RPM', 'Part_Count', 'Cycle_Time', 'Motor_Load_Pct'],
+            'HEAT': ['Furnace_Temperature', 'Step_Timer', 'Internal_Temp', 'Process_Step'],
+            'INSPECTION': ['Inspected_Count', 'OK_Count', 'Inspection_Cycle_Time'],
+            'PAINT': ['Booth_Temperature', 'Booth_Humidity', 'Booth_Cycle_Status']
+        };
         this.machineGroups = this._getMachineGroups();
         this.departmentLabels = this._getDepartmentLabels();
 
@@ -116,68 +128,66 @@ class DigitalTwinApp {
     _getSidebarSchemas() {
         return {
             'FURNACE': {
-                'Core Energy': ['Furnace_Instant_kW', 'Furnace_Total_kWh'],
-                'Production': ['Plant_KPI_Ingots_Consumed', 'Plant_WIP_Molten_Metal'],
-                'Temperature': ['Melt_Bath_Temperature', 'Roof_Temperature', 'Zone_Temperatures'],
-                'Status': ['IsRunning', 'Furnace_Mode', 'Furnace_Run_Status', 'Alarm_Status', 'Melt_Hold_Timer']
+                'Core Energy': ['Furnace_Instant_kW', 'Furnace_Total_kWh', 'Motor_Load_Pct'],
+                'Temperature': ['Melt_Bath_Temperature', 'Wall_Temperature', 'Roof_Temperature', 'Zone_Temperatures', 'TargetTemp'],
+                'Process': ['Furnace_Mode', 'Progress', 'Step_Timer', 'QueueIn'],
+                'Status': ['IsRunning', 'Furnace_Run_Status', 'Alarm_Status', 'Oil_Level_Pct', 'Air_Supply_PSI']
             },
             'DEGASSER': {
-                'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh'],
-                'Production': ['Plant_WIP_Degassed_Metal'],
-                'Process': ['Gas_Flow_Rate', 'Rotor_Speed', 'Treatment_Time'],
-                'Status': ['IsRunning', 'Degasser_Run_Status', 'Alarm_Status']
+                'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh', 'Motor_Load_Pct'],
+                'Process': ['Degassing_Power_Pct', 'Treatment_Time', 'Processed_Count'],
+                'Status': ['IsRunning', 'Degasser_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
             },
             'LPDC': {
-                'Core Energy': ['LPDC_Instant_kW', 'LPDC_Total_kWh'],
-                'Production': ['Shot_Count', 'Model_ID'],
-                'Pressure': ['Riser_Pressure', 'Pressure_Setpoint', 'Holding_Pressure'],
-                'Temperature': ['Holding_Furnace_Temperature', 'Die_Top_Temperature', 'Die_Bottom_Temperature'],
-                'Process': ['Cycle_Time', 'Fill_Time', 'Solidification_Time'],
-                'Status': ['IsRunning', 'LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status']
+                'Core Energy': ['LPDC_Instant_kW', 'LPDC_Total_kWh', 'Motor_Load_Pct'],
+                'Production': ['Shot_Count', 'Processed_Count', 'Model_ID', 'Cycle_Time'],
+                'Pressure': ['Riser_Pressure', 'Air_Supply_PSI'],
+                'Temperature': ['Holding_Furnace_Temperature', 'Die_Top_Temperature', 'Die_Bottom_Temperature', 'Internal_Temp'],
+                'Status': ['IsRunning', 'LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status', 'Oil_Level_Pct']
             },
             'COOLING': {
                 'Core Energy': ['Cooling_Instant_kW', 'Cooling_Total_kWh'],
-                'Temperature': ['Water_Inlet_Temp', 'Water_Outlet_Temp', 'Tank_Temperature'],
-                'Process': ['Flow_Rate', 'Cooling_Time'],
+                'Temperature': ['Internal_Temp', 'Return_Temp', 'Tank_Temperature'],
+                'Process': ['Cooling_Time', 'Vibration_mm_s'],
                 'Status': ['IsRunning', 'Cooling_Run_Status', 'Alarm_Status']
             },
             'CNC': {
-                'Core Energy': ['CNC_Instant_kW', 'CNC_Total_kWh'],
-                'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count', 'Program_ID'],
-                'Process': ['Cycle_Time', 'Spindle_Speed'],
+                'Core Energy': ['CNC_Instant_kW', 'CNC_Total_kWh', 'Motor_Load_Pct'],
+                'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count', 'Processed_Count', 'Program_ID', 'Progress', 'Cycle_Time'],
+                'Process': ['Spindle_RPM', 'Vibration_mm_s', 'Internal_Temp', 'Air_Supply_PSI', 'Oil_Level_Pct', 'Tool_ID', 'In_Cycle', 'Part_ID'],
                 'Status': ['IsRunning', 'CNC_Run_Status', 'Cycle_Status', 'Alarm_Status']
             },
             'HEAT': {
-                'Core Energy': ['HT_Instant_kW', 'HT_Total_kWh'],
+                'Core Energy': ['HT_Instant_kW', 'HT_Total_kWh', 'Motor_Load_Pct'],
                 'Temperature': ['Furnace_Temperature', 'Temperature_Setpoint'],
-                'Process': ['Process_Step', 'Step_Timer'],
-                'Status': ['IsRunning', 'HT_Run_Status', 'Alarm_Status']
+                'Process': ['Process_Step', 'Step_Timer', 'Vibration_mm_s', 'Internal_Temp', 'RuntimeTotalHrs'],
+                'Status': ['IsRunning', 'HT_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
             },
             'INSPECTION': {
-                'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh'],
-                'Production': ['Inspected_Count', 'OK_Count', 'NG_Count'],
-                'Process': ['Inspection_Cycle_Time', 'Scan_Status'],
-                'Status': ['IsRunning', 'XRay_Run_Status', 'Alarm_Status']
+                'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh', 'Motor_Load_Pct'],
+                'Production': ['Inspected_Count', 'OK_Count', 'NG_Count', 'Processed_Count'],
+                'Process': ['Inspection_Cycle_Time', 'Scan_Status', 'Vibration_mm_s'],
+                'Status': ['IsRunning', 'XRay_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
             },
             'PRETREAT': {
-                'Core Energy': ['PT_Instant_kW', 'PT_Total_kWh'],
-                'Process': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature'],
-                'Status': ['IsRunning', 'PT_Run_Status', 'Alarm_Status']
+                'Core Energy': ['PT_Instant_kW', 'PT_Total_kWh', 'Motor_Load_Pct'],
+                'Process': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature', 'Vibration_mm_s'],
+                'Status': ['IsRunning', 'PT_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
             },
             'PAINT_01': {
-                'Core Energy': ['PB1_Instant_kW', 'PB1_Total_kWh'],
+                'Core Energy': ['PB1_Instant_kW', 'PB1_Total_kWh', 'Motor_Load_Pct'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status'],
-                'Status': ['IsRunning', 'PB1_Run_Status', 'Alarm_Status']
+                'Process': ['Booth_Cycle_Status', 'Vibration_mm_s', 'Processed_Count', 'RuntimeTotalHrs'],
+                'Status': ['IsRunning', 'PB1_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
             },
             'PAINT_02': {
-                'Core Energy': ['PB2_Instant_kW', 'PB2_Total_kWh'],
+                'Core Energy': ['PB2_Instant_kW', 'PB2_Total_kWh', 'Motor_Load_Pct'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status'],
-                'Status': ['IsRunning', 'PB2_Run_Status', 'Alarm_Status']
+                'Process': ['Booth_Cycle_Status', 'Vibration_mm_s', 'Processed_Count', 'RuntimeTotalHrs'],
+                'Status': ['IsRunning', 'PB2_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
             },
             'OUTBOUND': {
-                'Production': ['Plant_KPI_Total_Produced', 'Dispatched_Count'],
+                'Production': ['Plant_KPI_Total_Produced', 'Dispatched_Count', 'Processed_Count'],
                 'Status': ['IsRunning', 'Outbound_Status', 'Alarm_Status']
             },
             'RAWMATERIALS': {
@@ -187,6 +197,14 @@ class DigitalTwinApp {
             'SHIPPING': {
                 'Output': ['Plant_KPI_Total_Produced'],
                 'Status': ['Alarm_Status']
+            },
+            'PLANT': {
+                'WIP Metrics': ['Molten_Metal_Kg', 'Degassed_Metal_Kg', 'Ingots_Kg', 'Cast_Parts', 'Cooled_Parts_1', 'Cooled_Parts_2', 'Heat_Treated_Parts', 'Machined_Parts', 'Pretreated_Parts', 'Painted_Parts'],
+                'Quality': ['Xray_Passed', 'Qc_Passed', 'Scrap_Parts']
+            },
+            'PRODUCTION': {
+                'KPI Overview': ['Production_Target', 'Yield_Pct', 'OEE_Target', 'Uptime_Target', 'Hourly_Throughput', 'Energy_Efficiency_Pct'],
+                'Global Output': ['Plant_KPI_Total_Produced', 'Batches_Completed']
             }
         };
     }
@@ -540,6 +558,17 @@ class DigitalTwinApp {
             );
             this.websocket.connect();
 
+            // [USER] Listen for Section toggles from Sidebar
+            document.addEventListener('toggleSidebarSection', (e) => {
+                const sectionId = e.detail;
+                if (this.sidebar.expandedSections.has(sectionId)) {
+                    this.sidebar.expandedSections.delete(sectionId);
+                } else {
+                    this.sidebar.expandedSections.add(sectionId);
+                }
+                this.forceRefresh = true;
+            });
+
             updateLoading('Fetching assets metadata...');
             const assetPromise = fetch('./assets.json').then(r => {
                 if (!r.ok) throw new Error(`assets.json: ${r.status} ${r.statusText}`);
@@ -547,6 +576,10 @@ class DigitalTwinApp {
             }).then(json => {
                 this.assetData = (json && json.assets) ? json.assets : json;
                 this.assets = this.assetData;
+                
+                // [USER] Pass to sidebar for detail headers
+                if (this.sidebar) this.sidebar.assetData = this.assetData;
+
                 this.renderer?.refreshAllLabels(); // [FIX] Force update icons once metadata is ready
                 return json;
             }).catch(e => {
@@ -575,6 +608,9 @@ class DigitalTwinApp {
 
                 await new Promise(resolve => setTimeout(resolve, 0));
                 this.renderer.start();
+                
+                // [USER] Initialize high-level zone icons once model is ready
+                this.renderer._createZoneIcons(this.machineGroups);
             }
 
             updateLoading('Finalizing UI...');
@@ -583,6 +619,7 @@ class DigitalTwinApp {
 
             // Initialize V1.2 Unified Sidebar (initial view = plant)
             this.sidebar.init(this.machineGroups, this.departmentLabels, {
+                assetData: this.assetData,
                 onAssetSelect: (id) => {
                     this.renderer?.focusOnDevice(id);
                     this.activeContext = { type: 'machine', id };
@@ -592,7 +629,10 @@ class DigitalTwinApp {
                     this.renderer?.focusOnZone(zoneId);
                 },
                 onCollapse: () => {
-                    if (this.renderer) this.renderer.resetToDefaultView();
+                    // [USER] Strict Reset: Restore textures and return to plant overview
+                    if (this.renderer) {
+                        this.renderer.resetInteraction();
+                    }
                     this.activeContext = { type: 'plant', id: null };
                 }
             });
@@ -907,6 +947,42 @@ class DigitalTwinApp {
         }
     }
 
+    /**
+     * [USER] Resolve machine operational state for UI coloring
+     */
+    _getMachineState(deviceId) {
+        const state = this.stateManager.getDeviceState(deviceId);
+        if (!state || !state.data) return 'UNKNOWN';
+        
+        // Standard machine state logic
+        const data = state.data;
+        if (data.alarm || data.fault) return 'FAULT';
+        if (data.warning) return 'WARNING';
+        if (data.running || data.state === 'RUNNING' || data.status === 'ONLINE') return 'RUNNING';
+        return 'STOPPED';
+    }
+
+    /**
+     * [USER] Aggregate zone state based on its member machines
+     */
+    _getZoneState(zoneId) {
+        if (!this.machineGroups || !this.machineGroups[zoneId]) return 'RUNNING';
+        const machines = this.machineGroups[zoneId];
+        
+        let hasFault = false;
+        let hasWarning = false;
+        
+        for (const mid of machines) {
+            const mState = this._getMachineState(mid);
+            if (mState === 'FAULT') hasFault = true;
+            if (mState === 'WARNING') hasWarning = true;
+        }
+        
+        if (hasFault) return 'FAULT';
+        if (hasWarning) return 'WARNING';
+        return 'RUNNING';
+    }
+
     handleHeaderBack() {
         // 1. Navigate UI back to the zones overview list
         this.setContext('zones_scope');
@@ -932,16 +1008,41 @@ class DigitalTwinApp {
 
         // Sidebar re-rendering is now EXPLICIT to prevent flickering on WebSocket updates
         if (force) {
+            // [USER] Sync Asset Status Colors (running/fault)
+            if (this.sidebar) {
+                this.sidebar.updateAssetStatuses((id) => this._getMachineState(id));
+            }
+
             const leftSidebar = document.getElementById('left-sidebar');
             if (leftSidebar && leftSidebar.classList.contains('open')) {
                 this.renderLeftSidebar(hierarchy);
             }
-            // Only render right sidebar if it's actually open — prevents stale isolateGroup camera jumps
+            // Only render right sidebar if it's actually open
             const rightSidebar = document.getElementById('right-sidebar');
             if (rightSidebar && rightSidebar.classList.contains('open')) {
                 this.renderRightSidebar(hierarchy);
             }
         }
+
+        // Sidebar updates are now handled entirely by uiUpdater._buildSidebarData
+    }
+
+    /**
+     * [USER] Helper to get appropriate icon for a tag
+     */
+    _getTagIcon(tag) {
+        const t = tag.toLowerCase();
+        if (t.includes('temp')) return 'thermometer';
+        if (t.includes('pressure')) return 'compress';
+        if (t.includes('flow')) return 'airwave';
+        if (t.includes('speed') || t.includes('rpm')) return 'speed';
+        if (t.includes('count')) return 'calculate';
+        if (t.includes('time')) return 'timer';
+        if (t.includes('kw')) return 'bolt';
+        if (t.includes('humidity')) return 'humidity_mid';
+        if (t.includes('vibration')) return 'vibration';
+        if (t.includes('level')) return 'bar_chart';
+        return 'analytics';
     }
 
     updateTopStrip(plant) {
@@ -1308,108 +1409,59 @@ class DigitalTwinApp {
             const displayName = asset ? (asset.name || id.replace(/_/g, ' ')) : id.toUpperCase();
             const dept = asset ? (this.departmentLabels[asset.department.toLowerCase()] || asset.department) : '—';
 
-            let html = '';
-
-            if (mode === 'metadata') {
-                // ── ASSET MODE: Metadata Profile ──────────────────────────
-                const modelNum = asset ? (asset.model || '---') : '---';
-                const serialNum = asset ? (asset.serial_number || '---') : '---';
-                const installDate = asset ? (asset.install_date || '---') : '---';
-                html = `
-                    <div style="padding: 16px 8px;">
-                        
-                        <!-- Asset Profile -->
-                        <div style="margin-bottom: 24px;">
-                            <div style="font-size: 12px; font-weight: 900; letter-spacing: 2px; color: #ec5b13; text-transform: uppercase; margin-bottom: 12px;">PROFILE</div>
-                            <div style="background: rgba(236,91,19,0.05); border-left: 3px solid #ec5b13; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">ID</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;">${id.toUpperCase()}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">MACHINE</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${displayName}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Model</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${modelNum}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Serial Number</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;">${serialNum}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Department</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${dept}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Vendor</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${asset ? asset.vendor : '---'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Install Date</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${installDate}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Purchase Date</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white;">${asset && asset.purchase_date ? asset.purchase_date : '---'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; background: rgba(59,130,246,0.05); margin: 0 -16px; padding: 6px 16px;">
-                                    <span style="font-size: 11px; color: var(--accent-blue); text-transform: uppercase; font-weight: 800;">ACTIVE MODEL</span>
-                                    <span style="font-size: 12px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;" id="metadata-${id}-Model_ID">${raw['Model_ID'] || raw['Program_ID'] || '—'}</span>
+            const modelNum = asset ? (asset.model || '---') : '---';
+            const serialNum = asset ? (asset.serial_number || '---') : '---';
+            const installDate = asset ? (asset.install_date || '---') : '---';
+            const purchaseDate = asset ? (asset.purchase_date || '---') : '---';
+            
+            // Render the shared header with metadata
+            let html = `
+                <div style="padding: 4px 8px;">
+                    
+                    <!-- Asset Profile: PREMIUM VIBRANT UI -->
+                    <div style="margin-bottom: 24px;">
+                        <div class="sidebar-section-title" style="color: var(--primary); font-size: 13px; font-weight: 900; letter-spacing: 2px;">ASSET PROFILE</div>
+                        <div style="background: rgba(236,91,19,0.05); border-left: 3px solid var(--primary); border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                                <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Machine Model</span>
+                                <span style="font-size: 13px; font-weight: 800; color: white;">${modelNum}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                                <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Purchase Date</span>
+                                <span style="font-size: 13px; font-weight: 800; color: white; font-family: 'Public Sans', sans-serif;">${purchaseDate}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                                <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Next Service</span>
+                                <span style="font-size: 13px; font-weight: 800; color: var(--warning); font-family: 'Public Sans', sans-serif;">2024-12-15</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(59,130,246,0.1); margin: 4px -16px -16px -16px; padding: 12px 16px; border-radius: 0 0 4px 4px;">
+                                <span style="font-size: 11px; color: var(--accent-blue); text-transform: uppercase; font-weight: 900;">Operational Status</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="status-dot running" style="width: 8px; height: 8px;"></span>
+                                    <span style="font-size: 12px; font-weight: 900; color: white;">NOMINAL</span>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Asset Integrity: RUL only (no health score in asset view) -->
-                        <div>
-                            <div class="sidebar-section-title" style="color: var(--primary); font-size: 12px; letter-spacing: 1px; margin-bottom: 12px;">ASSET INTEGRITY</div>
-                            ${this._renderMaintenanceAnalytics(id, { showHealth: false })}
-                        </div>
-
                     </div>
-                `;
 
-            } else {
-                // ── PLANT MODE: Diagnostics / Live Telemetry ───────────────────
-                const machineData = this._findMachineData(id);
-                const stateVal = this._getMachineState(id);
-                const stateLower = stateVal.toLowerCase();
-                const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
-
-                const deviceType = this.getDeviceType(id);
-                // [FIX] Every asset, including Raw Materials, should show its operational "Pulse" status
-                const stateLabel = (deviceType === 'RAWMATERIALS') ? 'Storage Security' : 'Machine Running State';
-                
-                html = `
-                    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">${stateLabel}</div>
-                        <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
-                            <span class="material-symbols-outlined" style="font-size: 14px">${deviceType === 'RAWMATERIALS' ? 'shield' : 'power_settings_new'}</span>
-                            <span class="val-text">${String(stateVal).toUpperCase()}</span>
-                        </div>
+                    <!-- Telemetry Sections: Targeted by SidebarController -->
+                    <div id="plant-data-list"></div>
+                    <div id="production-list"></div>
+                    
+                    <!-- Asset Integrity -->
+                    <div style="margin-top: 24px;">
+                        <div class="sidebar-section-title" style="color: var(--accent-blue); font-size: 13px; font-weight: 900; margin-bottom: 12px;">ASSET INTEGRITY</div>
+                        ${this._renderMaintenanceAnalytics(id, { showHealth: false })}
                     </div>
-                `;
 
-                // USER REQUEST: Machine Diagnostics moved to Energy View
-                // Unit Diagnostics moved to Asset Mode (handled in mode === 'metadata')
-
-                if (this.primaryMode === 'energy' || this.primaryMode === 'plant' || this.primaryMode === 'zones' || this.primaryMode === 'maintenance' || this.primaryMode === 'machines') {
-                    const gridHtml = this._renderTelemetryGrid(id, raw);
-                    const diagContent = gridHtml || `
-                        <div style="padding: 10px 12px; text-align: center; color: var(--text-dim); font-size: 11px;">
-                            <span class="material-symbols-outlined" style="font-size: 28px; display: block; margin-bottom: 8px; opacity: 0.3;">sensors_off</span>
-                            Awaiting live data from PLC...
-                        </div>`;
-                    html += `
-                        <div style="margin-top: 8px;">
-                            ${diagContent}
-                        </div>
-                    `;
-                }
-            }
+                </div>
+            `;
 
             container.innerHTML = html;
+            
+            // Force a refresh cycle to populate the newly rendered containers
+            setTimeout(() => this.refreshUI(false), 0);
+
         } catch (err) {
             console.error('[UI] Panel Crash:', err);
             container.innerHTML = `<div style="padding: 20px; color: var(--danger)">Sidebar Error: ${err.message}</div>`;
@@ -1417,137 +1469,22 @@ class DigitalTwinApp {
     }
 
     renderMachineProductionPanel(id, container) {
-        const raw = this.stateManager?.getDeviceState(id)?.data || {};
-        const plantData = this.stateManager?.getDeviceState('PLANT')?.data || {};
-        const machineData = this._findMachineData(id);
-        const stateVal = this._getMachineState(id);
-        const stateLower = stateVal.toLowerCase();
-        const stateColor = stateLower === 'running' ? 'var(--success)' : (stateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
-
-        if (this.ui) this.ui.clearCache();
-
-        let html = `
-            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Operational State</div>
-                <div class="state-badge-container" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: ${stateColor}22; border: 1px solid ${stateColor}44; color: ${stateColor}; font-size: 10px; font-weight: 800;" id="metric-${id}-state">
-                    <span class="material-symbols-outlined" style="font-size: 14px">power_settings_new</span>
-                    <span class="val-text">${String(stateVal).toUpperCase()}</span>
-                </div>
+        // [USER] Refactored to use SidebarController for 5-item truncation and drill-down
+        container.innerHTML = `
+            <div style="padding: 4px 8px;">
+                <div id="plant-data-list"></div>
+                <div id="production-list"></div>
             </div>
         `;
-
-        // Render production-related tags from schema, connected to WebSocket data
-        const deviceType = this.getDeviceType(id);
-        const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
-        if (schema) {
-            for (const [groupName, tags] of Object.entries(schema)) {
-                const gn = groupName.toUpperCase();
-                // [USER] Exclude Core Energy from Plant view, include Process/Temperature/Pressure
-                if (gn.includes('CORE ENERGY') || gn.includes('LOAD')) continue;
-                if (!(gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY') ||
-                    gn.includes('PROCESS') || gn.includes('TEMPERATURE') || gn.includes('PRESSURE') ||
-                    gn.includes('ENVIRONMENT'))) continue;
-
-                let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
-                for (const tag of tags) {
-                    // Look up from device data first, then plant data for Plant_* tags
-                    let val = this.getValue(raw, tag);
-                    if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
-                        val = this.getValue(plantData, tag);
-                    }
-                    const formattedVal = (val === undefined || val === null) ? '---' :
-                        (typeof val === 'number' ?
-                            (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
-                            (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val));
-                    const tagUnit = this._getUnit(tag);
-                    const label = this._formatTagLabel(tag);
-                    groupHtml += `
-                    <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
-                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
-                        <div style="font-size: 14px; font-weight: 900; color: var(--text-main); font-family: 'Public Sans', sans-serif;" id="metric-${id}-${tag}">
-                            <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${tagUnit}</span>
-                        </div>
-                    </div>`;
-                }
-                groupHtml += '</div>';
-                html += `<div class="panel-section">
-                    <div class="sidebar-section-title" style="display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 4px; height: 4px; background: var(--primary); border-radius: 50%;"></span>
-                        ${groupName.toUpperCase()}
-                    </div>
-                    ${groupHtml}
-                </div>`;
-            }
-        }
-
-        container.innerHTML = html;
+        setTimeout(() => this.refreshUI(false), 0);
     }
 
     _renderTelemetryGrid(id, raw) {
-        const deviceType = this.getDeviceType(id);
-        const schema = deviceType ? this.sidebarSchemas[deviceType] : null;
-        let html = '';
-
-        if (schema) {
-            for (const [groupName, tags] of Object.entries(schema)) {
-                // [USER] Strictly remove energy diagnostics from all views except Energy Analytics
-                if (this.primaryMode !== 'energy' && groupName.toUpperCase().includes('ENERGY')) continue;
-
-                // [USER] Remove Temperature and Status from Alarm view right sidebar
-                if ((this.primaryMode === 'alarm' || this.primaryMode === 'alarms') &&
-                    (groupName.toUpperCase().includes('TEMPERATURE') || groupName.toUpperCase().includes('STATUS'))) continue;
-
-                // [USER] Remove production-related groups from right sidebar (non-zone views)
-                const gn = groupName.toUpperCase();
-                if (this.activeContext.type !== 'zone') {
-                    if (gn.includes('PRODUCTION') || gn.includes('OUTPUT') || gn.includes('INVENTORY')) continue;
-                }
-
-                let groupHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
-                for (const tag of tags) {
-                    let val = this.getValue(raw, tag);
-
-                    // [USER] Sync with Energy Analytics engine for UI-wide consistency
-                    const isKW = tag.toLowerCase().includes('kw') || tag.toLowerCase().includes('power') || tag.toLowerCase().includes('load');
-                    const isProd = tag.toLowerCase().includes('production') || tag.toLowerCase().includes('count') || tag.toLowerCase().includes('produced');
-
-                    const machineAnalytics = this.analytics && this.analytics.data.machines?.[id.toUpperCase()];
-
-                    if (isKW && machineAnalytics) {
-                        val = machineAnalytics.instantKW;
-                    } else if (isProd && machineAnalytics) {
-                        val = machineAnalytics.production;
-                    }
-
-                    // [ARCHITECTURE] Placeholder Pattern: Always render structure, use "---" for missing data
-                    const formattedVal = (val === undefined || val === null) ? '---' :
-                        (typeof val === 'number' ?
-                            (Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)) :
-                            (typeof val === 'boolean' ? (val ? 'ACTIVE' : 'INACTIVE') : val));
-
-                    const unit = this._getUnit(tag);
-                    const label = this._formatTagLabel(tag);
-
-                    // Added .val-text for precise target manipulation by UIUpdater
-                    groupHtml += `
-                    <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); transition: border-color 0.3s;">
-                        <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 2px;">${label}</div>
-                        <div style="font-size: 14px; font-weight: 900; color: var(--text-main); font-family: 'Public Sans', sans-serif;" id="metric-${id}-${tag}">
-                            <span class="val-text">${formattedVal}</span> <span style="font-size: 11px; font-weight: normal; color: var(--text-dim)">${unit}</span>
-                        </div>
-                    </div>`;
-                }
-                groupHtml += '</div>';
-                html += `<div class="panel-section">
-                    <div class="sidebar-section-title" style="display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 4px; height: 4px; background: var(--primary); border-radius: 50%;"></span>
-                        ${groupName.toUpperCase()}
-                    </div>
-                    ${groupHtml}
-                </div>`;
-            }
-        }
-        return html;
+        // [USER] Logic moved to refreshUI + SidebarController
+        return `
+            <div id="plant-data-list"></div>
+            <div id="production-list"></div>
+        `;
     }
 
     _renderMaintenanceAnalytics(id, { showHealth = true } = {}) {

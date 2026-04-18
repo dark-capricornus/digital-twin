@@ -425,10 +425,15 @@ class UIUpdater {
         const schema = deviceType ? this.app.sidebarSchemas[deviceType] : null;
         const machineData = assetId ? this.app._findMachineData(assetId) : null;
 
+        // Resolve device status
+        const statusTag = schema?.Status ? schema.Status.find(t => t.includes('Run_Status') || t === 'IsRunning' || t === 'State') : null;
+        const status = statusTag ? this.app.getValue(raw, statusTag) : (assetId ? (this.app._getMachineState(assetId) || 'NOMINAL') : 'NOMINAL');
+
         return {
+            status,
             asset: this._buildAssetDetails(assetId, raw, schema, machineData),
-            plant: this._buildPlantData(plant, hierarchy),
-            production: this._buildProductionData(assetId, raw, schema, machineData, plant),
+            plant: this._buildPlantData(assetId, raw, schema, machineData),
+            production: this._buildProductionData(assetId, raw, schema, machineData),
             alarms: this._buildAlarms(assetId, raw, hierarchy),
             maintenance: this._buildMaintenance(assetId),
         };
@@ -490,67 +495,99 @@ class UIUpdater {
         return items;
     }
 
-    // ─── 2. Plant Data (plant-level KPIs) ──────────────────────
-    _buildPlantData(plant, hierarchy) {
-        const items = [];
-        const p = plant || {};
-
-        items.push({ icon: 'bolt', value: this._fv(p.instantKW), unit: 'kW', color: 'var(--warning)' });
-        items.push({ icon: 'battery_charging_full', value: this._fv(p.totalKWh), unit: 'kWh', color: 'var(--text-dim)' });
-        items.push({ icon: 'inventory_2', value: this._fv(p.production), unit: 'units', color: 'var(--success)' });
-        items.push({ icon: 'speed', value: this._fv(p.utilization), unit: '%', color: 'var(--text-dim)' });
-        items.push({ icon: 'monitoring', value: this._fv(p.oee || p.totalOEE), unit: '%', color: 'var(--primary)' });
-
-        const allIds = Object.values(this.app.machineGroups || {}).flat();
-        let running = 0;
-        allIds.forEach(id => {
-            const s = this.stateManager.getDeviceState(id);
-            if (s?.data?.IsRunning === true || s?.data?.is_running === true) running++;
-        });
-        items.push({ icon: 'precision_manufacturing', value: `${running}/${allIds.length}`, unit: '', color: 'var(--success)' });
-
-        return items;
+    // ─── Helper: resolve tag value from raw data ──────────────
+    _resolveTagValue(tag, raw, machineData) {
+        let val = this.app.getValue(raw, tag);
+        if (machineData) {
+            const tl = tag.toLowerCase();
+            if (tl.includes('kw') && !tl.includes('kwh')) val = machineData.instantKW ?? val;
+            else if (tl.includes('kwh')) val = machineData.totalKWh ?? val;
+        }
+        if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
+            const plantData = this.stateManager.getDeviceState('PLANT')?.data || {};
+            val = this.app.getValue(plantData, tag);
+        }
+        return val;
     }
 
-    // ─── 3. Production Data (live telemetry + production tags) ──
-    _buildProductionData(assetId, raw, schema, machineData, plant) {
-        const items = [];
+    _buildTagItem(tag, raw, machineData) {
+        const val = this._resolveTagValue(tag, raw, machineData);
+        return {
+            icon: this._getIcon(tag),
+            label: tag.replace(/^[A-Z]+_/, '').replace(/_/g, ' '),
+            value: this._fv(val),
+            unit: this.app._getUnit(tag),
+            color: 'var(--text-dim)',
+        };
+    }
 
-        // All schema tags (except Status) as live telemetry
+    // ─── 2. Plant Data (device-specific: energy, temp, process) ──
+    _buildPlantData(assetId, raw, schema, machineData) {
+        const allItems = [];
+        const plantGroups = ['Core Energy', 'Temperature', 'Process', 'Environment', 'Pressure', 'Storage Status', 'Inventory'];
+
         if (schema) {
             for (const [groupName, tags] of Object.entries(schema)) {
-                if (groupName.toUpperCase().includes('STATUS')) continue;
+                if (!plantGroups.some(g => groupName.toUpperCase().includes(g.toUpperCase()))) continue;
                 for (const tag of tags) {
-                    let val = this.app.getValue(raw, tag);
-                    // Sync with analytics for kW/production
-                    if (machineData) {
-                        const tl = tag.toLowerCase();
-                        if (tl.includes('kw') && !tl.includes('kwh')) val = machineData.instantKW ?? val;
-                        else if (tl.includes('kwh')) val = machineData.totalKWh ?? val;
-                    }
-                    // Fallback to plant data for Plant_ prefixed tags
-                    if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
-                        const plantData = this.stateManager.getDeviceState('PLANT')?.data || {};
-                        val = this.app.getValue(plantData, tag);
-                    }
-                    items.push({
-                        icon: this._getIcon(tag),
-                        value: this._fv(val),
-                        unit: this.app._getUnit(tag),
-                        color: 'var(--text-dim)',
-                    });
+                    allItems.push(this._buildTagItem(tag, raw, machineData));
                 }
             }
         }
 
-        // Fallback if no schema
-        if (items.length === 0 && machineData) {
-            if (machineData.instantKW !== undefined) items.push({ icon: 'bolt', value: this._fv(machineData.instantKW), unit: 'kW', color: 'var(--text-dim)' });
-            if (machineData.totalKWh !== undefined) items.push({ icon: 'battery_charging_full', value: this._fv(machineData.totalKWh), unit: 'kWh', color: 'var(--text-dim)' });
-            if (machineData.production !== undefined) items.push({ icon: 'inventory_2', value: this._fv(machineData.production), unit: 'units', color: 'var(--text-dim)' });
+        // Fallback
+        if (allItems.length === 0 && machineData) {
+            if (machineData.instantKW !== undefined) allItems.push({ icon: 'bolt', label: 'Power', value: this._fv(machineData.instantKW), unit: 'kW', color: 'var(--warning)' });
+            if (machineData.totalKWh !== undefined) allItems.push({ icon: 'battery_charging_full', label: 'Energy', value: this._fv(machineData.totalKWh), unit: 'kWh', color: 'var(--text-dim)' });
         }
 
-        return items;
+        // Dedup: keep first item per icon, rest go to detail
+        const seen = new Set();
+        const summary = [];
+        const detail = [];
+        for (const item of allItems) {
+            if (!seen.has(item.icon)) {
+                seen.add(item.icon);
+                summary.push(item);
+            } else {
+                detail.push(item);
+            }
+        }
+        return { summary, detail, all: allItems };
+    }
+
+    // ─── 3. Production Data (output counts only) ──────────────────
+    _buildProductionData(assetId, raw, schema, machineData) {
+        const allItems = [];
+        const prodGroups = ['Production', 'Output'];
+
+        if (schema) {
+            for (const [groupName, tags] of Object.entries(schema)) {
+                if (!prodGroups.some(g => groupName.toUpperCase().includes(g.toUpperCase()))) continue;
+                for (const tag of tags) {
+                    allItems.push(this._buildTagItem(tag, raw, machineData));
+                }
+            }
+        }
+
+        // Fallback
+        if (allItems.length === 0 && machineData) {
+            if (machineData.production !== undefined) allItems.push({ icon: 'inventory_2', label: 'Production', value: this._fv(machineData.production), unit: 'units', color: 'var(--text-dim)' });
+        }
+
+        // Dedup: keep first item per icon, rest go to detail
+        const seen = new Set();
+        const summary = [];
+        const detail = [];
+        for (const item of allItems) {
+            if (!seen.has(item.icon)) {
+                seen.add(item.icon);
+                summary.push(item);
+            } else {
+                detail.push(item);
+            }
+        }
+        return { summary, detail, all: allItems };
     }
 
     // ─── 4. Alarms ─────────────────────────────────────────────

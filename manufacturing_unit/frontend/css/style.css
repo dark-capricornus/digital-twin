@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap');
 
 :root {
     --primary: #ec5b13; /* Industrial Orange */
@@ -299,17 +300,441 @@ body {
 }
 
 .sb-section-title {
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.4), 0 0 30px rgba(0, 209, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.sb-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.drill-down-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drill-down-btn:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    transform: translateX(4px);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.drill-down-btn span {
+    font-size: 18px;
+}
+
+/* [USER] Metadata Grid for Asset Details */
+#sb-asset-header {
+    margin-bottom: 12px;
+}
+
+/* [USER] Vibrant Asset Summary Header */
+.vibrant-asset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, rgba(236,91,19,0.1) 0%, rgba(236,91,19,0.02) 100%);
+    border-left: 3px solid var(--primary);
+    padding: 16px;
+    margin-bottom: 24px;
+    border-radius: 4px;
+    position: relative;
+}
+
+.asset-summary-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.asset-name-large {
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.asset-model-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+/* [USER] Centered Headers for Alarms/Maintenance */
+.centered-header {
+    display: flex;
+    justify-content: center !important;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 12px 0 !important;
+}
+
+.centered-header span {
+    flex: 1;
+    text-align: center;
+}
+
+.centered-header .drill-down-btn {
+    position: absolute;
+    right: 0;
+}
+
+/* [USER] Text-based Close/Back Button */
+.back-text-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 900;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    letter-spacing: 0.1em;
+}
+
+.back-text-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.asset-service-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 16px;
+}
+
+.service-date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.service-date-cell:last-child {
+    align-items: flex-end;
+}
+
+.service-date-label {
+    font-size: 8px;
+    font-weight: 700;
     color: var(--text-dim);
     letter-spacing: 0.1em;
+}
+
+.service-date-value {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-bright, #fff);
+}
+
+.asset-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-weight: 900;
+    margin-top: 4px;
+    letter-spacing: 0.1em;
+}
+
+.asset-status-pill .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+}
+
+.centered-detail-title {
+    justify-content: center;
+    margin-top: 10px;
+}
+
+/* [USER] New Section Header Design: Icon | Title in center | Right Arrow */
+.section-header-modern {
+    display: grid;
+    grid-template-columns: 24px 1fr 24px;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    width: 100%;
+}
+
+.vibrant-asset-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+}
+
+.section-header-modern:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.section-header-modern .header-icon {
+    font-size: 18px;
+    color: var(--primary);
+}
+
+.section-header-modern .header-title {
+    text-align: center;
+    justify-self: center; /* [FIX] Center in grid */
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--text-bright);
+    margin: 0;
+}
+
+.section-header-modern .header-arrow {
+    font-size: 16px;
+    color: var(--text-dim);
+    transition: transform 0.2s ease;
+}
+
+.section-header-modern:hover .header-arrow {
+    transform: translateX(4px);
+    color: var(--primary);
+}
+
+/* [USER] High-Density Iconic Telemetry Grid */
+.telemetry-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+    padding: 0 16px 16px;
+}
+
+.telemetry-icon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 10px 4px;
+    transition: all 0.2s ease;
+}
+
+.telemetry-icon-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--primary);
+}
+
+.telemetry-icon-item .material-symbols-outlined {
+    font-size: 20px;
+    color: var(--primary);
+    margin-bottom: 6px;
+}
+
+.telemetry-icon-item .item-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+
+.telemetry-icon-item .item-unit {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-top: 1px;
+}
+
+/* [USER] Consolidated Zone Label: Vertical layout (Icon top, Text bottom) */
+.zone-chip-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.zone-name-label-plain {
+    font-family: 'Montserrat', sans-serif;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.08em;
+    text-shadow: none;
+    background: var(--surface-dark);
+    border: 1px solid var(--text-main);
+    padding: 3px 12px;
+    border-radius: 999px;
+}
+
+.asset-service-dates {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.service-date-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.service-date-item .label {
+    font-size: 8px;
+    color: var(--text-dim);
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.service-date-item .value {
+    font-size: 10px;
+    color: var(--text-bright);
+    font-weight: 600;
+}
+
+/* [USER] Detail Metadata Rows */
+.detail-meta-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.detail-meta-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.detail-meta-value {
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.empty-log {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 12px 0;
+    text-align: center;
+    opacity: 0.5;
+}
+
+.sb-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 2px;
+}
+
+.detail-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 .sb-divider {
     height: 1px;
     background: var(--surface-dark);
     margin-bottom: 12px;
+}
+
+/* Clean Row Layout for sidebar sections */
+#sb-plant, #sb-production {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+.sb-clean-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.sb-row-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.sb-clean-row-right {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+}
+
+.sb-row-value {
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.sb-row-unit {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+.sb-log-row {
+    justify-content: space-between;
+}
+
+.sb-row-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.sb-row-time {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sb-clean-row-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 /* 3-Per-Row Metric Flow */
@@ -633,28 +1058,150 @@ body {
 
 /* ─── 5. 3D CHIPS (Analytic HUD Version) ─────────────── */
 .machine-chip {
+    background: transparent;
+    border: none;
+    min-width: unset;
+    border-radius: 50%;
+    overflow: visible;
+    padding: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+}
+
+.machine-chip.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(0, 166, 81, 0.25);
+}
+
+.chip-info-btn-static {
     pointer-events: auto;
-    transition: transform 0.2s;
 }
 
-.machine-chip:hover {
-    transform: scale(1.1);
-}
-
-.chip-inner {
-    width: 32px;
-    height: 32px;
-    background: #0A0A0A;
-    border: 1px solid #FFFFFF;
+.chip-header {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    padding: 5px;
+    background: transparent;
+    white-space: nowrap;
 }
 
-.chip-inner.warning { border-color: var(--warning); color: var(--warning); }
-.chip-inner.alarm { border-color: var(--danger); color: var(--danger); }
-.chip-inner.running { border-color: var(--success); color: var(--success); }
+.chip-status-dot {
+    font-family: 'Material Symbols Outlined' !important;
+    font-size: 16px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 31px;
+    height: 31px;
+    background: linear-gradient(135deg, #2a1e19, #1c1411);
+    border-radius: 50%;
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.5),
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.05),
+        inset -1px -1px 2px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: glow-pulse 3s infinite ease-in-out;
+}
+
+@keyframes glow-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 1px 1px 2px rgba(255, 255, 255, 0.05);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 1px 1px 3px rgba(255, 255, 255, 0.1);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 1px 1px 2px rgba(255, 255, 255, 0.05);
+    }
+}
+
+.machine-chip.hovered .chip-status-dot,
+.machine-chip:hover .chip-status-dot {
+    transform: scale(1.15) translateY(-2px);
+    border-color: var(--primary);
+    background: linear-gradient(135deg, #322520, #221815);
+}
+
+.chip-status-dot.running {
+    color: var(--success);
+    border-color: rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.15), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.chip-status-dot.warning,
+.chip-status-dot.idle {
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.chip-status-dot.alarm,
+.chip-status-dot.down {
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.15), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.chip-name {
+    flex: 1;
+    font-size: 6px;
+    font-weight: 800;
+    color: #f0f6fc;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.chip-unified-value {
+    display: none;
+    font-size: 8px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #2a1e19, #1c1411);
+    padding: 4px 9px;
+    border-radius: 11px;
+    border: 1px solid rgba(236, 91, 19, 0.4);
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    font-family: 'Public Sans', sans-serif;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.machine-chip:hover .chip-unified-value {
+    transform: scale(1.1) translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(236, 91, 19, 0.3);
+}
+
+.chip-val {
+    font-size: 8px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #2a1e19, #1c1411);
+    padding: 4px 9px;
+    border-radius: 11px;
+    border: 1px solid rgba(236, 91, 19, 0.4);
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    font-family: 'Public Sans', sans-serif;
+    text-align: center;
+    white-space: nowrap;
+}
 
 /* ─── 6. SCROLLBARS ──────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
@@ -850,3 +1397,31 @@ body {
     border: 1px solid rgba(245, 158, 11, 0.2);
     text-transform: uppercase;
 }
+
+/* [USER] Asset Summary: Centered status pill below header */
+.asset-status-summary-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 4px 16px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 12px;
+}
+
+.asset-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    backdrop-filter: blur(8px);
+}
+
+.asset-status-pill .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+}

@@ -6,6 +6,8 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "purchase_date": "2022-11-15",
+            "last_service_date": "2026-02-10",
+            "next_service_date": "2026-08-10",
             "department": "Logistics",
             "icon": "inventory_2"
         },
@@ -15,6 +17,8 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "purchase_date": "2022-11-20",
+            "last_service_date": "2026-01-15",
+            "next_service_date": "2026-07-15",
             "department": "Logistics",
             "icon": "inventory_2"
         },
@@ -24,6 +28,8 @@
             "vendor": "HeatTech Industrial",
             "install_date": "2024-01-15",
             "purchase_date": "2023-12-05",
+            "last_service_date": "2026-03-01",
+            "next_service_date": "2026-06-01",
             "department": "Smelting Department",
             "icon": "local_fire_department"
         },
@@ -33,6 +39,8 @@
             "vendor": "MeltFlow",
             "install_date": "2024-02-10",
             "purchase_date": "2024-01-02",
+            "last_service_date": "2026-02-20",
+            "next_service_date": "2026-08-20",
             "department": "Smelting Department",
             "icon": "air"
         },
@@ -42,6 +50,8 @@
             "vendor": "MeltFlow",
             "install_date": "2024-02-10",
             "purchase_date": "2024-01-05",
+            "last_service_date": "2026-02-25",
+            "next_service_date": "2026-08-25",
             "department": "Smelting Department",
             "icon": "air"
         },
@@ -52,6 +62,8 @@
             "vendor": "CoolFlow",
             "install_date": "2024-02-15",
             "purchase_date": "2024-01-10",
+            "last_service_date": "2026-03-05",
+            "next_service_date": "2026-09-05",
             "department": "Die Casting Department",
             "icon": "ac_unit"
         },
@@ -61,6 +73,8 @@
             "vendor": "FoundryWorks",
             "install_date": "2023-11-20",
             "purchase_date": "2023-10-15",
+            "last_service_date": "2026-03-10",
+            "next_service_date": "2026-06-10",
             "department": "Die Casting Department",
             "icon": "factory"
         },
@@ -70,6 +84,8 @@
             "vendor": "FoundryWorks",
             "install_date": "2023-11-20",
             "purchase_date": "2023-10-16",
+            "last_service_date": "2026-03-12",
+            "next_service_date": "2026-06-12",
             "department": "Die Casting Department",
             "icon": "factory"
         },
@@ -79,6 +95,8 @@
             "vendor": "FoundryWorks",
             "install_date": "2023-11-20",
             "purchase_date": "2023-10-18",
+            "last_service_date": "2026-03-15",
+            "next_service_date": "2026-06-15",
             "department": "Die Casting Department",
             "icon": "factory"
         },
@@ -88,6 +106,8 @@
             "vendor": "Metallurgy Systems",
             "install_date": "2023-12-05",
             "purchase_date": "2023-11-01",
+            "last_service_date": "2026-02-28",
+            "next_service_date": "2026-05-28",
             "department": "Heat Treating Department",
             "icon": "thermostat"
         },
@@ -97,6 +117,8 @@
             "vendor": "Metallurgy Systems",
             "install_date": "2023-12-05",
             "purchase_date": "2023-11-02",
+            "last_service_date": "2026-03-02",
+            "next_service_date": "2026-06-02",
             "department": "Heat Treating Department",
             "icon": "thermostat"
         },
@@ -107,6 +129,8 @@
             "vendor": "CoolFlow",
             "install_date": "2024-02-15",
             "purchase_date": "2024-01-12",
+            "last_service_date": "2026-03-08",
+            "next_service_date": "2026-09-08",
             "department": "Heat Treating Department",
             "icon": "ac_unit"
         },
@@ -116,6 +140,8 @@
             "vendor": "Precision Dynamics",
             "install_date": "2024-03-10",
             "purchase_date": "2024-02-01",
+            "last_service_date": "2026-03-20",
+            "next_service_date": "2026-06-20",
             "department": "Machining Department",
             "icon": "settings"
         },
@@ -125,6 +151,8 @@
             "vendor": "Precision Dynamics",
             "install_date": "2024-03-10",
             "purchase_date": "2024-02-05",
+            "last_service_date": "2026-03-22",
+            "next_service_date": "2026-06-22",
             "department": "Machining Department",
             "icon": "settings"
         },
@@ -134,6 +162,8 @@
             "vendor": "OpticalSense",
             "install_date": "2024-05-22",
             "purchase_date": "2024-04-10",
+            "last_service_date": "2026-03-18",
+            "next_service_date": "2026-09-18",
             "department": "Machining Department",
             "icon": "visibility"
         },
@@ -143,6 +173,8 @@
             "vendor": "SurfaceTech",
             "install_date": "2024-04-01",
             "purchase_date": "2024-03-05",
+            "last_service_date": "2026-03-25",
+            "next_service_date": "2026-09-25",
             "department": "Finishing Department",
             "icon": "water_drop"
         },
@@ -152,6 +184,8 @@
             "vendor": "ColorCorp",
             "install_date": "2024-04-10",
             "purchase_date": "2024-03-15",
+            "last_service_date": "2026-03-28",
+            "next_service_date": "2026-06-28",
             "department": "Finishing Department",
             "icon": "format_paint"
         },
@@ -162,6 +196,8 @@
             "vendor": "ColorCorp",
             "install_date": "2024-04-10",
             "purchase_date": "2024-03-18",
+            "last_service_date": "2026-03-30",
+            "next_service_date": "2026-06-30",
             "department": "Finishing Department",
             "icon": "format_paint"
         },
@@ -171,6 +207,8 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "purchase_date": "2022-12-01",
+            "last_service_date": "2026-02-05",
+            "next_service_date": "2026-08-05",
             "department": "Logistics",
             "icon": "archive"
         },
@@ -180,6 +218,8 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "purchase_date": "2022-11-20",
+            "last_service_date": "2026-01-20",
+            "next_service_date": "2026-07-20",
             "department": "Logistics",
             "icon": "local_shipping"
         },
@@ -189,6 +229,8 @@
             "vendor": "LogiSystems",
             "install_date": "2023-01-01",
             "purchase_date": "2022-11-25",
+            "last_service_date": "2026-01-25",
+            "next_service_date": "2026-07-25",
             "department": "Logistics",
             "icon": "local_shipping"
         },
@@ -199,6 +241,8 @@
             "vendor": "Internal",
             "install_date": "2023-01-01",
             "purchase_date": "2022-11-10",
+            "last_service_date": "2026-02-01",
+            "next_service_date": "2026-08-01",
             "department": "Logistics",
             "icon": "inventory_2"
         }

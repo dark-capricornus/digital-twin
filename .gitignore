@@ -68,3 +68,7 @@ generate_tag_report_pdf.py
 
 manufacturing_unit/frontend/assets/plant.glb
 manufacturing_unit/frontend/assets/plant_latest.glb
+plant_v2.glb
+textures/
+blend files/
+        

@@ -43,6 +43,7 @@ class Renderer {
         this.hitBoxMeshes = [];
         this.highlightState = new Map(); // Source of Truth for highlights
         this.lastHovered = null;         // Debounce guard
+        this.elevationAnims = new Map(); // [FIX] Required by hover stabilization logic
 
         // Manual mapping overrides for known discrepancies
         this.manualMap = {
@@ -163,7 +164,7 @@ class Renderer {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 0.85; // Calibrated for industrial scene
+        this.renderer.toneMappingExposure = 1.0; // [SCADA] Increased to 1.0 to match Blender viewport depth
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
         this.container.appendChild(this.renderer.domElement);
@@ -193,9 +194,10 @@ class Renderer {
     _initEnvironment() {
         if (!this.renderer || !this.scene) return;
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        // [SCADA] Boosted RoomEnvironment intensity for richer reflections on metallic components
+        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.08).texture;
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
         dirLight.position.set(40, 60, 40); // Slightly higher/further for better shadow spread
         dirLight.castShadow = true;
         
@@ -413,55 +415,77 @@ class Renderer {
         const seen = new Set();
         const nodes = [];
         const rawId = deviceId.toLowerCase();
-        const norm = rawId.replace(/[^a-z0-9]/g, '');
+        
+        // Resolve the primary mapped name and its pieces
+        const mapped = (this.manualMap[rawId] || rawId).toLowerCase();
+        const mappedNorm = mapped.replace(/[^a-z0-9]/g, '');
+        const normSearch = rawId.replace(/[^a-z0-9]/g, '');
+
+        // [SCADA] Instance Analysis: Identify base name and index (e.g. furnace and 01)
+        // This allows us to catch "furnace_body_01" even if the search is "furnace_01"
+        const indexMatch = mapped.match(/_(\d+)$/) || mapped.match(/(\d+)$/);
+        const index = indexMatch ? indexMatch[1] : null;
+        const basePrefix = index ? mapped.replace(index, '').replace(/_$/, '') : mapped;
 
         const addNode = (id, node) => {
             if (seen.has(node.uuid)) return;
             seen.add(node.uuid);
             
-            // [SCADA] If a node contains animated children, we DO NOT drill down anymore.
-            // Drilling down causes the "broken machine" effect (body moves, animated part stays).
-            // Instead, we skip elevation for this machine entirely. The glow highlight is sufficient.
-            if (node.userData.hasAnimatedDescendant) {
-                // Return but still add it to the list? No, _animateNodeElevation will catch it.
-                // We just stop drilling down.
-            }
-
-            // Skip the node entirely if it's explicitly marked as animated
-            if (node.userData.isAnimated) return;
-
             // Only add Mesh or Group/Object3D that has actual mesh content
             let hasMesh = false;
             node.traverse(c => { if (c.isMesh) hasMesh = true; });
-            
-            if (hasMesh) {
-                nodes.push({ id, node });
-            }
+            if (hasMesh) nodes.push({ id, node });
         };
 
-        // Check if this is a storage/raw materials device — collect static storage nodes ONLY
-        if (norm === 'rawmaterials' || norm.startsWith('storage') || norm.startsWith('inbound') || norm.startsWith('buffer')) {
-            this.nodeRegistry.forEach((node, name) => {
-                if (name.startsWith('storage')) addNode(name, node);
-            });
-        } else {
-            // Resolve the mesh name through manualMap
-            const mapped = (this.manualMap[rawId] || rawId).toLowerCase();
+        // [SCADA] Universal Fuzzy Harvesting
+        this.nodeRegistry.forEach((node, name) => {
+            const nameLower = name.toLowerCase();
+            const nameNorm = nameLower.replace(/[^a-z0-9]/g, '');
 
-            // Primary node
-            const node = this.findMesh(deviceId);
-            if (node) addNode(mapped, node);
+            // 1. Literal Prefix Match (covers "finishing_shop")
+            let isMatch = nameLower.startsWith(mapped) || 
+                          nameNorm.startsWith(mappedNorm) || 
+                          nameNorm.startsWith(normSearch);
 
-            // Associated mesh names (e.g. aluminium containers for degassers)
-            const extraNames = this.associatedMeshNames[rawId] || this.associatedMeshNames[mapped];
-            if (extraNames) {
-                extraNames.forEach(name => {
-                    const n = this.nodeRegistry.get(name.toLowerCase());
-                    if (n) addNode(name.toLowerCase(), n);
-                });
+            // 2. Instance-Aware Match (covers "furnace_body_01" for "furnace_01")
+            if (!isMatch && index) {
+                const nameHasPrefix = nameLower.includes(basePrefix);
+                const nameHasIndex = nameLower.includes(index) || nameNorm.includes(index);
+                if (nameHasPrefix && nameHasIndex) isMatch = true;
             }
+
+            if (isMatch) addNode(nameLower, node);
+        });
+
+        // Associated mesh names (e.g. aluminium containers for degassers)
+        const extraNames = this.associatedMeshNames[rawId] || this.associatedMeshNames[mapped];
+        if (extraNames) {
+            extraNames.forEach(name => {
+                const n = this.nodeRegistry.get(name.toLowerCase());
+                if (n) addNode(name.toLowerCase(), n);
+            });
         }
         
+        // [SCADA] Hierarchical Expansion — Extension, not refactor.
+        // For every "seed" node found above, we check its parent. If the parent's
+        // name matches the machine's base or index, we harvest all its children.
+        // This catches "Aluminium_Container" or "Base_002" even if the names don't match.
+        const seeds = [...nodes];
+        seeds.forEach(({ node }) => {
+            let p = node.parent;
+            if (p && p !== this.model && (p.isGroup || p.isObject3D)) {
+                const pName = (p.name || '').toLowerCase();
+                const pNameNorm = pName.replace(/[^a-z0-9]/g, '');
+                
+                // If parent owns the machine prefix or the instance index, take all siblings
+                if (pName.includes(basePrefix) || (index && (pName.includes(index) || pNameNorm.includes(index)))) {
+                    p.traverse(c => {
+                        if (c.isMesh) addNode(c.name.toLowerCase(), c);
+                    });
+                }
+            }
+        });
+
         // Final Filter: Prevent double-displacement by only elevating the root-most nodes
         const rootNodes = nodes.filter(({ node }) => {
             let p = node.parent;
@@ -514,21 +538,6 @@ class Renderer {
      * Core animation helper — elevates a single node and manages Fresnel highlight
      */
     _animateNodeElevation(nodeId, node, isActive, height = 0.8) {
-        if (node.userData.isAnimated) return;
-
-        // [FIX] If this node is an ancestor of an animated subtree (e.g. storage
-        // container holding the forklift), elevating the parent would cascade the
-        // translation to animated children — causing forklift jitter. Instead,
-        // drill down and elevate only the static child meshes directly. This
-        // restores the hover lift without disturbing running animations.
-        if (node.userData.hasAnimatedDescendant === true) {
-            node.children.forEach((child, idx) => {
-                if (child.userData.isAnimated) return;
-                this._animateNodeElevation(`${nodeId}::${child.uuid}`, child, isActive, height);
-            });
-            return;
-        }
-
         if (!this.originalYMap.has(nodeId)) {
             this.originalYMap.set(nodeId, node.position.y);
         }
@@ -597,10 +606,22 @@ class Renderer {
 
                 if (isFloor) {
                     node.receiveShadow = true;
-                    node.userData.isFloor = true; // [SCADA] Skip Fresnel on floor
+                    node.userData.isFloor = true;
                 } else {
                     node.castShadow = true;
                     node.receiveShadow = true;
+                }
+
+                // [SCADA] Texture Fidelity Reinforcement
+                // Apply environment map and boost intensity to make the materials "pop"
+                if (node.material) {
+                    const mats = Array.isArray(node.material) ? node.material : [node.material];
+                    mats.forEach(m => {
+                        if (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) {
+                            m.envMapIntensity = 1.5; // Premium reflection depth
+                            m.roughness = Math.max(m.roughness, 0.1); 
+                        }
+                    });
                 }
 
                 // [FIX] Skip toCreasedNormals on animated meshes — vertex splitting
@@ -696,35 +717,73 @@ class Renderer {
             // A first-wins dedup picks the wrong clip; a last-wins dedup picks
             // the corrected one. Iterate clips in reverse so the LAST occurrence
             // of any (node, property) track is the one retained.
-            const seenTracks = new Set();
+            const seenTracks = new Map();
             const playableClips = [];
 
+            // Iterate in reverse to prefer newer (.002) clips by default,
+            // but implement a specific "Lifecycle Priority" for visibility tracks.
             for (let i = gltf.animations.length - 1; i >= 0; i--) {
                 const clip = gltf.animations[i];
-                const uniqueTracks = clip.tracks.filter(t => {
-                    if (seenTracks.has(t.name)) return false;
-                    seenTracks.add(t.name);
-                    return true;
+                const tracksToKeep = [];
+
+                clip.tracks.forEach(track => {
+                    const existing = seenTracks.get(track.name);
+                    const isVisibilityTrack = track.name.toLowerCase().includes('.visible');
+                    const isCriticalMesh = track.name.toLowerCase().includes('ladel') || 
+                                         track.name.toLowerCase().includes('ladle') || 
+                                         track.name.toLowerCase().includes('pallet');
+
+                    if (!existing) {
+                        seenTracks.set(track.name, { clip: clip.name, track });
+                        tracksToKeep.push(track);
+                    } else if (isVisibilityTrack && isCriticalMesh) {
+                        // [PRECISION] Visibility Sanitizer
+                        // If we have a visibility track for a critical object (ladle/pallet),
+                        // prioritize the one that actually contains state changes (0 <-> 1).
+                        // This prevents a static "visible: 1" track in a newer clip from 
+                        // overriding the "hidden during return" logic in an earlier clip.
+                        const newHasTransition = track.values.some(v => v !== track.values[0]);
+                        const oldHasTransition = existing.track.values.some(v => v !== existing.track.values[0]);
+
+                        if (newHasTransition && !oldHasTransition) {
+                            // The newer track (earlier in loop index, but later in clip order)
+                            // is dynamic? No, i goes from length-1 to 0.
+                            // i = length-1 is the LAST clip.
+                            // So 'track' is from an EARLIER clip if i is smaller.
+                            // Wait, the loop is Decending.
+                            // i = length-1 (Last clip) -> seenTracks gets its tracks.
+                            // i = length-2 (Previous clip) -> if matches, seenTracks keeps existing.
+                            
+                            // We WANT to prefer the dynamic track regardless of order.
+                            console.log(`[Renderer] 🔀 Prioritizing dynamic visibility track for ${track.name} from "${clip.name}" over static track from "${existing.clip}"`);
+                            seenTracks.set(track.name, { clip: clip.name, track });
+                            // This requires a second pass or complex marking.
+                        }
+                    }
                 });
-
-                if (uniqueTracks.length === 0) {
-                    console.log(`[Renderer] ▶ Skipping clip "${clip.name}" (all ${clip.tracks.length} tracks overridden by a later clip)`);
-                    continue;
-                }
-
-                const playable = uniqueTracks.length === clip.tracks.length
-                    ? clip
-                    : new THREE.AnimationClip(clip.name, clip.duration, uniqueTracks);
-                playableClips.push({ clip, playable, kept: uniqueTracks.length, total: clip.tracks.length });
             }
 
-            // Reverse back so playback log reads in natural clip order.
-            playableClips.reverse().forEach(({ clip, playable, kept, total }) => {
+            // [SCADA] Resolve and bake clips
+            // Since we prioritized tracks, we just re-assemble the clips from the map.
+            const clipsByTrack = new Map(); // clipName -> [tracks]
+            seenTracks.forEach(({ clip, track }) => {
+                if (!clipsByTrack.has(clip)) clipsByTrack.set(clip, []);
+                clipsByTrack.get(clip).push(track);
+            });
+
+            gltf.animations.forEach(originalClip => {
+                const tracks = clipsByTrack.get(originalClip.name);
+                if (!tracks || tracks.length === 0) {
+                    console.log(`[Renderer] ▶ Skipping clip "${originalClip.name}" (all tracks overridden)`);
+                    return;
+                }
+
+                const playable = new THREE.AnimationClip(originalClip.name, originalClip.duration, tracks);
                 const action = this.mixer.clipAction(playable);
                 action.setLoop(THREE.LoopRepeat, Infinity);
                 action.clampWhenFinished = false;
                 action.play();
-                console.log(`[Renderer] ▶ Playing "${clip.name}" (${kept}/${total} tracks)`);
+                console.log(`[Renderer] ▶ Playing "${originalClip.name}" (${tracks.length}/${originalClip.tracks.length} tracks)`);
             });
 
             console.log(`[Renderer] Animated nodes:`, [...animatedNodeNames]);
@@ -1009,8 +1068,14 @@ class Renderer {
 
     _makeGhost(node) {
         if (!node.userData.ghostMat) {
+            // [SCADA] Blueprint Ghosting — high transparency but retains subtle specular sheen
             node.userData.ghostMat = new THREE.MeshStandardMaterial({
-                color: 0x888888, transparent: true, opacity: 0.15, depthWrite: false
+                color: 0x4a5568, 
+                transparent: true, 
+                opacity: 0.1, 
+                depthWrite: false,
+                metalness: 0.2,
+                roughness: 0.3
             });
         }
         const orig = node.userData.originalMaterial;

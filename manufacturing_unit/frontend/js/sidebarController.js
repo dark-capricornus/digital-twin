@@ -15,91 +15,102 @@ export default class SidebarController {
         this.onZoneChange = null;
         this.onCollapse = null;
         this.isInitialized = false;
+        this.assetData = {};
         
-        // [USER] Track expanded/navigation state of sections
-        this.expandedSections = new Set();
-        this.activeDetailView = null; // [USER] Tracks drill-down state: 'asset', 'plant', 'production', etc.
-        this.assetData = null; // Stored metadata from assets.json
-        this.statusColors = {
-            'running': 'var(--success)',
-            'ok': 'var(--success)',
-            'nominal': 'var(--success)',
-            'healthy': 'var(--success)',
-            'warning': 'var(--warning)',
-            'fault': 'var(--danger)',
-            'error': 'var(--danger)',
-            'alarm': 'var(--danger)',
-            'offline': 'var(--text-dim)',
-            'stopped': 'var(--text-dim)'
-        };
+        // [USER] Track expanded/navigation state of 7 sections (OPEN BY DEFAULT)
+        this.expandedSections = new Set([
+            'MACHINE METRICS', 
+            'ENERGY CONSUMPTION', 
+            'PRODUCTION DATA', 
+            'STATUS & RUN INFO', 
+            'ALARMS', 
+            'MAINTENANCE', 
+            'ASSET INFO'
+        ]); 
+        this.container = null;
     }
 
     /**
      * Initialize with zone/machine data from main app
      */
     init(machineGroups, departmentLabels, callbacks = {}) {
+        this.container = document.getElementById('hud-right-sidebar');
+        if (!this.container) return;
+
         this.zones = Object.keys(machineGroups);
         this.zoneAssets = machineGroups;
         this.zoneLabels = departmentLabels || {};
         this.onAssetSelect = callbacks.onAssetSelect || null;
         this.onZoneChange = callbacks.onZoneChange || null;
         this.onCollapse = callbacks.onCollapse || null;
-        // [FIX] Don't overwrite if already set or use fallback to empty object
+        
         if (callbacks.assetData) this.assetData = callbacks.assetData;
-        if (!this.assetData) this.assetData = {};
 
-        // Wire zone nav buttons
+        this.isInitialized = true;
+
+        // [COMPONENT] Inject self-contained HTML
+        this._injectBaseHTML();
+        this._attachBaseListeners();
+    }
+
+    _injectBaseHTML() {
+        this.container.innerHTML = `
+            <div class="sb-header-main">
+                <div class="sb-dept-name">
+                    <button id="zone-prev" class="zone-nav-btn"><span class="material-symbols-outlined">chevron_left</span></button>
+                    <div class="sb-dept-title-group">
+                        <span id="zone-name" class="sb-dept-title">---</span>
+                        <span class="sb-dept-sub">DEPARTMENT</span>
+                    </div>
+                    <button id="zone-next" class="zone-nav-btn"><span class="material-symbols-outlined">chevron_right</span></button>
+                </div>
+
+                <div class="sb-asset-name-row">
+                    <button id="asset-prev" class="asset-nav-btn"><span class="material-symbols-outlined">chevron_left</span></button>
+                    <span id="sidebar-asset-name" class="sb-asset-name">SELECT ASSET</span>
+                    <button id="asset-next" class="asset-nav-btn"><span class="material-symbols-outlined">chevron_right</span></button>
+                </div>
+
+                <div id="asset-carousel" class="sb-pill-carousel" style="display:none"></div>
+
+                <div class="sb-uptime-row">
+                    <span>UPTIME</span>
+                    <span id="sidebar-uptime" class="sb-uptime-val">---</span>
+                </div>
+
+                <div class="sb-metrics-label">METRICS</div>
+            </div>
+
+            <div id="sidebar-scroll">
+                <div id="metric-segments-container"></div>
+                <div id="sidebar-dynamic-content"></div> 
+            </div>
+        `;
+    }
+
+    _attachBaseListeners() {
         const prevBtn = document.getElementById('zone-prev');
         const nextBtn = document.getElementById('zone-next');
-        if (prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); this._cycleZone(-1); };
-        if (nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); this._cycleZone(1); };
-
-        // Wire asset nav buttons
         const assetPrev = document.getElementById('asset-prev');
         const assetNext = document.getElementById('asset-next');
-        if (assetPrev) assetPrev.onclick = (e) => {
-            e.stopPropagation();
-            this._navigateAsset(-1);
-        };
-        if (assetNext) assetNext.onclick = (e) => {
-            e.stopPropagation();
-            this._navigateAsset(1);
-        };
 
-        // Wire close button
-        const closeBtn = document.getElementById('sidebar-close-btn');
-        if (closeBtn) {
-            closeBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.collapse();
-                if (this.onCollapse) this.onCollapse();
-            };
-        }
+        if (prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); this._cycleZone(-1); };
+        if (nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); this._cycleZone(1); };
+        if (assetPrev) assetPrev.onclick = (e) => { e.stopPropagation(); this._navigateAsset(-1); };
+        if (assetNext) assetNext.onclick = (e) => { e.stopPropagation(); this._navigateAsset(1); };
 
-        this.sidebarEl = document.getElementById('hud-right-sidebar');
-
+        this.sidebarEl = this.container;
+        
         // [USER] Close sidebar on outside click
         document.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
             if (!this.sidebarEl || this.sidebarEl.classList.contains('collapsed')) return;
             if (this.sidebarEl.contains(e.target)) return;
-            // Don't collapse/reset for 3D canvas clicks — renderer handles those via selectDevice
+            // Don't collapse/reset for 3D canvas clicks
             const container = document.getElementById('container');
             const is3D = container && container.contains(e.target);
-            this.collapse();
             if (!is3D && this.onCollapse) this.onCollapse();
         });
-
-        this.isInitialized = true;
-        this.mainTemplate = this.sidebarEl.querySelector('#sidebar-scroll').innerHTML;
-
-        // Initial view: plant overview (no asset selected)
-        const initialAsset = callbacks.initialAssetId;
-        if (initialAsset) {
-            this.setAsset(initialAsset);
-        } else {
-            this._renderZone();
-        }
     }
 
     setZoneById(zoneId) {
@@ -124,16 +135,15 @@ export default class SidebarController {
         }
 
         this.currentAssetId = assetId;
+
+        this._updateAssetNameHeader();
         
-        // Reset rendering contexts to force structural refresh for the newly selected asset
-        const headerEl = document.getElementById('sb-asset-header');
-        if (headerEl) headerEl.dataset.renderedAssetId = '';
-        
+        // Reset uptime for new asset
+        const uptimeEl = document.getElementById('sidebar-uptime');
+        if (uptimeEl) uptimeEl.textContent = '---';
+
         const scrollEl = document.getElementById('sidebar-scroll');
         if (scrollEl) scrollEl.dataset.detailContext = '';
-
-        this._updateAssetPills();
-        this._scrollToActiveAsset();
     }
 
     getCurrentZone() {
@@ -157,28 +167,165 @@ export default class SidebarController {
      */
     update(data) {
         if (!this.isInitialized) return;
-        this.lastUpdateData = data; // Cache for detail view refreshes
+        this.lastUpdateData = data;
 
-        // [USER] Partial Update Logic: Only update values, don't re-render containers if structure exists
-        if (this.activeDetailView) {
-            this._renderDetailViewPartial(this.activeDetailView, data);
-            return;
+        const container = document.getElementById('metric-segments-container');
+        if (!container) return;
+
+        // Update Uptime in Header
+        const uptimeEl = document.getElementById('sidebar-uptime');
+        if (uptimeEl && data.uptime) {
+            const upText = `${data.uptime} MINUTES`;
+            if (uptimeEl.textContent !== upText) uptimeEl.textContent = upText;
         }
 
-        const { asset, plant, production, alarms, maintenance } = data;
+        // [PALETTE] Cohesive accent set:
+        //   - Cool informational hues for telemetry (metrics, status)
+        //   - Brand orange for energy (matches primary accent)
+        //   - Green for production output (positive)
+        //   - Red reserved for alarms only (no pink/magenta competing)
+        //   - Amber for maintenance (caution, distinct from alarm red)
+        //   - Neutral slate for asset metadata
+        const segmentsDef = [
+            ['metrics',     'MACHINE METRICS',    '#06B6D4', 'list'],
+            ['energy',      'ENERGY CONSUMPTION', '#F97316', 'split'],
+            ['production',  'PRODUCTION DATA',    '#22C55E', 'split'],
+            ['status',      'STATUS & RUN INFO',  '#3B82F6', 'list'],
+            ['alarms',      'ALARMS',             '#EF4444', 'list'],
+            ['maintenance', 'MAINTENANCE',        '#F59E0B', 'list'],
+            ['assetInfo',   'ASSET INFO',         '#94A3B8', 'list'],
+        ];
 
-        // [USER] Render Asset Summary (Name + Model + Service Dates)
-        this._renderAssetSummary(this.currentAssetId, data.status || 'NOMINAL');
+        // Structural signature: asset + segment shapes/labels (NO values).
+        // Only a label/count change triggers a full re-render, so value flicker stops.
+        const sig = this._buildStructuralSignature(data, segmentsDef);
+        if (container.dataset.sig !== sig) {
+            let html = '';
+            segmentsDef.forEach(([key, title, accent, layout]) => {
+                if (data[key]) html += this._renderSegmentedBox(title, data[key], accent, layout);
+            });
+            container.innerHTML = html;
+            container.dataset.sig = sig;
+            this._attachSegmentListeners();
+        }
 
-        // Update sections — show summary (deduped) in main view
-        const plantItems = plant?.summary || plant || [];
-        const prodItems = production?.summary || production || [];
-        this._updateSectionIconic('sb-plant', plantItems, 'plant', 'PLANT DATA', 'factory');
-        this._updateSectionIconic('sb-production', prodItems, 'production', 'PRODUCTION', 'inventory_2');
-        
-        // Alarms and Maintenance: Center Titles + Top 1 Log
-        this._updateModernHeaderSection('sb-alarms', alarms || [], 'alarms', 'ACTIVE ALARMS', 'warning');
-        this._updateModernHeaderSection('sb-maintenance', maintenance || [], 'maintenance', 'PENDING MAINTENANCE', 'build');
+        // Targeted value/status updates — leaves DOM structure intact.
+        segmentsDef.forEach(([key, title, , layout]) => {
+            const items = data[key];
+            if (!items) return;
+            const slug = this._sigKey(title);
+            items.forEach((item, i) => {
+                const valEl = document.getElementById(`sb-v-${slug}-${i}`);
+                if (!valEl) return;
+                if (layout === 'split') {
+                    const newVal = item.value || '---';
+                    if (valEl.textContent !== newVal) valEl.textContent = newVal;
+                    const uEl = document.getElementById(`sb-u-${slug}-${i}`);
+                    if (uEl) {
+                        const newUnit = item.unit || '';
+                        if (uEl.textContent !== newUnit) uEl.textContent = newUnit;
+                    }
+                } else {
+                    const txt = `${item.value || '---'} ${item.unit || ''}`.trim();
+                    if (valEl.textContent !== txt) valEl.textContent = txt;
+                }
+                const statusClass = item.status ? `status-${item.status.toLowerCase()}` : '';
+                const base = layout === 'split' ? 'sb-metric-value' : 'sb-temp-value';
+                const desired = statusClass ? `${base} ${statusClass}` : base;
+                if (valEl.className !== desired) valEl.className = desired;
+            });
+        });
+    }
+
+    _sigKey(title) {
+        return String(title).replace(/[^a-zA-Z0-9]+/g, '-');
+    }
+
+    _buildStructuralSignature(data, segmentsDef) {
+        const parts = [this.currentAssetId || ''];
+        segmentsDef.forEach(([key, title]) => {
+            const items = data[key];
+            if (!items) { parts.push(`${title}:0`); return; }
+            parts.push(`${title}:${items.length}:${items.map(it => it.label || '').join('|')}`);
+        });
+        return parts.join('§');
+    }
+
+    _renderSegmentedBox(title, items, accentColor, layout = 'list') {
+        const isCollapsed = !this.expandedSections.has(title);
+        const slug = this._sigKey(title);
+        let itemsHtml = '';
+
+        if (layout === 'split') {
+            const left = items[0] || {};
+            const right = items[1] || {};
+            itemsHtml = `
+                <div class="sb-grid-split">
+                    ${this._renderMetricPair(left, slug, 0)}
+                    <div class="sb-grid-divider"></div>
+                    ${this._renderMetricPair(right, slug, 1)}
+                </div>
+            `;
+        } else {
+            itemsHtml = `<div class="sb-temp-list">
+                ${items.map((item, i) => this._renderMetricListRow(item, slug, i)).join('')}
+            </div>`;
+        }
+
+        return `
+            <div class="sb-segment ${isCollapsed ? 'collapsed' : ''}" style="--accent: ${accentColor}" data-section="${title}">
+                <div class="sb-segment-header">
+                    <div class="sb-segment-title">${title}</div>
+                    <span class="material-symbols-outlined sb-segment-chevron">
+                        ${isCollapsed ? 'expand_more' : 'expand_less'}
+                    </span>
+                </div>
+                <div class="sb-segment-body">
+                    ${itemsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    _attachSegmentListeners() {
+        const segments = this.container.querySelectorAll('.sb-segment');
+        segments.forEach(seg => {
+            const header = seg.querySelector('.sb-segment-header');
+            header.onclick = (e) => {
+                e.stopPropagation();
+                const title = seg.dataset.section;
+                if (this.expandedSections.has(title)) {
+                    this.expandedSections.delete(title);
+                    seg.classList.add('collapsed');
+                } else {
+                    this.expandedSections.add(title);
+                    seg.classList.remove('collapsed');
+                }
+            };
+        });
+    }
+
+    _renderMetricPair(item, slug, i) {
+        const statusClass = item.status ? `status-${item.status.toLowerCase()}` : '';
+        return `
+            <div class="sb-metric-unit-pair">
+                <span class="sb-metric-label">${item.label || '---'}</span>
+                <div class="sb-metric-value-row">
+                    <span class="sb-metric-value ${statusClass}" id="sb-v-${slug}-${i}">${item.value || '---'}</span>
+                    <span class="sb-metric-unit" id="sb-u-${slug}-${i}">${item.unit || ''}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderMetricListRow(item, slug, i) {
+        const statusClass = item.status ? `status-${item.status.toLowerCase()}` : '';
+        return `
+            <div class="sb-temp-row">
+                <span class="sb-temp-label">${item.label || '---'}</span>
+                <span class="sb-temp-value ${statusClass}" id="sb-v-${slug}-${i}">${item.value || '---'} ${item.unit || ''}</span>
+            </div>
+        `;
     }
 
     _renderAssetSummary(assetId, status = 'NOMINAL') {
@@ -239,6 +386,21 @@ export default class SidebarController {
 
     // ─── Private ───────────────────────────────────────────
 
+    _updateAssetNameHeader() {
+        const nameEl = document.getElementById('sidebar-asset-name');
+        if (!nameEl) return;
+        if (!this.currentAssetId) {
+            nameEl.textContent = 'SELECT ASSET';
+            return;
+        }
+        const raw = String(this.currentAssetId);
+        // Preserve IDs like "Furnace_01" (Capitalize first letter of each underscore segment)
+        nameEl.textContent = raw
+            .split('_')
+            .map(part => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
+            .join('_');
+    }
+
     _cycleZone(dir, selectLast = false) {
         this.currentZoneIndex = (this.currentZoneIndex + dir + this.zones.length) % this.zones.length;
         const zoneId = this.zones[this.currentZoneIndex];
@@ -249,42 +411,43 @@ export default class SidebarController {
             this._renderZone();
             this._updateAssetPills();
             this._scrollToActiveAsset();
+            this._updateAssetNameHeader();
             if (this.onAssetSelect) this.onAssetSelect(this.currentAssetId);
         } else {
             this.currentAssetId = null;
             this._renderZone();
+            this._updateAssetNameHeader();
         }
-        
+
         if (this.onZoneChange) this.onZoneChange(zoneId);
     }
 
     _navigateAsset(dir) {
+        if (!this.zones.length) return;
         const zoneId = this.zones[this.currentZoneIndex];
         const assets = this.zoneAssets[zoneId] || [];
         const currentIndex = assets.indexOf(this.currentAssetId);
 
+        const commit = (id) => {
+            this.currentAssetId = id;
+            this._updateAssetPills();
+            this._scrollToActiveAsset();
+            this._updateAssetNameHeader();
+            if (this.onAssetSelect) this.onAssetSelect(id);
+        };
+
         if (dir === 1) {
+            if (currentIndex === -1 && assets.length > 0) { commit(assets[0]); return; }
             if (currentIndex < assets.length - 1) {
-                // Next asset in same zone
-                const nextId = assets[currentIndex + 1];
-                this.currentAssetId = nextId;
-                this._updateAssetPills();
-                this._scrollToActiveAsset();
-                if (this.onAssetSelect) this.onAssetSelect(nextId);
+                commit(assets[currentIndex + 1]);
             } else {
-                // Wrap to next zone
                 this._cycleZone(1, false);
             }
         } else {
+            if (currentIndex === -1 && assets.length > 0) { commit(assets[assets.length - 1]); return; }
             if (currentIndex > 0) {
-                // Prev asset in same zone
-                const prevId = assets[currentIndex - 1];
-                this.currentAssetId = prevId;
-                this._updateAssetPills();
-                this._scrollToActiveAsset();
-                if (this.onAssetSelect) this.onAssetSelect(prevId);
+                commit(assets[currentIndex - 1]);
             } else {
-                // Wrap to prev zone (and select last asset)
                 this._cycleZone(-1, true);
             }
         }
@@ -310,8 +473,8 @@ export default class SidebarController {
 
         const nameEl = document.getElementById('zone-name');
         if (nameEl) {
-            const label = this.zoneLabels[zoneId] || zoneId;
-            nameEl.textContent = label.toUpperCase().replace(/\s+/g, '_');
+            const label = (this.zoneLabels[zoneId] || zoneId).trim();
+            nameEl.textContent = label.toUpperCase();
         }
 
         const carousel = document.getElementById('asset-carousel');
@@ -482,7 +645,7 @@ export default class SidebarController {
                             <span class="material-symbols-outlined msg-icon" style="color: ${item.iconColor || 'var(--text-dim)'}">${item.icon || 'info'}</span>
                             <div class="msg-body">
                                 <div class="msg-header">
-                                    <span class="msg-title">${item.title || 'STATUS MESSAGE'}</span>
+                                    <span class="msg-title" style="color: var(--text-dim);">${item.title || 'STATUS MESSAGE'}</span>
                                     <span class="msg-time">${item.time || ''}</span>
                                 </div>
                                 <div class="msg-desc">${item.desc || ''}</div>
@@ -562,9 +725,9 @@ export default class SidebarController {
                 { label: 'Department', id: 'department', val: assetData.department || 'MANUFACTURING' }
             ];
             itemsHtml = metadataCols.map(m => `
-                <div class="detail-meta-row" style="${m.highlight ? 'padding: 14px 16px; background: rgba(255,255,255,0.03); margin-bottom: 4px;' : ''}">
+                <div class="detail-meta-row" style="${m.highlight ? 'padding: 14px 16px; background: #FFFFFF08; margin-bottom: 4px;' : ''}">
                     <span class="detail-meta-label">${m.label}</span>
-                    <span class="detail-meta-value" id="detail-val-meta-${m.id}" style="color: ${m.color || (m.highlight ? 'var(--primary)' : 'white')}">---</span>
+                    <span class="detail-meta-value" id="detail-val-meta-${m.id}" style="color: ${m.color || (m.highlight ? 'var(--primary)' : 'var(--text-dim)')}">---</span>
                 </div>
             `).join('');
         } else if (sectionId === 'alarms' || sectionId === 'maintenance') {
@@ -579,8 +742,8 @@ export default class SidebarController {
                         <span class="detail-label">${item.label || item.id}</span>
                     </div>
                     <div class="detail-value-group">
-                        <span class="m-value" id="detail-val-${item.id}">---</span>
-                        <span class="m-unit">${item.unit || ''}</span>
+                        <span class="m-value" id="detail-val-${item.id}" style="color: var(--text-dim);">---</span>
+                        <span class="m-unit" style="color: var(--text-dim); opacity: 0.8;">${item.unit || ''}</span>
                     </div>
                 </div>
             `).join('');

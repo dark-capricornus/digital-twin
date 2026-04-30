@@ -49,14 +49,17 @@ class WebSocketHandler {
         if (!data.topic || !data.payload) return;
         const payload = data.payload;
 
-        // Extract Canonical State
-        const state = this.extractState(payload);
+        // [USER] Case 0: Industrial Bridge OPC Batch (Direct ID mapping)
+        if (data.topic === 'opc/batch' && data.type === 'json') {
+            Object.keys(payload).forEach(devId => {
+                const devData = payload[devId];
+                const state = this.extractState(devData);
+                this.stateManager.setRawState(devId, state, devData);
+            });
+            return;
+        }
 
-        // [ARCHITECTURE] Robust Device ID Extraction
-        const deviceId = this._extractDeviceId(data.topic, payload);
-        if (!deviceId) return;
-
-        // Case 1: Batch JSON (devices map)
+        // Case 1: Legacy Batch JSON (devices map)
         if (data.type === 'json' && payload.devices) {
             const systemKeys = ['topic', 'type', 'timestamp', 'source', 'status', 'connected_clients', 'active'];
             Object.keys(payload.devices).forEach(rawId => {
@@ -69,7 +72,11 @@ class WebSocketHandler {
         } 
         // Case 2: Individual Device Update or Flat Payload
         else {
-            this.stateManager.setRawState(deviceId, state, payload);
+            const state = this.extractState(payload);
+            const deviceId = this._extractDeviceId(data.topic, payload);
+            if (deviceId) {
+                this.stateManager.setRawState(deviceId, state, payload);
+            }
         }
     }
 

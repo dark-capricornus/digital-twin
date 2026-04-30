@@ -25,33 +25,13 @@
         <div class="navbar-right">
             <div class="navbar-status-dot"></div>
             <span class="navbar-status-text">Online</span>
-            <div class="navbar-divider"></div>
-            <div id="utc-time" class="navbar-clock">00:00:00 UTC</div>
         </div>
     </div>
 
-    <!-- ─── Unified Right Sidebar (V1.2) ─── -->
+    <!-- ─── Unified Right Sidebar (V1.2) Component ─── -->
     <div id="hud-right-sidebar">
-        <!-- Zone Carousel (Sticky) -->
-        <div id="sidebar-sticky-header">
-            <div id="zone-carousel">
-                <button id="zone-prev" class="zone-nav-btn"><span class="material-symbols-outlined">chevron_left</span></button>
-                <span id="zone-name">SMELTING</span>
-                <button id="zone-next" class="zone-nav-btn"><span class="material-symbols-outlined">chevron_right</span></button>
-                <button id="sidebar-close-btn" class="sidebar-close-btn"><span class="material-symbols-outlined">close</span></button>
-            </div>
-            <!-- Asset Carousel with Nav Arrows -->
-            <div id="asset-nav-container">
-                <button id="asset-prev" class="asset-nav-btn"><span class="material-symbols-outlined">chevron_left</span></button>
-                <div id="asset-carousel"></div>
-                <button id="asset-next" class="asset-nav-btn"><span class="material-symbols-outlined">chevron_right</span></button>
-            </div>
-        </div>
-
-        <!-- Scrollable Sections -->
-        <div id="sidebar-scroll">
-            <!-- 1. Asset Details (card with service dates) -->
-            <div id="sb-asset-header"></div>
+        <!-- Injected via SidebarController -->
+    </div>
 
             <!-- 2. Plant Data (plant-level KPIs) -->
             <div class="sb-section">
@@ -95,14 +75,15 @@
         </div>
     </div>
 
-    <!-- ─── Loading Screen ─────────────────────────────────── -->
-    <div id="loading-screen" class="fixed inset-0 bg-[#0A0A0A] z-[9999] flex flex-col items-center justify-center gap-4">
-        <div class="w-12 h-12 border-2 border-[#00D1FF] border-t-transparent animate-spin"></div>
-        <div class="text-[10px] font-bold text-[#00D1FF] tracking-[0.4em] uppercase">Initializing Twin</div>
-    </div>
 
-    <!-- ─── 3D Scene Container (100% viewport) ────────────── -->
-    <div id="container" class="absolute inset-0 bg-[#0A0A0A]"></div>
+
+    <!-- ─── 3D Scene Container (viewport minus sidebar) ────── -->
+    <div id="container"></div>
+
+    <!-- ─── Home Button (bottom-left) ──────────────────────── -->
+    <button id="home-btn" title="Reset camera">
+        <span class="material-symbols-outlined">home</span>
+    </button>
 
 
 
@@ -115,7 +96,9 @@
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "three/addons/loaders/EXRLoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/EXRLoader.js",
+                "three/addons/loaders/RGBELoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/RGBELoader.js"
             }
         }
     </script>

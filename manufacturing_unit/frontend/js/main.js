@@ -9,6 +9,7 @@ import StateManager from './stateManager.js';
 import UIUpdater from './uiUpdater.js';
 import EnergyAnalytics from './EnergyAnalytics.js';
 import SidebarController from './sidebarController.js';
+import LoadingScreen from './loader.js';
 
 class DigitalTwinApp {
     constructor() {
@@ -18,6 +19,7 @@ class DigitalTwinApp {
         this.ui = new UIUpdater(this, this.stateManager);
         this.websocket = null;
         this.analytics = new EnergyAnalytics();
+        this.loader = new LoadingScreen({ color: '#ec5b13' });
 
         this.activeContext = { type: 'plant', id: null };
         this.primaryMode = 'plant';
@@ -57,10 +59,10 @@ class DigitalTwinApp {
         
         // Add a global error listener for unhandled module errors
         window.onerror = (msg, url, lineNo, columnNo, error) => {
-            const loadingText = document.querySelector('.loading-text');
-            if (loadingText) {
-                loadingText.style.color = '#ff3300';
-                loadingText.textContent = `JS ERROR: ${msg} (at ${lineNo}:${columnNo})`;
+            if (this.loader) {
+                this.loader.update(undefined, `ERROR: ${msg.split('\n')[0]}`);
+                // Highlight error color
+                this.loader.statusText.style.color = '#ff3300';
             }
             return false;
         };
@@ -215,23 +217,23 @@ class DigitalTwinApp {
             'smelting': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
             'die_casting': ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01'],
             'qc': ['INSPECTION_01'],
-            'heat_treating': ['HEAT_01', 'HEAT_02', 'COOLING_02'],
+            'heat_treating': ['HEAT_01'],
             'machining': ['CNC_01', 'CNC_02'],
-            'paint_shop': ['PAINT_01', 'PAINT_02', 'PRETREAT_01'],
+            'paint_shop': ['PRETREAT_01', 'PAINT_01', 'PAINT_02'],
             'shipping': ['OUTBOUND_01'],
         };
     }
 
     _getDepartmentLabels() {
         return {
-            'logistics': 'Raw Materials Storage',
-            'smelting': 'Smelting Department',
-            'die_casting': 'Die Casting Department',
+            'logistics': 'Raw Materials',
+            'smelting': 'Smelting',
+            'die_casting': 'Die Casting',
             'qc': 'Quality Control',
-            'heat_treating': 'Heat Treating Department',
-            'machining': 'Machining Zone',
-            'paint_shop': 'Finishing Department',
-            'shipping': 'Shipping & Outbound',
+            'heat_treating': 'Heat Treatment',
+            'machining': 'Machining',
+            'paint_shop': 'Finishing',
+            'shipping': 'Shipping',
         };
     }
 
@@ -536,10 +538,11 @@ class DigitalTwinApp {
     }
 
     async init() {
-        const loadingText = document.querySelector('.loading-text');
-        const updateLoading = (msg) => {
+        const updateLoading = (msg, percent) => {
             console.log(`[Loading] ${msg}`);
-            if (loadingText) loadingText.textContent = msg;
+            if (this.loader) {
+                this.loader.update(percent, msg);
+            }
         };
 
         try {
@@ -548,8 +551,16 @@ class DigitalTwinApp {
             if (!container) throw new Error('Root container #container not found');
 
             this.renderer = new Renderer(container, this.stateManager, this);
-            const wsUrl = this._getWebSocketUrl();
-            updateLoading(`Connecting to Bridge...`);
+
+            const homeBtn = document.getElementById('home-btn');
+            if (homeBtn) homeBtn.onclick = () => {
+                this.renderer.resetInteraction();
+                this.setContext('plant');
+            };
+
+            // [WEBSOCKET] Start Real-time Data Stream (Sidebar Feed Only)
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
             
             this.websocket = new WebSocketHandler(
                 wsUrl,
@@ -587,16 +598,28 @@ class DigitalTwinApp {
                 return {};
             });
 
+            updateLoading('Indexing tag metadata...');
+            const tagPromise = fetch('tags.json').then(r => {
+                if (!r.ok) throw new Error(`tags.json: ${r.status} ${r.statusText}`);
+                return r.json();
+            }).then(json => {
+                this.tagMetadata = json;
+                return json;
+            }).catch(e => {
+                console.warn('[App] Tag metadata load failed:', e);
+                return {};
+            });
+
             if (this.renderer) {
                 updateLoading('Loading Plant Model (GLB)...');
                 
                 // Track progress
                 const modelPromise = this.renderer.loadModel('assets/models/plant.glb', (progress) => {
                     const percent = Math.round((progress.loaded / progress.total) * 100);
-                    updateLoading(`Loading Model: ${percent}%`);
+                    updateLoading(`Loading Model: ${percent}%`, percent);
                 });
 
-                await Promise.all([modelPromise, assetPromise]);
+                await Promise.all([modelPromise, assetPromise, tagPromise]);
 
                 updateLoading('Optimizing environment...');
                 this.renderer._initEnvironment();
@@ -621,9 +644,7 @@ class DigitalTwinApp {
             this.sidebar.init(this.machineGroups, this.departmentLabels, {
                 assetData: this.assetData,
                 onAssetSelect: (id) => {
-                    this.renderer?.focusOnDevice(id);
-                    this.activeContext = { type: 'machine', id };
-                    this.forceRefresh = true;
+                    this.setContext('machine', id);
                 },
                 onZoneChange: (zoneId) => {
                     this.renderer?.focusOnZone(zoneId);
@@ -647,18 +668,15 @@ class DigitalTwinApp {
             }
 
             // Success! Hide loader
-            const loader = document.getElementById('loading-screen');
-            if (loader) loader.style.opacity = '0';
-            setTimeout(() => { if (loader) loader.style.display = 'none'; }, 500);
+            if (this.loader) this.loader.hide();
 
         } catch (err) {
             console.error('[App] CRITICAL INIT ERROR:', err);
-            if (loadingText) {
-                loadingText.style.color = '#ff3300';
-                loadingText.innerHTML = `CRITICAL ERROR<br><small style="font-size: 10px; color: #ff6666;">${err.message}</small><br><br><button onclick="location.reload()" style="background:#222;color:#fff;border:1px solid #444;padding:5px 15px;cursor:pointer;border-radius:4px;">RETRY</button>`;
+            if (this.loader) {
+                this.loader.update(undefined, `CRITICAL ERROR: ${err.message}`);
+                this.loader.statusText.style.color = '#ff3300';
+                this.loader.percentText.innerHTML = '❌';
             }
-            const spinner = document.querySelector('.loading-spinner');
-            if (spinner) spinner.style.borderTopColor = '#ff3300';
         }
 
         // [USER] Ensure sidebar is strictly removed if starting in Plant/Gemba
@@ -852,21 +870,13 @@ class DigitalTwinApp {
         // OR if the respective sidebar is currently closed (manual restoration).
         const isTopLevel = ['plant', 'zones_scope', 'machines_list', 'energy_analytics', 'alarms', 'maintenance'].includes(type);
         const leftOpen = document.getElementById('left-sidebar')?.classList.contains('open');
-        const rightOpen = document.getElementById('right-sidebar')?.classList.contains('open');
+        const rightOpen = document.getElementById('hud-right-sidebar')?.classList.contains('open');
         const isMachine = ['machine', 'asset', 'maintenance_machine', 'alarm_machine'].includes(type);
 
         if (this.activeContext.type === type && this.activeContext.id === id) {
             if (isTopLevel && !leftOpen) { /* Proceed to open left */ }
-            else if (isMachine) {
-                // [USER] Strict Toggle: Close right sidebar if clicking the same machine again
-                if (rightOpen) {
-                    document.getElementById('right-sidebar')?.classList.remove('open');
-                    this.isRightPanelManuallyClosed = true; // Respect the toggle-off
-                    return;
-                }
-                /* else proceed to open right */
-            }
-            else if (type !== 'plant') return;
+            else if (isMachine && !rightOpen) { /* Proceed to open right */ }
+            else return;
         }
 
         // Only reset 3D camera/isolation when returning to a top-level overview
@@ -883,19 +893,30 @@ class DigitalTwinApp {
         }
 
         // ─── Direct Interaction Dispatch ────────────────────────────────
-        const rightPanel = document.getElementById('right-sidebar');
+        const rightPanel = document.getElementById('hud-right-sidebar');
 
         if (type === 'zone' && id) {
-            // [ZONE] Explicit Camera Focus for Zones
-            this.renderer?.focusOnZone(id);
+            // [USER] Dept Overview: Move camera towards zone (far) and update sidebar to 1st child
+            const machines = this.machineGroups[id];
+            if (this.sidebar?.isInitialized) {
+                this.sidebar.setZoneById(id);
+                if (machines && machines.length > 0) {
+                    this.sidebar.setAsset(machines[0]);
+                }
+                this.sidebar.expand();
+            }
+
+            // Camera focuses on the whole zone but stays far (multiplier 2.5)
+            this.renderer?.focusOnZone(id, 2.5);
             this.toggleLeftSidebar(true);
 
             // [USER] Track for toggle-back logic
             this.lastZoneId = id;
 
-            // [USER] STRICTURE: Selecting a zone MUST close the right sidebar if it was open
+            // [USER] Ensure right sidebar is open
             if (rightPanel) {
-                rightPanel.classList.remove('open');
+                rightPanel.classList.add('open');
+                this.isRightPanelManuallyClosed = false;
             }
 
             const hierarchy = this.analytics.update(this.stateManager.deviceStates, this.machineGroups);
@@ -1224,14 +1245,16 @@ class DigitalTwinApp {
     }
 
     renderRightSidebar(hierarchy) {
+        // [USER] Decoupling: Target the new dynamic content area to preserve the V1.2 Header
+        const dynamicContent = document.getElementById('sidebar-dynamic-content');
+        const contentEl = dynamicContent || document.getElementById('right-panel-content');
         const titleEl = document.getElementById('right-panel-title');
-        const contentEl = document.getElementById('right-panel-content');
         const navEl = document.getElementById('right-header-nav');
-        const header = document.querySelector('#right-sidebar .sidebar-header');
+        const header = document.querySelector('#hud-right-sidebar .sidebar-header');
 
         // [USER] Disable right sidebar for gemba mode
         if (this.primaryMode === 'gemba' || this.activeContext.type === 'gemba') {
-            const rightPanel = document.getElementById('right-sidebar');
+            const rightPanel = document.getElementById('hud-right-sidebar');
             if (rightPanel) rightPanel.classList.remove('open');
             return;
         }
@@ -1393,7 +1416,7 @@ class DigitalTwinApp {
             <div style="padding: 16px; font-size: 11px; color: var(--text-dim); line-height: 1.5;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                     <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary);">info</span>
-                    <span style="font-weight: 700; color: white; text-transform: uppercase; font-size: 10px;">Flow Calculation</span>
+                    <span style="font-weight: 700; color: var(--text-dim); text-transform: uppercase; font-size: 10px;">Flow Calculation</span>
                 </div>
                 ${isSmelting ? 'WIP represents molten metal exiting the Furnace but not yet processed by the Degasser.' : 'WIP represents items currently held within machine buffers or in transition.'}
             </div>
@@ -1424,7 +1447,7 @@ class DigitalTwinApp {
                         <div style="background: rgba(236,91,19,0.05); border-left: 3px solid var(--primary); border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Machine Model</span>
-                                <span style="font-size: 13px; font-weight: 800; color: white;">${modelNum}</span>
+                                <span style="font-size: 13px; font-weight: 800; color: var(--text-dim);">${modelNum}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Purchase Date</span>
@@ -2181,8 +2204,7 @@ class DigitalTwinApp {
             { dept: null, ids: ['LPDC_01', 'LPDC_02', 'LPDC_03'], label: 'Die Castings' },
             { dept: null, ids: ['COOLING_01'], label: 'Cooling Tank — LPDC' },
             { dept: null, ids: ['INSPECTION_01'], label: 'X-Ray Inspection' },
-            { dept: null, ids: ['HEAT_01', 'HEAT_02'], label: 'Heat Treating Department' },
-            { dept: null, ids: ['COOLING_02'], label: 'Cooling Tank — Heat Treatment' },
+            { dept: null, ids: ['HEAT_01'], label: 'Heat Treatment' },
             { dept: null, ids: ['CNC_01', 'CNC_02'], label: 'Machining' },
             { dept: null, ids: ['PRETREAT_01'], label: 'Pretreatment' },
             { dept: null, ids: ['PAINT_01'], label: 'Paint Booth 01' },
@@ -2374,13 +2396,13 @@ class DigitalTwinApp {
             <!-- AUDIT ACTIONS -->
             <div class="sidebar-section-title" style="color: var(--primary); margin-top: 24px;">OBSERVATIONAL AUDIT</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;">
-                <button onclick="window.app.logAudit('STABLE')" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; color: #10b981; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                <button onclick="window.app.logAudit('STABLE')" style="background: #FFFFFF08; border: 1px solid #FFFFFF0D; padding: 12px; border-radius: 8px; color: #10B981; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">check_circle</span> STABLE
                 </button>
-                <button onclick="window.app.logAudit('ISSUE')" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; color: #f59e0b; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                <button onclick="window.app.logAudit('ISSUE')" style="background: #FFFFFF08; border: 1px solid #FFFFFF0D; padding: 12px; border-radius: 8px; color: #F59E0B; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">warning</span> FLAG ISSUE
                 </button>
-                <button onclick="window.app.logAudit('CRITICAL')" style="grid-column: span 2; background: rgba(239, 68, 68, 0.05); border: 1px solid #ef444422; padding: 12px; border-radius: 8px; color: #ef4444; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <button onclick="window.app.logAudit('CRITICAL')" style="grid-column: span 2; background: #EF44440D; border: 1px solid #EF444422; padding: 12px; border-radius: 8px; color: #EF4444; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">report</span> LOG CRITICAL INCIDENT
                 </button>
             </div>
@@ -2392,12 +2414,12 @@ class DigitalTwinApp {
                 ${this.auditLogs.length === 0 ? `
                     <div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 11px;">No observations recorded yet.</div>
                 ` : this.auditLogs.map(log => `
-                    <div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border-left: 3px solid ${log.status === 'STABLE' ? '#10b981' : (log.status === 'ISSUE' ? '#f59e0b' : '#ef4444')};">
+                    <div style="background: #FFFFFF05; padding: 10px; border-radius: 8px; border-left: 3px solid ${log.status === 'STABLE' ? '#10B981' : (log.status === 'ISSUE' ? '#F59E0B' : '#EF4444')};">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="font-size: 9px; font-weight: 900; color: ${log.status === 'STABLE' ? '#10b981' : (log.status === 'ISSUE' ? '#f59e0b' : '#ef4444')}">${log.status}</span>
+                            <span style="font-size: 9px; font-weight: 900; color: ${log.status === 'STABLE' ? '#10B981' : (log.status === 'ISSUE' ? '#F59E0B' : '#EF4444')}">${log.status}</span>
                             <span style="font-size: 9px; color: var(--text-dim);">${log.timestamp}</span>
                         </div>
-                        <div style="font-size: 11px; color: white; font-weight: 700;">${log.waypoint}</div>
+                        <div style="font-size: 11px; color: #FFFFFF; font-weight: 700;">${log.waypoint}</div>
                         ${log.label !== log.waypoint ? `<div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">${log.label}</div>` : ''}
                     </div>
                 `).join('')}

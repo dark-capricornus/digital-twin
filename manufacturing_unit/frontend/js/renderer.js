@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 
@@ -36,6 +37,10 @@ class Renderer {
         this.hoveredZoneId = null;
         this.elevatedMachineId = null;
         this.warningMeshes = new Map(); // Map of deviceId -> warning mesh instance
+        this.highlightRegistry = new Map();      // normalized machine id -> highlight mesh (from GLB `highlight_*`)
+        this.zoneHighlightRegistry = new Map();  // app zone id -> zone highlight mesh (from GLB `*_zone_highlight`)
+        this._lastMachineHighlight = null;
+        this._lastZoneHighlight = null;
         this.hoveredDeviceId = null;
         this.hoverTimeout = null;
         this.pendingHoverId = null;
@@ -44,6 +49,9 @@ class Renderer {
         this.highlightState = new Map(); // Source of Truth for highlights
         this.lastHovered = null;         // Debounce guard
         this.elevationAnims = new Map(); // [FIX] Required by hover stabilization logic
+        this._selectionBoxHelpers = []; // Persistent Box3Helpers for name-pill bbox display; cleared by Home
+        this._pinnedZoneId = null;       // Zone whose highlights are pinned by name-pill click
+        this._pinnedHighlights = new Set(); // GLB highlight meshes (zone + machines) pinned visible
 
         // Manual mapping overrides for known discrepancies
         this.manualMap = {
@@ -56,9 +64,7 @@ class Renderer {
             'furnace_01': 'furnace_01',
             'furnace01': 'furnace_01',
             'cooling_01': 'cooling_01',
-            'cooling_02': 'cooling_02',
             'cooling01': 'cooling_01',
-            'cooling02': 'cooling_02',
             'degasser_01': 'degasser_01',
             'degasser_02': 'degasser_02',
             'degasser01': 'degasser_01',
@@ -70,34 +76,48 @@ class Renderer {
             'lpdc02': 'lpdc_02',
             'lpdc03': 'lpdc_03',
             'heat_01': 'heat_01',
-            'heat_02': 'heat_02',
             'heat01': 'heat_01',
-            'heat02': 'heat_02',
             'heattreatment_01': 'heat_01',
-            'heattreatment_02': 'heat_02',
             'paint_01': 'paint_01',
             'paint_02': 'paint_02',
             'paint01': 'paint_01',
             'paint02': 'paint_02',
-            'storage_01': 'storage_01001',
-            'storage01': 'storage_01001',
-            'inbound_01': 'storage_01001',
-            'inbound01': 'storage_01001',
-            'buffer_01': 'storage_01001',
-            'buffer01': 'storage_01001',
-            'raw_materials': 'storage_01006',
-            'rawmaterials': 'storage_01006',
+            'storage_01': 'raw_materials',
+            'storage01': 'raw_materials',
+            'inbound_01': 'raw_materials',
+            'inbound01': 'raw_materials',
+            'buffer_01': 'raw_materials',
+            'buffer01': 'raw_materials',
+            'raw_materials': 'raw_materials',
+            'rawmaterials': 'raw_materials',
             'outbound_01': 'outbound_01',
             'outbound01': 'outbound_01',
-            'pretreat_01': 'pretreat_01',
-            'pretreat01': 'pretreat_01',
-            'pretreatment_01': 'pretreat_01',
+            'outbound_02': 'outbound_02',
+            'outbound02': 'outbound_02',
+            // GLB ships `preteatment` (typo) — fall back onto fuzzy match too
+            'pretreat_01': 'preteatment',
+            'pretreat01': 'preteatment',
+            'pretreatment_01': 'preteatment',
+            'pretreat': 'pretreat',
+            // GLB has only group `inspection` (not `inspection_01`)
+            'inspection_01': 'inspection',
+            'inspection01': 'inspection',
+            // GLB has parent group `furnace` + siblings `furnace_01.00{1,2,3}`
+            'furnace_01': 'furnace',
+            'furnace01': 'furnace',
+            // heat_01 maps to the standalone `heat` node.
+            'heat_01': 'heat',
+            'heat01': 'heat',
+            'heattreatment_01': 'heat',
         };
 
         // Exact extra mesh names that belong to a device but don't share its name prefix
+        // Note: GLB stores these with a dot separator (`aluminium_container.001`),
+        // and nodeRegistry keys preserve that punctuation.
         this.associatedMeshNames = {
-            'degasser_01': ['aluminium_container001'],
-            'degasser_02': ['aluminium_container003'],
+            'degasser_01': ['aluminium_container.001', 'aluminium_container.005', 'ladel_01', 'degasser_01_ladel_01'],
+            'degasser_02': ['aluminium_container.003', 'ladel_02', 'degasser_02_ladel_02'],
+            'heat_01': ['heat', 'heat_02.001', 'heat_02.002', 'heat_treatment_conveyor', 'cooling_lift','cooling_conveyor'],
         };
 
         // Fresnel overlay system has been removed. Hover feedback is handled
@@ -113,15 +133,16 @@ class Renderer {
 
         // [PRECISION] Custom Camera Zoom Map
         this.customZooms = {
+            'raw_materials': 6.052,
             'rawmaterials': 6.052,
-            'storage_01006': 6.052,
-            'furnace_01': 3.91,
+            'furnace': 3.91,
             'inspection_01': 11.478,
             'degasser_01': 5.9777,
             'degasser_02': 5.9777,
             'lpdc_02': 5.801,
             'lpdc_03': 5.801,
-            'pretreat_01': 9.424
+            'pretreat_01': 9.424,
+            'pretreat': 9.424
         };
 
         this.lastCameraZoom = 0;
@@ -134,12 +155,19 @@ class Renderer {
         this.setupInteraction();
     }
 
+    _viewportSize() {
+        const w = (this.container?.clientWidth) || window.innerWidth;
+        const h = (this.container?.clientHeight) || window.innerHeight;
+        return { w, h };
+    }
+
     init() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0d1117);
 
         this.viewSize = 40;
-        const aspect = window.innerWidth / window.innerHeight;
+        const { w: vpW, h: vpH } = this._viewportSize();
+        const aspect = vpW / vpH;
         this.camera = new THREE.OrthographicCamera(
             -aspect * this.viewSize / 2,
             aspect * this.viewSize / 2,
@@ -151,7 +179,7 @@ class Renderer {
 
         this.defaultTarget = new THREE.Vector3(-6.84, -4.58, 10.27);
         this.defaultPosition = new THREE.Vector3(793.43, 594.61, 810.54);
-        this.defaultZoom = 1.13;
+        this.defaultZoom = 1.0;
 
         this.camera.up.set(0, 1, 0);
         this.camera.position.copy(this.defaultPosition);
@@ -160,19 +188,19 @@ class Renderer {
         this.camera.updateProjectionMatrix();
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(vpW, vpH);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0; // [SCADA] Increased to 1.0 to match Blender viewport depth
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
 
 
 
         this.labelRenderer = new CSS2DRenderer();
-        this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.labelRenderer.setSize(vpW, vpH);
         this.labelRenderer.domElement.style.position = 'absolute';
         this.labelRenderer.domElement.style.top = '0px';
         this.labelRenderer.domElement.style.pointerEvents = 'none';
@@ -181,26 +209,48 @@ class Renderer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.target.copy(this.defaultTarget);
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.zoomSpeed = 1.2;
-        this.controls.minZoom = 0.01;
-        this.controls.maxZoom = 100;
+        this.controls.dampingFactor = 0.08; // Smooth, non-abrupt wheel zoom
+        this.controls.zoomSpeed = 0.6;     // Natural scroll-zoom feel
+        this.controls.minZoom = 0.55;      // Tightened: Prevent extreme distancing
+        this.controls.maxZoom = 12.0;      // Tightened: Prevent macro clipping
         this.controls.update();
 
         window.addEventListener('resize', () => this.onWindowResize());
+        if (typeof ResizeObserver !== 'undefined') {
+            this._resizeObserver = new ResizeObserver(() => this.onWindowResize());
+            this._resizeObserver.observe(this.container);
+        }
         this._setupCoordinateTracker();
     }
 
     _initEnvironment() {
         if (!this.renderer || !this.scene) return;
-        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-        // [SCADA] Boosted RoomEnvironment intensity for richer reflections on metallic components
-        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.08).texture;
+
+        // [SCADA] Realistic HDRI Loader (Adams Place Bridge)
+        // Replaces generated environments with real-world HDR data from project assets
+        new EXRLoader().load('assets/textures/textures/adams_place_bridge_2k.exr', (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+            const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+
+            this.scene.environment = envMap;
+            // Background is kept as the requested pale white (from this.init())
+            this.scene.environmentIntensity = 1.0;
+
+            pmremGenerator.dispose();
+            console.log('[Renderer] HDRI Environment loaded successfully.');
+        }, undefined, (err) => {
+            console.warn('[Renderer] Failed to load EXR environment:', err);
+            const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+            this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 1.0).texture;
+            pmremGenerator.dispose();
+        });
+
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
-        dirLight.position.set(40, 60, 40); // Slightly higher/further for better shadow spread
+        dirLight.position.set(40, 60, 40);
         dirLight.castShadow = true;
-        
+
         // [PRECISION] Shadow Camera Configuration
         dirLight.shadow.camera.left = -100;
         dirLight.shadow.camera.right = 100;
@@ -211,10 +261,8 @@ class Renderer {
         dirLight.shadow.mapSize.set(2048, 2048);
         dirLight.shadow.bias = -0.0002; // Prevent shadow acne
         dirLight.shadow.normalBias = 0.02; // Fix artifacts on smooth surfaces
-        
-        this.scene.add(dirLight);
 
-        pmremGenerator.dispose();
+        this.scene.add(dirLight);
     }
 
     _setupCoordinateTracker() {
@@ -282,8 +330,9 @@ class Renderer {
     }
 
     _updatePointer(e) {
-        this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-        this.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     }
 
     onPointerClick(event) {
@@ -293,13 +342,8 @@ class Renderer {
         if (intersects.length > 0) {
             const deviceId = intersects[0].object.userData.deviceId;
             if (deviceId) this.selectDevice(deviceId);
-        } else {
-            // Clicked empty space — reset if a device is selected
-            if (this._selectedDeviceId) {
-                this._selectedDeviceId = null;
-                if (window.app) window.app.setContext('plant');
-            }
         }
+        // Empty-space clicks no longer reset; the Home button is the sole reset path.
     }
 
     handleHover() {
@@ -341,7 +385,7 @@ class Renderer {
         // 2. [SCADA] Selection Debouncing & Highlight Management
         if (this.lastHovered !== hoveredId) {
             this.lastHovered = hoveredId;
-            
+
             // Apply collection-aware highlight state
             if (hoveredId) {
                 this.setHighlight(hoveredId, true);
@@ -349,12 +393,22 @@ class Renderer {
                 this.clearHighlights();
             }
 
-            // [USER] Machine Elevation
-            if (this.elevatedMachineId !== hoveredId) {
-                if (this.elevatedMachineId) this._animateMachineElevation(this.elevatedMachineId, false);
-                this.elevatedMachineId = hoveredId;
-                if (this.elevatedMachineId) this._animateMachineElevation(this.elevatedMachineId, true);
+            // [HOVER-HIGHLIGHT] Logic is now handled centrally by setHighlight/clearHighlights
+            // called above. This prevents the previous "tug-of-war" where hover logic
+            // would overwrite selection logic.
+            if (hoveredId) {
+                // Machine-level hover wins over zone-level hover: hide any
+                // zone highlight while a specific machine is targeted.
+                if (this._lastZoneHighlight && !this._pinnedHighlights.has(this._lastZoneHighlight)) {
+                    this._lastZoneHighlight.visible = false;
+                }
+            } else if (this._lastZoneHighlight && this.hoveredZoneId) {
+                // No machine hover — restore the current zone highlight
+                this._lastZoneHighlight.visible = true;
             }
+
+            // [USER] Machine elevation on hover has been removed — the GLB
+            // wireframe highlight overlay is now the sole hover affordance.
         }
 
         // 3. [USER] Zone Hover — show zone name only (no elevation)
@@ -367,6 +421,23 @@ class Renderer {
             if (this.hoveredZoneId) {
                 const newMesh = this.zoneNameRegistry.get(this.hoveredZoneId);
                 if (newMesh) this._fadeMesh(newMesh, true);
+            }
+
+            // [HOVER-HIGHLIGHT] Reveal GLB-baked zone highlight mesh
+            if (this._lastZoneHighlight && !this._pinnedHighlights.has(this._lastZoneHighlight)) {
+                this._lastZoneHighlight.visible = false;
+            }
+            this._lastZoneHighlight = null;
+            if (newHoveredZoneId) {
+                const zhl = this.zoneHighlightRegistry.get(newHoveredZoneId);
+                if (zhl) {
+                    // Only reveal the zone outline if no specific machine is
+                    // currently hovered — machine highlight takes precedence.
+                    if (!this._pinnedHighlights.has(zhl) || !this.lastHovered) {
+                        zhl.visible = !this.lastHovered || this._pinnedHighlights.has(zhl);
+                    }
+                    this._lastZoneHighlight = zhl;
+                }
             }
         }
 
@@ -393,7 +464,7 @@ class Renderer {
     getSelectionType(deviceId) {
         if (!deviceId) return null;
         const normId = deviceId.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
+
         // 1. Prefix-based collections (Storage, Raw Materials)
         if (normId === 'rawmaterials' || normId.startsWith('storage') || normId.startsWith('inbound') || normId.startsWith('buffer')) {
             return 'collection';
@@ -415,11 +486,14 @@ class Renderer {
         const seen = new Set();
         const nodes = [];
         const rawId = deviceId.toLowerCase();
-        
+
         // Resolve the primary mapped name and its pieces
         const mapped = (this.manualMap[rawId] || rawId).toLowerCase();
         const mappedNorm = mapped.replace(/[^a-z0-9]/g, '');
         const normSearch = rawId.replace(/[^a-z0-9]/g, '');
+
+        // [SCADA] Logistics Collection: treat storage/inbound/raw_materials as one unit
+        const isLogisticsGroup = mapped.includes('storage') || mapped.includes('inbound') || mapped.includes('raw_materials') || mapped.includes('rawmaterials');
 
         // [SCADA] Instance Analysis: Identify base name and index (e.g. furnace and 01)
         // This allows us to catch "furnace_body_01" even if the search is "furnace_01"
@@ -430,7 +504,7 @@ class Renderer {
         const addNode = (id, node) => {
             if (seen.has(node.uuid)) return;
             seen.add(node.uuid);
-            
+
             // Only add Mesh or Group/Object3D that has actual mesh content
             let hasMesh = false;
             node.traverse(c => { if (c.isMesh) hasMesh = true; });
@@ -438,14 +512,57 @@ class Renderer {
         };
 
         // [SCADA] Universal Fuzzy Harvesting
+        // [OWNERSHIP] When the device is indexed (e.g. degasser_01), a node may
+        // be NAMED with our prefix yet be scene-graph-parented under a sibling
+        // instance (e.g. `degasser_01_spinner.001` re-parented under
+        // degasser_02 by Blender). Walking the ancestry and checking for a
+        // foreign sibling-instance name lets us reject those misclassified
+        // seeds — selection then no longer leaks textures across instances.
+        const isAncestorForeignSibling = (node) => {
+            if (!index) return false;
+            let p = node.parent;
+            while (p && p !== this.model) {
+                const pn = (p.name || '').toLowerCase();
+                if (pn) {
+                    const looksLikeSameFamily = pn.includes(basePrefix);
+                    if (looksLikeSameFamily) {
+                        const ownIdx = pn.match(/_(\d+)/);
+                        if (ownIdx && ownIdx[1] !== index) return true;
+                    }
+                }
+                p = p.parent;
+            }
+            return false;
+        };
+
+        // Reject a seed whose OWN name encodes a foreign instance index. This
+        // catches `heat_02.001` (parent group `heat` carries no index, so
+        // ancestor-walking can't disambiguate) when heat_01 is selected.
+        const hasForeignOwnIndex = (nameLower) => {
+            if (!index) return false;
+            if (!nameLower.includes(basePrefix)) return false;
+            const m = nameLower.match(/_(\d+)/);
+            return !!(m && m[1] !== index);
+        };
+
         this.nodeRegistry.forEach((node, name) => {
             const nameLower = name.toLowerCase();
             const nameNorm = nameLower.replace(/[^a-z0-9]/g, '');
 
             // 1. Literal Prefix Match (covers "finishing_shop")
-            let isMatch = nameLower.startsWith(mapped) || 
-                          nameNorm.startsWith(mappedNorm) || 
-                          nameNorm.startsWith(normSearch);
+            let isMatch = nameLower.startsWith(mapped) ||
+                nameNorm.startsWith(mappedNorm) ||
+                nameNorm.startsWith(normSearch);
+
+            // 1b. Logistics group — works for the bare `rawmaterials` id which
+            // has no numeric index, so it must run independently of the
+            // index-gated branch below.
+            if (!isMatch && isLogisticsGroup &&
+                (nameLower.includes('storage') || nameLower.includes('inbound') ||
+                 nameLower.includes('buffer') || nameLower.includes('raw_materials') ||
+                 nameLower.includes('rawmaterials'))) {
+                isMatch = true;
+            }
 
             // 2. Instance-Aware Match (covers "furnace_body_01" for "furnace_01")
             if (!isMatch && index) {
@@ -453,6 +570,15 @@ class Renderer {
                 const nameHasIndex = nameLower.includes(index) || nameNorm.includes(index);
                 if (nameHasPrefix && nameHasIndex) isMatch = true;
             }
+
+            // 3. [OWNERSHIP] Reject seeds whose scene-graph ancestor belongs to
+            // a sibling instance — fixes degasser_01_spinner.001 which is
+            // named with degasser_01 but parented under degasser_02.
+            if (isMatch && isAncestorForeignSibling(node)) isMatch = false;
+            // 3b. Reject seeds whose own name carries a foreign instance index
+            // (heat_02.001 sneaking into heat_01 selection via the bare
+            // 'heat' prefix match).
+            if (isMatch && hasForeignOwnIndex(nameLower)) isMatch = false;
 
             if (isMatch) addNode(nameLower, node);
         });
@@ -465,20 +591,36 @@ class Renderer {
                 if (n) addNode(name.toLowerCase(), n);
             });
         }
-        
+
         // [SCADA] Hierarchical Expansion — Extension, not refactor.
-        // For every "seed" node found above, we check its parent. If the parent's
-        // name matches the machine's base or index, we harvest all its children.
-        // This catches "Aluminium_Container" or "Base_002" even if the names don't match.
+        // For every "seed" node found above, we check its parent. If the
+        // parent group is unambiguously this instance's container, harvest
+        // all its children to catch oddly-named associated parts.
+        //
+        // [FIX] Indexed instances (e.g. degasser_01, degasser_02) often share
+        // a single parent group named with just the base prefix
+        // (`degassers`). Expanding on `pName.includes(basePrefix)` alone
+        // pulls in sibling instances' meshes — selecting degasser_01 then
+        // leaks degasser_02's textures. So when an index is present, the
+        // parent must also carry that index in its name to qualify.
         const seeds = [...nodes];
         seeds.forEach(({ node }) => {
             let p = node.parent;
             if (p && p !== this.model && (p.isGroup || p.isObject3D)) {
                 const pName = (p.name || '').toLowerCase();
                 const pNameNorm = pName.replace(/[^a-z0-9]/g, '');
-                
-                // If parent owns the machine prefix or the instance index, take all siblings
-                if (pName.includes(basePrefix) || (index && (pName.includes(index) || pNameNorm.includes(index)))) {
+
+                let parentOwnsInstance;
+                if (index) {
+                    // Indexed device — require parent name to carry the index
+                    parentOwnsInstance = (pName.includes(index) || pNameNorm.includes(index)) &&
+                        (pName.includes(basePrefix) || pNameNorm.includes(basePrefix.replace(/[^a-z0-9]/g, '')));
+                } else {
+                    // Non-indexed — full mapped name match is required
+                    parentOwnsInstance = pName.includes(mapped) || pNameNorm.includes(mappedNorm);
+                }
+
+                if (parentOwnsInstance) {
                     p.traverse(c => {
                         if (c.isMesh) addNode(c.name.toLowerCase(), c);
                     });
@@ -489,7 +631,7 @@ class Renderer {
         // Final Filter: Prevent double-displacement by only elevating the root-most nodes
         const rootNodes = nodes.filter(({ node }) => {
             let p = node.parent;
-            while(p && p !== this.model) {
+            while (p && p !== this.model) {
                 if (nodes.some(n => n.node === p)) return false;
                 p = p.parent;
             }
@@ -523,6 +665,10 @@ class Renderer {
     // (handleHover, selectDevice, resetInteraction) continue to work.
     clearHighlights() {
         this.highlightState.clear();
+        this.highlightRegistry.forEach(hl => {
+            if (!this._pinnedHighlights.has(hl)) hl.visible = false;
+        });
+        this._lastMachineHighlight = null;
     }
 
     setHighlight(deviceId, isActive = true) {
@@ -530,8 +676,112 @@ class Renderer {
             this.clearHighlights();
             return;
         }
+
+        // Hide any previously-shown highlight before revealing the new one —
+        // otherwise hovering machine→machine leaves the old outline on.
+        // Pinned highlights (from a name-pill click) stay visible.
+        this.highlightRegistry.forEach(hl => {
+            if (!this._pinnedHighlights.has(hl)) hl.visible = false;
+        });
+
+        const normId = deviceId.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const target = this.manualMap[deviceId.toLowerCase()] || deviceId;
+        const targetLower = target.toLowerCase();
+        const targetNorm = targetLower.replace(/[^a-z0-9]/g, '');
+
+        // [SCADA] Logistics Collection: treat storage/inbound/raw_materials as one unit
+        const isLogisticsGroup = targetNorm.includes('storage') || targetNorm.includes('inbound') || targetNorm.includes('rawmaterials');
+
         this.highlightState.clear();
         if (deviceId) this.highlightState.set(deviceId, 1.0);
+
+        // [SCADA] Logical Grouping: Resolve the highlight key by checking
+        // if the component belongs to a larger group (like Raw Materials).
+        let hlKey = targetNorm;
+        if (isLogisticsGroup) hlKey = 'rawmaterials';
+        else if (targetNorm === 'preteatment' || targetNorm.includes('pretreat')) hlKey = 'pretreat';
+        else if (targetNorm.includes('furnace')) hlKey = 'furnace';
+        else if (targetNorm.includes('heat')) hlKey = 'heat';
+        else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;
+
+        let hl = this.highlightRegistry.get(hlKey) || this.highlightRegistry.get(normId);
+        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('logistics');
+        if (!hl) {
+            // [FALLBACK] No GLB-baked highlight — synthesize a wireframe box
+            // from the device bounds and cache it. Fixes raw-materials hover
+            // (no `highlight_rawmaterials` mesh in the GLB) and any other
+            // device whose highlight asset is missing.
+            hl = this._buildFallbackHighlight(deviceId, hlKey);
+            if (hl) this.highlightRegistry.set(hlKey, hl);
+        }
+
+        if (hl) {
+            hl.visible = true;
+            this._lastMachineHighlight = hl;
+        } else {
+            this._lastMachineHighlight = null;
+        }
+    }
+
+    _buildFallbackHighlight(deviceId, cacheKey) {
+        if (!this.model) return null;
+        const nodes = this._getDeviceNodes(deviceId);
+        const box = new THREE.Box3();
+        if (nodes.length) {
+            nodes.forEach(({ node }) => {
+                node.traverse(c => {
+                    if (c.isMesh && !c.userData.isAnimated && !c.userData.isHighlight) {
+                        box.union(new THREE.Box3().setFromObject(c));
+                    }
+                });
+            });
+        }
+
+        // [FALLBACK-LOGISTICS] If the device resolver missed every node (e.g.
+        // bare `rawmaterials` id with no numeric suffix), walk the node
+        // registry directly for storage/inbound/buffer prefixes and union
+        // their static meshes into the box.
+        const normId = (deviceId || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (box.isEmpty() && (normId === 'rawmaterials' || cacheKey === 'rawmaterials')) {
+            this.nodeRegistry.forEach((node, name) => {
+                if (name.startsWith('storage') || name.startsWith('inbound') || name.startsWith('buffer')) {
+                    node.traverse(c => {
+                        if (c.isMesh && !c.userData.isAnimated && !c.userData.isHighlight) {
+                            box.union(new THREE.Box3().setFromObject(c));
+                        }
+                    });
+                }
+            });
+        }
+
+        if (box.isEmpty()) return null;
+
+        box.expandByScalar(0.25);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
+        const edges = new THREE.EdgesGeometry(geom);
+        const mat = new THREE.LineBasicMaterial({
+            color: 0xffa726,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: true,
+            depthWrite: false
+        });
+        const lines = new THREE.LineSegments(edges, mat);
+        lines.position.copy(center);
+        lines.frustumCulled = false;
+        lines.renderOrder = 999;
+        lines.userData.isHighlight = true;
+        lines.userData.highlightMeshes = [lines];
+        lines.userData.baseEmissive = 1;
+        lines.userData.fallbackHighlightFor = cacheKey;
+        lines.visible = false;
+        this.scene.add(lines);
+        return lines;
     }
 
     /**
@@ -569,7 +819,7 @@ class Renderer {
     // setStorageFillLevel was backed by the fresnel uFillLevel uniform. With
     // the fresnel overlay system removed this is a no-op — retained so upstream
     // callers (websocket storage updates) keep running without changes.
-    setStorageFillLevel(_deviceId, _level) {}
+    setStorageFillLevel(_deviceId, _level) { }
 
     /**
      * [USER] Helper for smooth animation of 3D meshes (e.g. floor names)
@@ -595,10 +845,15 @@ class Renderer {
      */
     _setupStaticProperties(root) {
         let count = 0;
-        const angle = THREE.MathUtils.degToRad(60); // [USER] Threshold increased to 60° for technical clarity
+        const angle = THREE.MathUtils.degToRad(45); // [USER] Threshold set to 45° for precise industrial edges
 
         root.traverse(node => {
             if (node.isMesh && node.geometry) {
+                // Skip highlight overlays — their geometry must stay as-authored
+                // so EdgesGeometry produces clean box outlines, not the
+                // vertex-split output of toCreasedNormals.
+                if (node.userData.isHighlight) { count++; return; }
+
                 // [PRECISION] Shadow Configuration
                 // Auto-detect floor for shadow reception
                 const box = new THREE.Box3().setFromObject(node);
@@ -612,15 +867,13 @@ class Renderer {
                     node.receiveShadow = true;
                 }
 
-                // [SCADA] Texture Fidelity Reinforcement
-                // Apply environment map and boost intensity to make the materials "pop"
+                // [SCADA] GLB Fidelity Restoration
+                // We rely on the authored material properties (roughness, metalness, and KHR_materials_emissive_strength)
+                // from the GLB file rather than applying manual overrides.
                 if (node.material) {
                     const mats = Array.isArray(node.material) ? node.material : [node.material];
                     mats.forEach(m => {
-                        if (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) {
-                            m.envMapIntensity = 1.5; // Premium reflection depth
-                            m.roughness = Math.max(m.roughness, 0.1); 
-                        }
+                        // Inherit from GLB authored values (Standard/Physical materials)
                     });
                 }
 
@@ -692,6 +945,20 @@ class Renderer {
             }
         });
 
+        // [HOVER-HIGHLIGHT] Tag highlight meshes BEFORE _setupStaticProperties
+        // so its toCreasedNormals pass skips them (vertex-splitting corrupts
+        // the clean box geometry that EdgesGeometry needs).
+        this.model.traverse(c => {
+            if (!c.name) return;
+            const n = c.name.toLowerCase();
+            if (n.endsWith('_zone_highlight') || n.startsWith('highlight_')) {
+                c.userData.isHighlight = true;
+                // Tag any mesh descendants too — multi-primitive GLTF meshes
+                // are loaded as Groups whose children need the same flag.
+                c.traverse(ch => { ch.userData.isHighlight = true; });
+            }
+        });
+
         // ─── Pre-processing (Static Logic) ──────────────────────────────
         // Apply shadow settings and compute bounds for static geometry
         this._setupStaticProperties(this.model);
@@ -729,9 +996,9 @@ class Renderer {
                 clip.tracks.forEach(track => {
                     const existing = seenTracks.get(track.name);
                     const isVisibilityTrack = track.name.toLowerCase().includes('.visible');
-                    const isCriticalMesh = track.name.toLowerCase().includes('ladel') || 
-                                         track.name.toLowerCase().includes('ladle') || 
-                                         track.name.toLowerCase().includes('pallet');
+                    const isCriticalMesh = track.name.toLowerCase().includes('ladel') ||
+                        track.name.toLowerCase().includes('ladle') ||
+                        track.name.toLowerCase().includes('pallet');
 
                     if (!existing) {
                         seenTracks.set(track.name, { clip: clip.name, track });
@@ -753,7 +1020,7 @@ class Renderer {
                             // Wait, the loop is Decending.
                             // i = length-1 (Last clip) -> seenTracks gets its tracks.
                             // i = length-2 (Previous clip) -> if matches, seenTracks keeps existing.
-                            
+
                             // We WANT to prefer the dynamic track regardless of order.
                             console.log(`[Renderer] 🔀 Prioritizing dynamic visibility track for ${track.name} from "${clip.name}" over static track from "${existing.clip}"`);
                             seenTracks.set(track.name, { clip: clip.name, track });
@@ -789,8 +1056,126 @@ class Renderer {
             console.log(`[Renderer] Animated nodes:`, [...animatedNodeNames]);
         }
 
+        // [HOVER-HIGHLIGHT] GLB ships pre-baked yellow highlight meshes:
+        //   - `<glb_zone>_zone_highlight`  → shown on zone hover
+        //   - `highlight_<machine_id>`     → shown on machine hover
+        // Tag them so the hover logic can reveal them and the ghosting/elevation
+        // passes skip them. Must run before the nodeRegistry traverse so they
+        // are NOT indexed as device nodes (which would cause them to elevate
+        // with the machine they highlight).
+        const GLB_ZONE_TO_APP = {
+            'cnc': 'machining',
+            'die_casting': 'die_casting',
+            'finishing': 'paint_shop',
+            'heat': 'heat_treating',
+            'inspection': 'qc',
+            'raw_materials': 'logistics',
+            'smelting': 'smelting',
+            'outbound': 'shipping'
+        };
+        // Build an orange edge-wireframe (LineSegments) from each highlight
+        // mesh's geometry — mirrors the Blender authoring look where highlights
+        // read as sharp outlines, not filled yellow blocks. The original filled
+        // mesh stays hidden permanently; only the LineSegments toggles on hover.
+        // [FLOOR] Several GLB materials (e.g. `M_floor_grey`, `fl_black`, the
+        // LPDC mezzanine slab, sky/backdrop planes) ship with no
+        // baseColorFactor — GLTF defaults that to white `[1,1,1,1]`. With the
+        // RoomEnvironment IBL + envMapIntensity=1.5 from `_setupStaticProperties`,
+        // those surfaces render as bright mirror-white. GLTF 2.0 encodes no
+        // world/background (Blender's World shader + Strength is viewport-only
+        // and is NOT exported to .glb), so this must be fixed in Three.js.
+        // Pass 1: explicit named floor/backdrop materials → dark diffuse.
+        // Pass 2: any remaining non-highlight material whose color is still
+        //         near-white AND has no baseColorTexture → dark diffuse.
+        const FLOOR_COLOR = new THREE.Color(0x1a1a1a);
+        const darkenedMats = new WeakSet();
+        const darkenMaterial = (m) => {
+            if (!m || darkenedMats.has(m)) return;
+            if (m.color) m.color.copy(FLOOR_COLOR);
+            if ('roughness' in m) m.roughness = 0.9;
+            if ('metalness' in m) m.metalness = 0;
+            if ('envMapIntensity' in m) m.envMapIntensity = 0.15;
+            m.needsUpdate = true;
+            darkenedMats.add(m);
+        };
+        const FLOOR_NAMES = new Set(['M_floor_grey', 'fl_black', 'Material', 'Material.006']);
+        this.model.traverse(c => {
+            if (!c.isMesh || !c.material || c.userData.isHighlight) return;
+            const mats = Array.isArray(c.material) ? c.material : [c.material];
+            mats.forEach(m => {
+                if (!m) return;
+                if (m.name && FLOOR_NAMES.has(m.name)) { darkenMaterial(m); return; }
+                // Heuristic: untextured near-white PBR material → treat as
+                // floor/backdrop. Emissive highlight materials are skipped via
+                // the isHighlight guard on the mesh above.
+                const hasTexture = !!(m.map || m.emissiveMap);
+                const isEmissive = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05;
+                const col = m.color;
+                const isNearWhite = col && col.r > 0.85 && col.g > 0.85 && col.b > 0.85;
+                if (!hasTexture && !isEmissive && isNearWhite) darkenMaterial(m);
+            });
+        });
+
+        // [HOVER-HIGHLIGHT] Use the authored GLB highlight meshes directly.
+        // Each machine highlight (`highlight_*`) in the GLB shares one emissive
+        // orange material (Material.011). Per-mesh clone is required — both
+        // because the shared instance would propagate opacity/emissive pulse
+        // to every sibling highlight, and because siblings might need
+        // independent visibility at the same moment in the future.
+        const configurePulseMaterial = (mesh) => {
+            if (!mesh || !mesh.material) return null;
+            const src = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            const cloned = src.map(m => m.clone());
+            cloned.forEach(m => {
+                m.transparent = true;
+                m.depthWrite = false;
+                m.depthTest = true;   // machine meshes occlude the highlight
+            });
+            mesh.material = Array.isArray(mesh.material) ? cloned : cloned[0];
+            mesh.renderOrder = -1;    // draw before opaque machines at same depth
+            mesh.frustumCulled = false;
+            mesh.userData.isHighlight = true;
+            mesh.userData.baseEmissive = cloned[0].emissiveIntensity ?? 1;
+            return mesh;
+        };
+
+        // Configure every mesh under a highlight node (handles multi-primitive
+        // zone highlight Groups as well as single-mesh machine highlights).
+        const configureHighlightSubtree = (node) => {
+            const meshes = [];
+            node.traverse(ch => {
+                if (ch.isMesh && ch.geometry) {
+                    configurePulseMaterial(ch);
+                    meshes.push(ch);
+                }
+            });
+            node.userData.isHighlight = true;
+            node.userData.highlightMeshes = meshes;
+            node.visible = false;
+            return node;
+        };
+
+        this.model.traverse(c => {
+            if (!c.name) return;
+            const n = c.name.toLowerCase();
+            if (n.endsWith('_zone_highlight')) {
+                const glbZone = n.replace('_zone_highlight', '');
+                const appZone = GLB_ZONE_TO_APP[glbZone] || glbZone;
+                configureHighlightSubtree(c);
+                this.zoneHighlightRegistry.set(appZone, c);
+            } else if (n.startsWith('highlight_')) {
+                const machineNorm = n.replace(/^highlight_/, '').replace(/[^a-z0-9]/g, '');
+                configureHighlightSubtree(c);
+                this.highlightRegistry.set(machineNorm, c);
+            }
+        });
+
         let baseWarningMesh = null;
         this.model.traverse(c => {
+            // Skip highlight meshes — not real devices, shouldn't participate
+            // in device lookup, ghosting, or elevation.
+            if (c.userData.isHighlight) return;
+
             // Store originalMaterial on ALL meshes so isolateGroup can ghost them
             if (c.isMesh && !c.userData.originalMaterial) {
                 c.userData.originalMaterial = Array.isArray(c.material)
@@ -843,23 +1228,19 @@ class Renderer {
 
                 const combinedBox = new THREE.Box3();
                 this.nodeRegistry.forEach((node, name) => {
-                    if (name.startsWith('storage')) {
-                        // FIX: Only include static components in the hitbox.
-                        // If a node has animated descendants or is animated itself,
-                        // we drill down to its static meshes.
-                        const addStatic = (n) => {
-                            if (n.userData.isAnimated) return;
-                            if (n.userData.hasAnimatedDescendant) {
-                                n.children.forEach(addStatic);
-                            } else if (n.isMesh) {
-                                combinedBox.union(new THREE.Box3().setFromObject(n));
-                            }
-                        };
-                        addStatic(node);
+                    if (name.startsWith('storage') || name.startsWith('inbound') ||
+                        name.startsWith('buffer') || name.includes('raw_materials') ||
+                        name.includes('rawmaterials')) {
+                        // Skip nodes that ARE the animated mover itself (storage_01.013
+                        // travels with the forklift), but still include static siblings
+                        // even if they share an animated ancestor.
+                        if (node.userData.isAnimated) return;
+                        const b = new THREE.Box3().setFromObject(node);
+                        if (!b.isEmpty()) combinedBox.union(b);
                     }
                 });
                 if (combinedBox.isEmpty()) continue;
-                combinedBox.expandByScalar(0.2);
+                combinedBox.expandByScalar(0.5);
 
                 const size = new THREE.Vector3();
                 combinedBox.getSize(size);
@@ -878,10 +1259,19 @@ class Renderer {
             }
 
             createdIds.add(normId);
-            const node = this.nodeRegistry.get(targetName.toLowerCase());
-            if (!node) continue;
+            // Try exact node lookup first; otherwise fall back to the same
+            // fuzzy resolver used for elevation/selection. Many GLB node names
+            // don't match manualMap targets 1:1 (multi-part machines like
+            // `furnace_01.001/.002/.003`, typo'd `preteatment`, parent groups
+            // like `heat`, etc.) — without the fallback those devices have no
+            // hitbox and can't be clicked.
+            const box = new THREE.Box3();
+            const exact = this.nodeRegistry.get(targetName.toLowerCase());
+            if (exact) box.setFromObject(exact);
 
-            const box = new THREE.Box3().setFromObject(node);
+            const fuzzy = this._getDeviceNodes(id);
+            fuzzy.forEach(({ node: n }) => box.union(new THREE.Box3().setFromObject(n)));
+
             if (box.isEmpty()) continue;
             box.expandByScalar(0.2);
 
@@ -905,16 +1295,12 @@ class Renderer {
         if (!id || !window.app) return;
         const upperId = id.toUpperCase();
 
-        // Toggle: if same device is already selected, deselect
-        if (this._selectedDeviceId === upperId) {
-            this._selectedDeviceId = null;
-            this.clearHighlights();
-            window.app.setContext('plant');
-        } else {
-            this._selectedDeviceId = upperId;
-            this.setHighlight(id, true);
-            window.app.setContext('machine', upperId);
-        }
+        // No toggle: re-clicking the same device is a no-op. The Home button is the sole reset.
+        if (this._selectedDeviceId === upperId) return;
+
+        this._selectedDeviceId = upperId;
+        this.setHighlight(id, true);
+        window.app.setContext('machine', upperId);
     }
 
     focusOnDevice(id) {
@@ -933,22 +1319,50 @@ class Renderer {
             }
         }
 
-        const mesh = this.findMesh(id);
-        if (!mesh) return;
+        // [FRAMING] Use the union of all mesh nodes for this device so the
+        // camera frames the entire machine — not just the root mesh.
+        const nodes = this._getDeviceNodes(id);
+        const box = new THREE.Box3();
+        if (nodes.length) {
+            nodes.forEach(({ node }) => box.union(new THREE.Box3().setFromObject(node)));
+        } else {
+            const mesh = this.findMesh(id);
+            if (!mesh) return;
+            box.setFromObject(mesh);
+        }
+        if (box.isEmpty()) return;
 
-        const box = new THREE.Box3().setFromObject(mesh);
         const center = new THREE.Vector3();
         box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
 
+        // [FRAMING] Auto-fit zoom so the machine fills the view with a 1m
+        // safety margin on every side ("stop 1 meter before the end").
+        if (targetZoom === null) {
+            const { w, h } = this._viewportSize();
+            const aspect = w / h;
+            const margin = 2.0; // 2 meter padding around the mesh bounds for breathing room
+            const fitW = size.x + 2 * margin;
+            const fitH = size.y + 2 * margin;
+            const fitD = size.z + 2 * margin;
+            const horiz = Math.max(fitW, fitD); // ortho axis-aligned ground extent
+            const zoomX = (this.viewSize * aspect) / horiz;
+            const zoomY = this.viewSize / fitH;
+            targetZoom = Math.min(zoomX, zoomY);
+            // Clamp inside controls bounds
+            targetZoom = Math.max(this.controls.minZoom, Math.min(this.controls.maxZoom, targetZoom));
+        }
+
+        // [CAMERA] Forward/backward only — preserve the existing isometric
+        // viewing angle by reusing the default offset vector. No orbit/rotation.
         const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
         const cameraTargetPosition = center.clone().add(isometricOffset);
 
-        const customZoom = this.customZooms[id.toLowerCase()] || 3.5;
-        const finalZoom = targetZoom !== null ? targetZoom : customZoom;
-        this.animateCamera(cameraTargetPosition, center, finalZoom);
+        this.animateCamera(cameraTargetPosition, center, targetZoom);
     }
 
-    focusOnZone(zoneId) {
+    focusOnZone(zoneId, multiplier = 1.2) {
         if (!window.app || !window.app.machineGroups) return;
         const machines = window.app.machineGroups[zoneId];
         if (machines && machines.length) {
@@ -957,41 +1371,141 @@ class Renderer {
                 const devNodes = this._getDeviceNodes(mid);
                 devNodes.forEach(({ node }) => allNodes.push(node));
             });
-            if (allNodes.length) this.frameGroup(allNodes);
+            if (allNodes.length) this.frameGroup(allNodes, multiplier);
         }
     }
 
-    frameGroup(nodes) {
+    frameGroup(nodes, multiplier = 1.2) {
         if (!nodes || nodes.length === 0) return;
         const bounds = new THREE.Box3();
         nodes.forEach(n => bounds.union(new THREE.Box3().setFromObject(n)));
-        
+
         const center = new THREE.Vector3();
         bounds.getCenter(center);
         const size = new THREE.Vector3();
         bounds.getSize(size);
 
-        const aspect = window.innerWidth / window.innerHeight;
+        const { w, h } = this._viewportSize();
+        const aspect = w / h;
         const maxDim = Math.max(size.x, size.y, size.z);
-        let targetZoom = (this.viewSize * aspect) / (maxDim * 1.2);
-        targetZoom = Math.max(0.8, Math.min(targetZoom, 2.5));
+        let targetZoom = (this.viewSize * aspect) / (maxDim * multiplier);
+
+        // [STABILITY] Clamp target zoom to refined safety range
+        targetZoom = Math.max(0.5, Math.min(targetZoom, 15.0));
 
         const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
         this.animateCamera(center.clone().add(isometricOffset), center, targetZoom);
     }
 
-    animateCamera(targetPos, targetLookAt, targetZoom) {
+    resetCamera() {
+        this.clearSelectionBoxes();
+        this.animateCamera(this.defaultPosition.clone(), this.defaultTarget.clone(), this.defaultZoom);
+    }
+
+    /**
+     * Display persistent Box3Helpers for a device and its containing zone.
+     * Called when the user clicks a machine name pill. Cleared by Home.
+     */
+    showSelectionBoxes(deviceId) {
+        if (!deviceId || !this.scene) return;
+        this.clearSelectionBoxes();
+
+        // Single-device pin: only the clicked device's highlight glows.
+        // Zone-wide highlighting is reserved for zone name-pill clicks.
+        const deviceHl = this._resolveMachineHighlight(deviceId);
+        if (deviceHl) {
+            deviceHl.visible = true;
+            this._pinnedHighlights.add(deviceHl);
+            this._lastMachineHighlight = deviceHl;
+        }
+    }
+
+    /**
+     * Resolve a device id to its GLB highlight mesh using the same key logic as setHighlight.
+     */
+    _resolveMachineHighlight(deviceId) {
+        if (!deviceId) return null;
+        const lower = deviceId.toLowerCase();
+        const target = (this.manualMap && this.manualMap[lower]) || lower;
+        const targetNorm = target.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normId = lower.replace(/[^a-z0-9]/g, '');
+
+        const isLogisticsGroup = targetNorm.includes('storage') || targetNorm.includes('inbound') || targetNorm.includes('rawmaterials');
+
+        let hlKey = targetNorm;
+        if (isLogisticsGroup) hlKey = 'rawmaterials';
+        else if (targetNorm === 'preteatment' || targetNorm.includes('pretreat')) hlKey = 'pretreat';
+        else if (targetNorm.includes('furnace')) hlKey = 'furnace';
+        else if (targetNorm.includes('heat')) hlKey = 'heat';
+        else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;
+
+        let hl = this.highlightRegistry.get(hlKey) || this.highlightRegistry.get(normId);
+        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('logistics');
+        return hl || null;
+    }
+
+    /**
+     * Pin GLB-baked highlights for an entire zone (zone outline + all member machines).
+     * Triggered by zone name-pill clicks; cleared by Home.
+     */
+    pinZoneHighlights(zoneId) {
+        if (!zoneId) return;
+        this.clearSelectionBoxes();
+
+        this._pinnedZoneId = zoneId;
+
+        const zoneHl = this.zoneHighlightRegistry.get(zoneId);
+        if (zoneHl) {
+            zoneHl.visible = true;
+            this._pinnedHighlights.add(zoneHl);
+            this._lastZoneHighlight = zoneHl;
+        }
+
+        const groups = (window.app && window.app.machineGroups) || {};
+        const members = groups[zoneId] || [];
+        members.forEach(mid => {
+            const hl = this._resolveMachineHighlight(mid);
+            if (hl) {
+                hl.visible = true;
+                this._pinnedHighlights.add(hl);
+            }
+        });
+    }
+
+    clearSelectionBoxes() {
+        if (this._selectionBoxHelpers && this._selectionBoxHelpers.length) {
+            this._selectionBoxHelpers.forEach(helper => {
+                this.scene.remove(helper);
+                if (helper.geometry) helper.geometry.dispose();
+                if (helper.material) helper.material.dispose();
+            });
+            this._selectionBoxHelpers = [];
+        }
+
+        if (this._pinnedHighlights && this._pinnedHighlights.size) {
+            this._pinnedHighlights.forEach(hl => { hl.visible = false; });
+            this._pinnedHighlights.clear();
+        }
+        this._pinnedZoneId = null;
+    }
+
+    animateCamera(targetPos, targetLookAt, targetZoom, duration = 3000) {
+        // Cancel any in-flight animation so chip-nav clicks don't stack into a snake.
+        if (this._cameraAnimId) cancelAnimationFrame(this._cameraAnimId);
+
         const startPos = this.camera.position.clone();
         const startTarget = this.controls.target.clone();
         const startZoom = this.camera.zoom;
         const startTime = performance.now();
-        const duration = 2000;
 
         this.controls.enabled = false;
 
         const animate = (time) => {
             const t = Math.min((time - startTime) / duration, 1);
-            const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            // easeInOutQuint — symmetric S-curve, no abrupt start/stop
+            const ease = t < 0.5
+                ? 16 * t * t * t * t * t
+                : 1 - Math.pow(-2 * t + 2, 5) / 2;
 
             this.camera.position.lerpVectors(startPos, targetPos, ease);
             this.controls.target.lerpVectors(startTarget, targetLookAt, ease);
@@ -999,68 +1513,32 @@ class Renderer {
             this.camera.updateProjectionMatrix();
             this.controls.update();
 
-            if (t < 1) requestAnimationFrame(animate);
-            else this.controls.enabled = true;
+            if (t < 1) {
+                this._cameraAnimId = requestAnimationFrame(animate);
+            } else {
+                this._cameraAnimId = null;
+                this.controls.enabled = true;
+            }
         };
-        requestAnimationFrame(animate);
+        this._cameraAnimId = requestAnimationFrame(animate);
     }
 
     _collectActiveMeshes(deviceIds) {
         const activeMeshesSet = new Set();
-        const activePrefixes = new Set();
 
         deviceIds.forEach(id => {
-            const rawId = id.toLowerCase();
+            // [SCADA] Deep Harvesting: Use the smart _getDeviceNodes logic to
+            // identify all root nodes, sibling instances, and associated collections
+            // that belong to this logical device ID.
+            const nodes = this._getDeviceNodes(id);
 
-            // Resolve through manualMap to get the actual mesh name
-            const mapped = (this.manualMap[rawId] || '').toLowerCase();
-
-            // Special case: any storage/raw_materials/inbound/buffer ID → all storage meshes
-            if (mapped.startsWith('storage') || rawId === 'rawmaterials' || rawId === 'raw_materials'
-                || rawId.startsWith('storage') || rawId.startsWith('inbound') || rawId.startsWith('buffer')) {
-                activePrefixes.add('storage');
-            } else {
-                // Use the resolved mesh name as prefix to catch sibling meshes
-                if (mapped) {
-                    activePrefixes.add(mapped);
-                    activePrefixes.add(mapped.replace(/[^a-z0-9]/g, ''));
-                }
-                activePrefixes.add(rawId);
-                activePrefixes.add(rawId.replace(/[^a-z0-9]/g, ''));
-            }
-
-            // Traverse children of the resolved node directly
-            const node = this.findMesh(id);
-            if (node) {
+            nodes.forEach(({ node }) => {
+                // Recursively gather all meshes within every identified root or instance
                 node.traverse(n => {
                     if (n.isMesh) activeMeshesSet.add(n);
                 });
-            }
+            });
 
-            // Exact associated mesh names (e.g., aluminium containers for degassers)
-            const extraNames = this.associatedMeshNames[rawId];
-            if (extraNames) {
-                extraNames.forEach(name => {
-                    const n = this.nodeRegistry.get(name.toLowerCase());
-                    if (n) {
-                        n.traverse(c => { if (c.isMesh) activeMeshesSet.add(c); });
-                    }
-                });
-            }
-        });
-
-        // Prefix-match pass: catch sibling meshes sharing the resolved name prefix
-        this.model.traverse(node => {
-            if (node.isMesh && !activeMeshesSet.has(node)) {
-                const nodeName = (node.name || '').toLowerCase();
-                const nodeNorm = nodeName.replace(/[^a-z0-9]/g, '');
-                for (const prefix of activePrefixes) {
-                    if (nodeName.startsWith(prefix) || nodeNorm.startsWith(prefix)) {
-                        activeMeshesSet.add(node);
-                        return;
-                    }
-                }
-            }
         });
 
         return activeMeshesSet;
@@ -1070,9 +1548,9 @@ class Renderer {
         if (!node.userData.ghostMat) {
             // [SCADA] Blueprint Ghosting — high transparency but retains subtle specular sheen
             node.userData.ghostMat = new THREE.MeshStandardMaterial({
-                color: 0x4a5568, 
-                transparent: true, 
-                opacity: 0.1, 
+                color: 0x4a5568,
+                transparent: true,
+                opacity: 0.1,
                 depthWrite: false,
                 metalness: 0.2,
                 roughness: 0.3
@@ -1109,8 +1587,10 @@ class Renderer {
 
         this.model.traverse(node => {
             if (node.isMesh && node.userData.originalMaterial) {
-                // Never ghost animated objects or their ancestor containers (forklift, etc.)
-                if (node.userData.isAnimated || node.userData.hasAnimatedDescendant || activeMeshesSet.has(node)) {
+                // Animated meshes (e.g. forklift) get ghosted just like static
+                // ones if they're not part of the selection — the animation
+                // still plays, only the material is swapped to grey.
+                if (activeMeshesSet.has(node)) {
                     this._restoreOriginal(node);
                 } else {
                     this._makeGhost(node);
@@ -1125,8 +1605,7 @@ class Renderer {
 
         this.model.traverse(node => {
             if (node.isMesh && node.userData.originalMaterial) {
-                // Never ghost animated objects or their ancestor containers (forklift, etc.)
-                if (node.userData.isAnimated || node.userData.hasAnimatedDescendant || activeMeshesSet.has(node)) {
+                if (activeMeshesSet.has(node)) {
                     this._restoreOriginal(node);
                 } else {
                     this._makeGhost(node);
@@ -1138,6 +1617,7 @@ class Renderer {
     resetInteraction() {
         this._selectedDeviceId = null;
         this.clearHighlights();
+        this.clearSelectionBoxes();
         this.isolateGroup(null);
         this.resetToDefaultView();
         this.labelRegistry.forEach(l => l.element.style.display = 'block');
@@ -1188,38 +1668,65 @@ class Renderer {
         let labelItem = this.labelRegistry.get(id);
         if (!labelItem) {
             const div = document.createElement('div');
-            div.className = 'machine-chip';
-            // Start with a skeleton and populate dynamically
+            div.className = 'marker-container-stacked';
+            div.style.pointerEvents = 'auto';
+            div.style.cursor = 'pointer';
+
+            // [PRECISION] Targeted Stacked Structure: Icon Circle over Name Pill
             div.innerHTML = `
-                <div class="chip-header">
-                    <span class="chip-status-dot material-symbols-outlined">settings</span>
+                <div class="stacked-icon-circle">
+                    <span class="material-symbols-outlined">settings</span>
                 </div>
-                <div class="chip-unified-value"></div>
-                <div class="chip-val" style="display: none;"></div>
+                <div class="stacked-name-pill">${id}</div>
             `;
-            div.onclick = () => window.app.setContext('machine', id);
+            // Split handlers: icon circle zooms (existing); name pill draws persistent bbox overlays
+            // for the device + its containing zone. The Home button is the only path that clears them.
+            const machineIconBtn = div.querySelector('.stacked-icon-circle');
+            const machineNameBtn = div.querySelector('.stacked-name-pill');
+            if (machineIconBtn) {
+                machineIconBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    window.app.setContext('machine', id);
+                };
+            }
+            if (machineNameBtn) {
+                machineNameBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.showSelectionBoxes(id);
+                    window.app.setContext('machine', id);
+                };
+            }
             const obj = new CSS2DObject(div);
+            // Height adjustment to avoid clipping (stack is taller than pill)
+            obj.position.y += 0.5;
             this.scene.add(obj);
-            labelItem = { element: div, object: obj };
+
+            // Register targeting references for flicker-free live updates
+            labelItem = {
+                element: div,
+                object: obj,
+                statusDot: div.querySelector('.material-symbols-outlined'),
+                statusIndicator: div.querySelector('.stacked-status-dot'),
+                idLabel: div.querySelector('.stacked-name-pill'),
+                iconCircle: div.querySelector('.stacked-icon-circle')
+            };
             this.labelRegistry.set(id, labelItem);
         }
 
-        const el = labelItem.element;
+        const { statusDot, statusIndicator, idLabel, iconCircle } = labelItem;
 
-        // [FIX] Dynamic Icon and Status Update
-        const dotIndicator = el.querySelector('.chip-status-dot');
-        if (dotIndicator) {
+        if (statusDot) {
             const iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : 'settings';
-            if (dotIndicator.textContent !== iconName) {
-                dotIndicator.textContent = iconName;
-            }
+            if (statusDot.textContent !== iconName) statusDot.textContent = iconName;
 
-            // [FIX] Use unified state resolution from App to ensure consistency with sidebar and zone views
             const resolvedState = (this.app ? this.app._getMachineState(id) : 'UNKNOWN').toString().toUpperCase();
             const isRunning = resolvedState === 'RUNNING' || resolvedState === 'NORMAL' || resolvedState === 'ONLINE';
-            dotIndicator.className = `chip-status-dot material-symbols-outlined ${isRunning ? 'running' : 'stopped'}`;
+            const iconColor = isRunning ? '#00E676' : '#D32F2F';
+
+            if (statusDot.style.color !== iconColor) statusDot.style.color = iconColor;
         }
 
+        if (idLabel && idLabel.textContent !== id) idLabel.textContent = id;
     }
 
     /**
@@ -1241,15 +1748,18 @@ class Renderer {
             zoneIconMap[zoneId] = icon;
         }
 
+        // [SYNC] Pull canonical department labels from main app so the WebGL
+        // zone names match the sidebar UI labels exactly.
+        const appLabels = (this.app && this.app.departmentLabels) || {};
         const zoneNames = {
-            'logistics': 'LOGISTICS & RAW MATERIALS',
-            'smelting': 'SMELTING DEPT',
-            'die_casting': 'DIE CASTING',
-            'qc': 'QUALITY ASSURANCE',
-            'heat_treating': 'HEAT TREATMENT',
-            'machining': 'MACHINING UNIT',
-            'paint_shop': 'FINISHING SHOP',
-            'shipping': 'SHIPPING'
+            'logistics': (appLabels['logistics'] || 'Raw Materials').toUpperCase(),
+            'smelting': (appLabels['smelting'] || 'Smelting').toUpperCase(),
+            'die_casting': (appLabels['die_casting'] || 'Die Casting').toUpperCase(),
+            'qc': (appLabels['qc'] || 'Quality Control').toUpperCase(),
+            'heat_treating': (appLabels['heat_treating'] || 'Heat Treatment').toUpperCase(),
+            'machining': (appLabels['machining'] || 'Machining').toUpperCase(),
+            'paint_shop': (appLabels['paint_shop'] || 'Finishing').toUpperCase(),
+            'shipping': (appLabels['shipping'] || 'Shipping').toUpperCase()
         };
 
         // Clear existing zone icons and names
@@ -1272,7 +1782,7 @@ class Renderer {
             });
 
             if (!hasNodes) continue;
-            
+
             // [USER] Increase zone bounding boxes for more generous hover detection
             zoneBox.expandByScalar(1.5);
             this.zoneRegistry.set(zoneId, zoneBox);
@@ -1280,42 +1790,84 @@ class Renderer {
             const centerVec = new THREE.Vector3();
             zoneBox.getCenter(centerVec);
 
-            // [USER] Consolidated Zone Label: Icon + Name in one camera-facing chip
+            // [LOGISTICS] For raw materials, anchor the chip to the storage
+            // mesh stack itself — the zone box also covers the forklift sweep
+            // path, which pulls the centroid off-center.
+            if (zoneId === 'logistics') {
+                const storageBox = new THREE.Box3();
+                this.nodeRegistry.forEach((node, name) => {
+                    if (name.startsWith('storage') || name.startsWith('inbound') || name.startsWith('buffer')) {
+                        node.traverse(c => {
+                            if (c.isMesh && !c.userData.isAnimated && !c.userData.isHighlight) {
+                                storageBox.union(new THREE.Box3().setFromObject(c));
+                            }
+                        });
+                    }
+                });
+                if (!storageBox.isEmpty()) {
+                    storageBox.getCenter(centerVec);
+                    // also use the storage stack's top edge for vertical anchor
+                    zoneBox.max.y = storageBox.max.y;
+                }
+            }
+
+            // [USER] High-fidelity Stacked Marker: Icon Circle over Name Pill
             const iconDiv = document.createElement('div');
-            iconDiv.className = 'zone-chip-wrapper';
+            iconDiv.className = 'marker-container-stacked';
             iconDiv.style.pointerEvents = 'auto';
             iconDiv.style.cursor = 'pointer';
 
             const zoneState = this.app ? this.app._getZoneState(zoneId) : 'RUNNING';
-            const isRunning = zoneState === 'RUNNING' || zoneState === 'NORMAL' || zoneState === 'ONLINE';
-            const statusClass = isRunning ? 'running' : 'stopped';
+            const isOnline = zoneState === 'RUNNING' || zoneState === 'NORMAL' || zoneState === 'ONLINE';
             const icon = zoneIconMap[zoneId] || 'settings';
             const name = zoneNames[zoneId] || zoneId.toUpperCase();
 
+            const statusColor = isOnline ? '#00E676' : '#D32F2F';
             iconDiv.innerHTML = `
-                <div class="machine-chip">
-                    <div class="chip-header">
-                        <span class="chip-status-dot material-symbols-outlined ${statusClass}">${icon}</span>
-                    </div>
+                <div class="stacked-icon-circle">
+                    <span class="material-symbols-outlined" style="color: ${statusColor}">${icon}</span>
                 </div>
-                <div class="zone-name-label-plain">${name}</div>
+                <div class="stacked-name-pill">${name}</div>
             `;
-            iconDiv.onclick = () => window.app.setContext('zone', zoneId);
+            // [USER] Split Handlers: Icon zooms to 1st device, Name Pill zooms to entire zone (far)
+            const iconBtn = iconDiv.querySelector('.stacked-icon-circle');
+            const nameBtn = iconDiv.querySelector('.stacked-name-pill');
+            
+            if (iconBtn && machines.length > 0) {
+                iconBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    window.app.setContext('machine', machines[0]);
+                };
+            }
+            if (nameBtn) {
+                nameBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.pinZoneHighlights(zoneId);
+                    window.app.setContext('zone', zoneId);
+                };
+            }
 
             const iconLabel = new CSS2DObject(iconDiv);
-            iconLabel.position.set(centerVec.x, zoneBox.max.y + 1.2, centerVec.z);
+            // Raw materials chip sits one step higher than other zone chips so
+            // it reads cleanly above the storage stack.
+            const yOffset = zoneId === 'logistics' ? 2.4 : 1.2;
+            iconLabel.position.set(centerVec.x, zoneBox.max.y + yOffset, centerVec.z);
+            iconLabel.userData = { type: 'zone', id: zoneId }; // Tag for visibility logic
             this.scene.add(iconLabel);
             this.zoneLabelRegistry.set(zoneId, iconLabel);
         }
     }
 
     onWindowResize() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const { w, h } = this._viewportSize();
+        const aspect = w / h;
         this.camera.left = -aspect * this.viewSize / 2;
         this.camera.right = aspect * this.viewSize / 2;
+        this.camera.top = this.viewSize / 2;
+        this.camera.bottom = -this.viewSize / 2;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(w, h);
+        this.labelRenderer.setSize(w, h);
     }
 
     applyUpdatedIds(ids) {
@@ -1350,8 +1902,56 @@ class Renderer {
                 }
             }
 
+            // [PERF/LCP] Dynamic Chip Visibility based on Camera Zoom
+            // Hides machine labels when zoomed out to reduce DOM overhead and visual clumping.
+            const currentZoom = this.camera.zoom;
+            const threshold = 1.8; // Machine labels appear only when getting closer
+
+            this.labelRegistry.forEach((label, id) => {
+                const element = label.element;
+                if (element) {
+                    const shouldShow = currentZoom > threshold;
+                    const opacity = shouldShow ? 1 : 0;
+                    if (element.style.opacity !== String(opacity)) {
+                        element.style.opacity = opacity;
+                        element.style.pointerEvents = shouldShow ? 'auto' : 'none';
+                    }
+                }
+            });
+
             this.handleHover();
             this._updateCoordinateTracker();
+
+            // [HOVER-HIGHLIGHT] Pulse the active highlight mesh so it breathes.
+            // Drives the cloned per-mesh material's opacity and emissiveIntensity
+            // around the authored base value.
+            const s01 = 0.5 + 0.5 * Math.sin(performance.now() * 0.0075);
+            const pulseNode = (node, opacityMin, opacitySpan, emissiveMin, emissiveSpan) => {
+                if (!node || !node.visible) return;
+                const meshes = node.userData.highlightMeshes || [node];
+                const opacity = opacityMin + opacitySpan * s01;
+                meshes.forEach(mesh => {
+                    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                    mats.forEach(m => {
+                        m.opacity = opacity;
+                        if ('emissiveIntensity' in m) {
+                            const base = mesh.userData.baseEmissive ?? 1;
+                            m.emissiveIntensity = base * (emissiveMin + emissiveSpan * s01);
+                        }
+                    });
+                });
+            };
+            pulseNode(this._lastMachineHighlight, 0.55, 0.45, 0.6, 1.4);
+            pulseNode(this._lastZoneHighlight,   0.25, 0.35, 0.5, 1.0);
+
+            // Keep pinned highlights pulsing too so the glow persists after click
+            // until the Home button is pressed.
+            if (this._pinnedHighlights && this._pinnedHighlights.size) {
+                this._pinnedHighlights.forEach(hl => {
+                    if (hl === this._lastMachineHighlight || hl === this._lastZoneHighlight) return;
+                    pulseNode(hl, 0.55, 0.45, 0.6, 1.4);
+                });
+            }
 
             this.renderer.render(this.scene, this.camera);
             this.labelRenderer.render(this.scene, this.camera);

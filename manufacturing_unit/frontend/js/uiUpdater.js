@@ -90,10 +90,10 @@ class UIUpdater {
             const statusEl = this._getDomElement(`status-${mid}`);
             if (statusEl) {
                 const state = (m.state || (m.isRunning ? 'running' : '') || 'OFFLINE').toUpperCase();
-                const color = state === 'RUNNING' || state === 'NORMAL' ? 'var(--success)' : 
-                             (['FAULT', 'ALARM', 'ERROR', 'STOPPED'].includes(state) ? 'var(--danger)' : 'var(--text-dim)');
+                const color = state === 'RUNNING' || state === 'NORMAL' ? '#00E676' : 
+                             (['FAULT', 'ALARM', 'ERROR', 'STOPPED'].includes(state) ? '#FF3030' : '#888888');
                 statusEl.style.background = color;
-                statusEl.style.boxShadow = (color === 'var(--success)') ? '0 0 6px var(--success)66' : 'none';
+                statusEl.style.boxShadow = (color === '#00E676') ? '0 0 6px #00E67666' : 'none';
             }
             
             // 2. Targeted Spent Update for Sidebar List — use analytics engine (same source as right sidebar)
@@ -142,8 +142,8 @@ class UIUpdater {
                 const status = dept.status || (dept.instantKW > 0 ? 'RUNNING' : 'IDLE');
                 // textContent removal: transitioning to color-only indicator dots
                 const isActive = status === 'RUNNING' || status === 'NORMAL' || status === 'STABLE';
-                deptStatusEl.style.background = isActive ? 'var(--success)' : 'var(--text-dim)';
-                deptStatusEl.style.boxShadow = isActive ? '0 0 8px var(--success)66' : 'none';
+                deptStatusEl.style.background = isActive ? '#00E676' : '#888888';
+                deptStatusEl.style.boxShadow = isActive ? '0 0 8px #00E67666' : 'none';
             }
         });
     }
@@ -196,7 +196,7 @@ class UIUpdater {
         if (alarmLabelEl) {
             const label = alarms === 0 ? 'clear' : (alarms === 1 ? 'alarm' : 'alarms');
             if (alarmLabelEl.textContent !== label) alarmLabelEl.textContent = label;
-            alarmLabelEl.style.color = alarms > 0 ? 'var(--danger)' : 'var(--text-dim)';
+            alarmLabelEl.style.color = alarms > 0 ? '#FF3030' : '#888888';
         }
         const alarmCard = this._getDomElement('kpi-alarm-card');
         if (alarmCard) alarmCard.classList.toggle('has-alarms', alarms > 0);
@@ -413,30 +413,247 @@ class UIUpdater {
     }
 
     /**
-     * Build structured data for V1.2 Sidebar — 5 sections
-     * 1. Asset Details, 2. Plant Data, 3. Production, 4. Alarms, 5. Maintenance
+     * Build structured data for V1.2 Sidebar — 7 PDF-compliant sections
      */
     _buildSidebarData(hierarchy, plant) {
         const sidebar = this.app.sidebar;
         const assetId = sidebar.currentAssetId;
-        const deviceState = assetId ? this.stateManager.getDeviceState(assetId) : null;
-        const raw = deviceState?.data || {};
-        const deviceType = assetId ? this.app.getDeviceType(assetId) : null;
-        const schema = deviceType ? this.app.sidebarSchemas[deviceType] : null;
-        const machineData = assetId ? this.app._findMachineData(assetId) : null;
+        if (!assetId) return {};
 
-        // Resolve device status
-        const statusTag = schema?.Status ? schema.Status.find(t => t.includes('Run_Status') || t === 'IsRunning' || t === 'State') : null;
-        const status = statusTag ? this.app.getValue(raw, statusTag) : (assetId ? (this.app._getMachineState(assetId) || 'NOMINAL') : 'NOMINAL');
+        const deviceState = this.stateManager.getDeviceState(assetId);
+        const raw = deviceState?.data || {};
+        const machineData = this.app._findMachineData(assetId);
+
+        // Dynamic Tag Discovery from metadata
+        const assetTags = this._discoverTags(assetId);
+
+        // Seven logical sections from PDF
+        const metrics = [];
+        const energy = [];
+        const production = [];
+        const status = [];
+        const alarms = [];
+        const maintenance = [];
+        const assetInfo = [];
+
+        assetTags.forEach(tagName => {
+            const item = this._buildStructuredItem(tagName, raw, machineData);
+            const lower = tagName.toLowerCase();
+
+            // Machine Metrics (Temp, Pressure, Speed, Load, Vibration, Level)
+            if (lower.includes('temp') || lower.includes('pressure') || lower.includes('speed') || 
+                lower.includes('load') || lower.includes('vibration') || lower.includes('level') ||
+                lower.includes('bar') || lower.includes('psi') || lower.includes('rpm') || lower.includes('flow') ||
+                lower.includes('current') || lower.includes('position')) {
+                metrics.push(item);
+            } 
+            // Energy
+            else if (lower.includes('kw') || lower.includes('kwh') || lower.includes('energy') || lower.includes('power')) {
+                energy.push(item);
+            } 
+            // Production
+            else if (lower.includes('count') || lower.includes('part') || lower.includes('cycle') || 
+                     lower.includes('progress') || lower.includes('queue') || lower.includes('shot') || 
+                     lower.includes('fill') || lower.includes('solidification') || lower.includes('reject') ||
+                     lower.includes('processed')) {
+                production.push(item);
+            } 
+            // Status & Run Info
+            else if (lower.includes('state') || lower.includes('mode') || lower.includes('running') || 
+                     lower.includes('status') || lower.includes('model_id') || lower.includes('timer') ||
+                     lower.includes('ready') || lower.includes('connected')) {
+                status.push(item);
+            } 
+            // Alarms
+            else if (lower.includes('alarm') || lower.includes('fault') || lower.includes('error') || lower.includes('warning')) {
+                alarms.push(item);
+            }
+            // Maintenance
+            else if (lower.includes('maintenance') || lower.includes('recalibration') || lower.includes('flush') ||
+                     lower.includes('service') || lower.includes('check')) {
+                maintenance.push(item);
+            }
+        });
+
+        // Supplement Asset Info from hardcoded metadata if empty
+        if (assetInfo.length === 0) {
+            const asset = this.app._findAsset(assetId);
+            if (asset) {
+                assetInfo.push({ label: 'LAST SERVICE', value: asset.last_service_date || '2023-11-04' });
+                assetInfo.push({ label: 'NEXT SERVICE', value: asset.next_service_date || '2024-01-14' });
+            }
+        }
+
+        // Supplement Maintenance if empty
+        if (maintenance.length === 0) {
+             maintenance.push({ label: 'STATUS', value: 'OK', status: 'GREEN' });
+             maintenance.push({ label: 'NEXT CHECK', value: 'IN 2 WEEKS' });
+        }
+
+        // Ensure exactly 2 items for split layouts (Energy, Production)
+        const padSplit = (arr) => {
+            if (arr.length === 0) return [{label: '---', value: '---'}, {label: '---', value: '---'}];
+            if (arr.length === 1) return [arr[0], {label: '---', value: '---'}];
+            // Split layout only uses first two
+            return [arr[0], arr[1]];
+        };
 
         return {
+            uptime: raw['Step_Timer'] || raw['Uptime'] || raw['Total_Runtime'] || 240,
+            metrics,
+            energy: padSplit(energy),
+            production: padSplit(production),
             status,
-            asset: this._buildAssetDetails(assetId, raw, schema, machineData),
-            plant: this._buildPlantData(assetId, raw, schema, machineData),
-            production: this._buildProductionData(assetId, raw, schema, machineData),
-            alarms: this._buildAlarms(assetId, raw, hierarchy),
-            maintenance: this._buildMaintenance(assetId),
+            alarms,
+            maintenance,
+            assetInfo
         };
+    }
+
+    _discoverTags(assetId) {
+        if (!this.app.tagMetadata) return [];
+        const tags = [];
+
+        const normAssetId = assetId.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // RAWMATERIALS has no dedicated folder in tags.json — it's an aggregate of
+        // INBOUND_01 and STORAGE_01. Pull tags from both folders and dedupe.
+        const targetNames = (normAssetId === 'rawmaterials')
+            ? ['inbound01', 'storage01']
+            : [normAssetId];
+
+        const findFolderRecursive = (folder, target) => {
+            if (!folder || !folder.name) return null;
+            const normFolderName = folder.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normFolderName === target) return folder;
+            if (folder.tags) {
+                for (const child of folder.tags) {
+                    if (child.tagType === 'Folder') {
+                        const found = findFolderRecursive(child, target);
+                        if (found) return found;
+                    }
+                }
+            }
+            return null;
+        };
+
+        const seen = new Set();
+        targetNames.forEach(target => {
+            const folder = findFolderRecursive(this.app.tagMetadata, target);
+            if (!folder) return;
+            const folderTags = [];
+            this._extractAllTagsRecursive(folder, folderTags);
+            folderTags.forEach(t => {
+                if (!seen.has(t)) { seen.add(t); tags.push(t); }
+            });
+        });
+
+        return tags;
+    }
+
+    _extractAllTagsRecursive(folder, results) {
+        if (!folder.tags) return;
+        folder.tags.forEach(t => {
+            if (t.tagType === 'AtomicTag') {
+                results.push(t.name);
+            } else if (t.tagType === 'Folder') {
+                // Flatten sub-folders (e.g., Status, Inputs) into the main device list
+                this._extractAllTagsRecursive(t, results);
+            }
+        });
+    }
+
+    // Map raw tags.json names → PDF display labels (unit-free, title case).
+    _normalizeLabel(tag) {
+        if (!tag) return '';
+        let s = String(tag).replace(/_/g, ' ').trim();
+
+        const machinePrefixes = ['LPDC', 'CNC', 'Furnace', 'HT', 'Heat', 'Cooling',
+            'PB1', 'PB2', 'PT', 'Pretreat', 'XRay', 'Paint', 'Painting',
+            'Degasser', 'Degassing', 'Inbound', 'Outbound', 'Storage',
+            'Inspection', 'Buffer'];
+        for (const p of machinePrefixes) {
+            const re = new RegExp(`^${p}\\s+`, 'i');
+            if (re.test(s)) { s = s.replace(re, ''); break; }
+        }
+
+        const replacements = [
+            [/\bTotal\s*kWh\b/i, 'Total Consumed'],
+            [/\bInstant\s*kW\b/i, 'Instant Power'],
+            [/\bRuntime\s*Total\s*Hrs?\b/i, 'Total Runtime'],
+            [/\bTotal\s*Runtime\s*Hrs?\b/i, 'Total Runtime'],
+            [/\bVibration\s*mm\s*s\b/i, 'Vibration'],
+            [/\bAir\s*Supply\s*PSI\b/i, 'Air Supply Pressure'],
+            [/\bHumidity\s*Pct\b/i, 'Humidity'],
+            [/\bMelt\s*Bath\s*Temperature\b/i, 'Melt Bath Temp'],
+            [/\bProcess\s*Temperature\b/i, 'Process Temp'],
+            [/\bZone\s*Temperature\b/i, 'Zone Temp'],
+            [/\bWall\s*Temperature\b/i, 'Wall Temp'],
+            [/\bRoof\s*Temperature\b/i, 'Roof Temp'],
+            [/\bTarget\s*Temperature\b/i, 'Target Temp'],
+            [/\bMax\s*Furnace\s*Temperature\b/i, 'Max Furnace Temp'],
+            [/\bHolding\s*Furnace\s*Temperature\b/i, 'Holding Furnace Temp'],
+            [/\bDie\s*Top\s*Temperature\b/i, 'Die Top Temp'],
+            [/\bDie\s*Bottom\s*Temperature\b/i, 'Die Bottom Temp'],
+            [/\bBooth\s*Temperature\b/i, 'Booth Temp'],
+            [/\bDryer\s*Temperature\b/i, 'Dryer Temp'],
+            [/\bFurnace\s*Temperature\b/i, 'Furnace Temp'],
+            [/\bInternal\s*Temperature\b/i, 'Internal Temp'],
+            [/\bTemp\s*Setpoint\b/i, 'Temp Setpoint'],
+            [/\bTemperature\b/i, 'Temp'],
+            [/\s*Pct\b/i, ''],
+        ];
+        for (const [re, rep] of replacements) s = s.replace(re, rep);
+
+        s = s.replace(/\s+/g, ' ').trim();
+
+        const acronyms = new Set(['ID', 'OK', 'NG', 'PSI', 'RPM', 'WIP', 'QC']);
+        s = s.split(' ').map(w => {
+            const up = w.toUpperCase();
+            if (acronyms.has(up)) return up;
+            if (/^kwh$/i.test(w)) return 'kWh';
+            if (/^kw$/i.test(w)) return 'kW';
+            return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        }).join(' ');
+
+        return s;
+    }
+
+    _buildStructuredItem(tag, raw, machineData, overrideLabel = null) {
+        const val = this._resolveTagValue(tag, raw, machineData);
+        const label = overrideLabel || this._normalizeLabel(tag);
+        const unit = this.app._getUnit(tag);
+        
+        return {
+            tag,
+            label,
+            value: this._fv(val),
+            unit: unit,
+            status: this._resolveStatus(val, tag)
+        };
+    }
+
+    _resolveStatus(val, tag) {
+        if (val === undefined || val === null || typeof val !== 'number') return 'GREEN';
+        
+        // Define some thresholds
+        const thresholds = {
+            'Temperature': 750,
+            'kW': 50,
+            'Load': 90,
+            'Pressure': 100
+        };
+
+        let t = 100; // Default
+        const lowerTag = tag.toLowerCase();
+        if (lowerTag.includes('temp')) t = thresholds['Temperature'];
+        else if (lowerTag.includes('kw')) t = thresholds['kW'];
+        else if (lowerTag.includes('load')) t = thresholds['Load'];
+        else if (lowerTag.includes('pressure')) t = thresholds['Pressure'];
+
+        if (val >= t) return 'RED';
+        if (val >= t * 0.8) return 'AMBER';
+        return 'GREEN';
     }
 
     // ─── Icon resolver ─────────────────────────────────────

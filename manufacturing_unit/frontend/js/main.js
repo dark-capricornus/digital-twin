@@ -220,7 +220,7 @@ class DigitalTwinApp {
             'heat_treating': ['HEAT_01'],
             'machining': ['CNC_01', 'CNC_02'],
             'paint_shop': ['PRETREAT_01', 'PAINT_01', 'PAINT_02'],
-            'shipping': ['OUTBOUND_01'],
+            'shipping': ['OUTBOUND_01', 'OUTBOUND_02'],
         };
     }
 
@@ -621,9 +621,6 @@ class DigitalTwinApp {
 
                 await Promise.all([modelPromise, assetPromise, tagPromise]);
 
-                updateLoading('Optimizing environment...');
-                this.renderer._initEnvironment();
-
                 if (this.renderer.renderer.compileAsync) {
                     updateLoading('Pre-compiling shaders...');
                     await this.renderer.renderer.compileAsync(this.renderer.scene, this.renderer.camera);
@@ -647,7 +644,10 @@ class DigitalTwinApp {
                     this.setContext('machine', id);
                 },
                 onZoneChange: (zoneId) => {
-                    this.renderer?.focusOnZone(zoneId);
+                    // Route through setContext so the zone view also gets the
+                    // zone outline highlight + sidebar/state sync, instead of
+                    // just panning the camera.
+                    this.setContext('zone', zoneId);
                 },
                 onCollapse: () => {
                     // [USER] Strict Reset: Restore textures and return to plant overview
@@ -906,8 +906,15 @@ class DigitalTwinApp {
                 this.sidebar.expand();
             }
 
-            // Camera focuses on the whole zone but stays far (multiplier 2.5)
-            this.renderer?.focusOnZone(id, 2.5);
+            // Restore textures: zone view should never look ghosted, even if
+            // we just left a single-machine isolation.
+            this.renderer?.isolateGroup(null);
+            // Frame the zone with a margin-based fit (same logic as machine
+            // focus) so wide zones like Smelting actually fill the view.
+            this.renderer?.focusOnZone(id);
+            // Highlight ONLY the selected zone + its member machines — not
+            // every zone in the plant.
+            this.renderer?.pinZoneHighlights(id);
             this.toggleLeftSidebar(true);
 
             // [USER] Track for toggle-back logic
@@ -931,6 +938,10 @@ class DigitalTwinApp {
             } else if (this.primaryMode !== 'gemba') {
                 this.renderer?.isolateGroup([id]);
             }
+
+            // Show ONLY this machine's highlight (drops the all-zones outlines
+            // that may have been pinned during the preceding zone navigation).
+            this.renderer?.showSelectionBoxes(id);
 
             // [USER] STRICT OPEN: Open right panel for explicit machine interactions
             if (rightPanel) {
@@ -2209,7 +2220,7 @@ class DigitalTwinApp {
             { dept: null, ids: ['PRETREAT_01'], label: 'Pretreatment' },
             { dept: null, ids: ['PAINT_01'], label: 'Paint Booth 01' },
             { dept: null, ids: ['PAINT_02'], label: 'Paint Booth 02 — Ceramic Coat' },
-            { dept: null, ids: ['OUTBOUND_01'], label: 'Outbound' },
+            { dept: null, ids: ['OUTBOUND_01', 'OUTBOUND_02'], label: 'Outbound' },
         ];
         this.gembaIndex = 0;
         this.gembaPaused = false;

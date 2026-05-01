@@ -120,6 +120,46 @@ class Renderer {
             'heat_01': ['heat', 'heat_02.001', 'heat_02.002', 'heat_treatment_conveyor', 'cooling_lift','cooling_conveyor'],
         };
 
+        // Animation groups: each animated node belongs to one or more logical
+        // devices. During isolation an animated mesh keeps its texture only
+        // when at least one of its group members is part of the current
+        // selection — without this, mid-flight transports (forklifts, ladles)
+        // would pop in zones they have no business being in. Names are
+        // lowercase node-registry keys; device IDs are uppercase. Groups are
+        // assigned per the actual GLB scene-graph (each forklift/conveyor
+        // carries a specific cargo node, which determines its route).
+        this.animationGroups = {
+            // forklift.001 → carries storage_01.013 → RAW MATERIALS ↔ FURNACE
+            'forklift.001':       ['RAWMATERIALS', 'FURNACE_01'],
+            'forklift_sweep.001': ['RAWMATERIALS', 'FURNACE_01'],
+            'storage_01.013':     ['RAWMATERIALS', 'FURNACE_01'],
+            // forklift.002 → carries ladel_furnace.001 → FURNACE ↔ DEGASSER
+            'forklift.002':       ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
+            'forklift_sweep.002': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
+            'ladel_furnace.001':  ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
+            // forklift.003 → carries `rack` → DIE_CASTING ↔ HEAT_TREATMENT
+            'forklift.003':       ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
+            'forklift_sweep.003': ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
+            'rack':               ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
+            // Independent ladle (ladel_furnace.002 + its aluminium container)
+            // also runs the FURNACE ↔ DEGASSER route.
+            'ladel_furnace.002':       ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
+            'aluminium_container.004': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
+            // Per-machine animated parts
+            'storage_01.008':         ['RAWMATERIALS', 'FURNACE_01'],
+            'storage_01.009':         ['RAWMATERIALS', 'FURNACE_01'],
+            'furnace_01.001':         ['FURNACE_01'],
+            'furnace_01.002':         ['FURNACE_01'],
+            'furnace_01.003':         ['FURNACE_01'],
+            'ladel_01':               ['DEGASSER_01'],
+            'degasser_01_spinner':    ['DEGASSER_01'],
+            'aluminium_container.005':['DEGASSER_01'],
+            'heat_02.001':            ['HEAT_01'],
+            'heat_02.002':            ['HEAT_01'],
+            'cooling_conveyor':       ['HEAT_01'],
+            'rack.001':               ['HEAT_01'],
+        };
+
         // Fresnel overlay system has been removed. Hover feedback is handled
         // purely by machine elevation; cross-zone isolation by ghost materials.
 
@@ -209,11 +249,37 @@ class Renderer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.target.copy(this.defaultTarget);
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.08; // Smooth, non-abrupt wheel zoom
-        this.controls.zoomSpeed = 0.6;     // Natural scroll-zoom feel
-        this.controls.minZoom = 0.55;      // Tightened: Prevent extreme distancing
-        this.controls.maxZoom = 12.0;      // Tightened: Prevent macro clipping
+        this.controls.dampingFactor = 0.1;
+        // OrbitControls' built-in wheel handler always preventDefaults — it
+        // would swallow Chromium's Ctrl+wheel page zoom along with the scene
+        // zoom. Keep its handler disabled and install our own below that
+        // defers to the browser when Ctrl is held.
+        this.controls.enableZoom = false;
+        this.controls.minZoom = 0.55;
+        this.controls.maxZoom = 12.0;
         this.controls.update();
+
+        this.renderer.domElement.style.touchAction = 'auto';
+
+        // [SCROLL-ZOOM] Wheel zooms the orthographic camera; Ctrl+wheel falls
+        // through to Chromium's native page zoom.
+        this.renderer.domElement.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) return;
+            e.preventDefault();
+            // Cancel any in-flight camera animation so the user's manual zoom
+            // takes immediate effect instead of fighting the lerp.
+            if (this._cameraAnimId) {
+                cancelAnimationFrame(this._cameraAnimId);
+                this._cameraAnimId = null;
+                this.controls.enabled = true;
+            }
+            // Multiplicative step → consistent feel across deltaMode values
+            // (pixel vs line vs page). 0.0015 per pixel gives ~10 % per notch.
+            const step = Math.exp(-e.deltaY * 0.0015);
+            const next = this.camera.zoom * step;
+            this.camera.zoom = Math.max(this.controls.minZoom, Math.min(this.controls.maxZoom, next));
+            this.camera.updateProjectionMatrix();
+        }, { passive: false });
 
         window.addEventListener('resize', () => this.onWindowResize());
         if (typeof ResizeObserver !== 'undefined') {
@@ -221,6 +287,7 @@ class Renderer {
             this._resizeObserver.observe(this.container);
         }
         this._setupCoordinateTracker();
+        this._initEnvironment();
     }
 
     _initEnvironment() {
@@ -234,9 +301,9 @@ class Renderer {
             const envMap = pmremGenerator.fromEquirectangular(texture).texture;
 
             this.scene.environment = envMap;
-            // Background is kept as the requested pale white (from this.init())
             this.scene.environmentIntensity = 1.0;
 
+            texture.dispose();
             pmremGenerator.dispose();
             console.log('[Renderer] HDRI Environment loaded successfully.');
         }, undefined, (err) => {
@@ -874,6 +941,10 @@ class Renderer {
                     const mats = Array.isArray(node.material) ? node.material : [node.material];
                     mats.forEach(m => {
                         // Inherit from GLB authored values (Standard/Physical materials)
+                        // [USER] Ensure environment map intensity is normalized for PBR fidelity
+                        if (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) {
+                            m.envMapIntensity = 1.0;
+                        }
                     });
                 }
 
@@ -913,8 +984,9 @@ class Renderer {
                 clip.tracks.forEach(track => {
                     // [SCADA] Robust track name parsing: 
                     // Handles "NodeName.property" AND "Path/To/NodeName.property"
-                    const parts = track.name.split('.');
-                    const path = parts[0];
+                    // Correctly supports node names with dots (e.g. forklift.001)
+                    const lastDot = track.name.lastIndexOf('.');
+                    const path = lastDot !== -1 ? track.name.substring(0, lastDot) : track.name;
                     const nodeName = path.includes('/') ? path.split('/').pop() : path;
                     if (nodeName) animatedNodeNames.add(nodeName);
                 });
@@ -1103,16 +1175,7 @@ class Renderer {
             if (!c.isMesh || !c.material || c.userData.isHighlight) return;
             const mats = Array.isArray(c.material) ? c.material : [c.material];
             mats.forEach(m => {
-                if (!m) return;
-                if (m.name && FLOOR_NAMES.has(m.name)) { darkenMaterial(m); return; }
-                // Heuristic: untextured near-white PBR material → treat as
-                // floor/backdrop. Emissive highlight materials are skipped via
-                // the isHighlight guard on the mesh above.
-                const hasTexture = !!(m.map || m.emissiveMap);
-                const isEmissive = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05;
-                const col = m.color;
-                const isNearWhite = col && col.r > 0.85 && col.g > 0.85 && col.b > 0.85;
-                if (!hasTexture && !isEmissive && isNearWhite) darkenMaterial(m);
+                if (m && m.name && FLOOR_NAMES.has(m.name)) darkenMaterial(m);
             });
         });
 
@@ -1321,10 +1384,26 @@ class Renderer {
 
         // [FRAMING] Use the union of all mesh nodes for this device so the
         // camera frames the entire machine — not just the root mesh.
+        // STATIC meshes only — animated transports (e.g. ladel_furnace.001
+        // matches FURNACE_01's fuzzy resolver) drift across the plant during
+        // their animation, and their mid-flight world position would inflate
+        // the bounds, parking the camera far from the actual machine.
         const nodes = this._getDeviceNodes(id);
         const box = new THREE.Box3();
+        const tmp = new THREE.Box3();
         if (nodes.length) {
-            nodes.forEach(({ node }) => box.union(new THREE.Box3().setFromObject(node)));
+            nodes.forEach(({ node }) => {
+                node.traverse(child => {
+                    if (!child.isMesh) return;
+                    if (child.userData.isAnimated) return;
+                    tmp.setFromObject(child);
+                    if (!tmp.isEmpty()) box.union(tmp);
+                });
+            });
+            // Fallback if every mesh in the device is animated.
+            if (box.isEmpty()) {
+                nodes.forEach(({ node }) => box.union(new THREE.Box3().setFromObject(node)));
+            }
         } else {
             const mesh = this.findMesh(id);
             if (!mesh) return;
@@ -1362,7 +1441,7 @@ class Renderer {
         this.animateCamera(cameraTargetPosition, center, targetZoom);
     }
 
-    focusOnZone(zoneId, multiplier = 1.2) {
+    focusOnZone(zoneId, margin = 4.0) {
         if (!window.app || !window.app.machineGroups) return;
         const machines = window.app.machineGroups[zoneId];
         if (machines && machines.length) {
@@ -1371,27 +1450,55 @@ class Renderer {
                 const devNodes = this._getDeviceNodes(mid);
                 devNodes.forEach(({ node }) => allNodes.push(node));
             });
-            if (allNodes.length) this.frameGroup(allNodes, multiplier);
+            if (allNodes.length) this.frameGroup(allNodes, margin);
         }
     }
 
-    frameGroup(nodes, multiplier = 1.2) {
+    frameGroup(nodes, margin = 4.0) {
         if (!nodes || nodes.length === 0) return;
+
+        // Build bounds from STATIC meshes only. Animated transports (forklift,
+        // ladle) drift across the plant during their animation, and including
+        // their current world position would balloon the framing — pressing
+        // the zone-back arrow at the wrong moment would land on a camera
+        // parked far from the actual zone. Skip anything tagged isAnimated.
         const bounds = new THREE.Box3();
-        nodes.forEach(n => bounds.union(new THREE.Box3().setFromObject(n)));
+        const tmp = new THREE.Box3();
+        nodes.forEach(root => {
+            root.traverse(child => {
+                if (!child.isMesh) return;
+                if (child.userData.isAnimated) return;
+                tmp.setFromObject(child);
+                if (!tmp.isEmpty()) bounds.union(tmp);
+            });
+        });
+        // Fallback: if every mesh in this group is animated, fall back to
+        // including them so we still produce a frame.
+        if (bounds.isEmpty()) {
+            nodes.forEach(n => bounds.union(new THREE.Box3().setFromObject(n)));
+        }
+        if (bounds.isEmpty()) return;
 
         const center = new THREE.Vector3();
         bounds.getCenter(center);
         const size = new THREE.Vector3();
         bounds.getSize(size);
 
+        // [FRAMING] Independent fit on the horizontal and vertical screen axes.
+        // The earlier formula (viewSize * aspect / (maxDim * multiplier)) left
+        // any zone whose maxDim ≈ viewSize at near-default zoom — visually it
+        // looked like the camera never moved. Using a proper margin-based fit
+        // (same approach as focusOnMachine) yields a tight frame on both axes.
         const { w, h } = this._viewportSize();
         const aspect = w / h;
-        const maxDim = Math.max(size.x, size.y, size.z);
-        let targetZoom = (this.viewSize * aspect) / (maxDim * multiplier);
-
-        // [STABILITY] Clamp target zoom to refined safety range
-        targetZoom = Math.max(0.5, Math.min(targetZoom, 15.0));
+        const fitW = size.x + 2 * margin;
+        const fitH = size.y + 2 * margin;
+        const fitD = size.z + 2 * margin;
+        const horiz = Math.max(fitW, fitD);
+        const zoomX = (this.viewSize * aspect) / horiz;
+        const zoomY = this.viewSize / fitH;
+        let targetZoom = Math.min(zoomX, zoomY);
+        targetZoom = Math.max(this.controls.minZoom, Math.min(this.controls.maxZoom, targetZoom));
 
         const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
         this.animateCamera(center.clone().add(isometricOffset), center, targetZoom);
@@ -1541,6 +1648,51 @@ class Renderer {
 
         });
 
+        // [ANIMATION-GROUPS] Walk the explicit animation→device map and add
+        // any animated nodes whose group intersects the current selection.
+        // This keeps a forklift textured when either of its endpoint zones
+        // is selected, while still ghosting it from unrelated views (so a
+        // mid-flight forklift doesn't pop into the smelting frame, etc.).
+        const selectedNorms = new Set(deviceIds.map(d => d.toUpperCase()));
+        if (this.animationGroups) {
+            for (const [name, group] of Object.entries(this.animationGroups)) {
+                if (!group.some(d => selectedNorms.has(d.toUpperCase()))) continue;
+                
+                // [SCADA] Robust lookup: try exact name, then normalized alphanumeric name
+                const node = this.nodeRegistry.get(name) || 
+                             this.normNodeRegistry.get(name.replace(/[^a-z0-9]/g, ''));
+                             
+                if (!node) continue;
+                node.traverse(n => { if (n.isMesh) activeMeshesSet.add(n); });
+            }
+        }
+        // [SCADA] Dynamic Transport Collection:
+        // Instead of mapping every ingot/ladle instance manually, we include
+        // all animated cargo matching the logical route of the selected device.
+        const isFurnaceSelected = selectedNorms.has('FURNACE_01');
+        const isLogisticsSelected = selectedNorms.has('RAWMATERIALS');
+        const isDegasserSelected = selectedNorms.has('DEGASSER_01') || selectedNorms.has('DEGASSER_02');
+
+        if (isFurnaceSelected || isLogisticsSelected || isDegasserSelected) {
+            this.nodeRegistry.forEach((node, name) => {
+                if (!node.userData.isAnimated) return;
+                
+                let shouldInclude = false;
+                // Route: Storage <-> Furnace (Ingots)
+                if ((isFurnaceSelected || isLogisticsSelected) && (name.includes('storage') || name.includes('ingot'))) {
+                    shouldInclude = true;
+                }
+                // Route: Furnace <-> Degasser (Ladels/Containers)
+                if ((isFurnaceSelected || isDegasserSelected) && (name.includes('ladel') || name.includes('container'))) {
+                    shouldInclude = true;
+                }
+                
+                if (shouldInclude) {
+                    node.traverse(n => { if (n.isMesh) activeMeshesSet.add(n); });
+                }
+            });
+        }
+
         return activeMeshesSet;
     }
 
@@ -1587,9 +1739,13 @@ class Renderer {
 
         this.model.traverse(node => {
             if (node.isMesh && node.userData.originalMaterial) {
-                // Animated meshes (e.g. forklift) get ghosted just like static
-                // ones if they're not part of the selection — the animation
-                // still plays, only the material is swapped to grey.
+                // Plant floor never ghosts — it's the spatial reference
+                // the user navigates by, so it keeps its texture even when
+                // isolation is active.
+                if (node.userData.isFloor) {
+                    this._restoreOriginal(node);
+                    return;
+                }
                 if (activeMeshesSet.has(node)) {
                     this._restoreOriginal(node);
                 } else {
@@ -1605,6 +1761,10 @@ class Renderer {
 
         this.model.traverse(node => {
             if (node.isMesh && node.userData.originalMaterial) {
+                if (node.userData.isFloor) {
+                    this._restoreOriginal(node);
+                    return;
+                }
                 if (activeMeshesSet.has(node)) {
                     this._restoreOriginal(node);
                 } else {
@@ -1679,23 +1839,17 @@ class Renderer {
                 </div>
                 <div class="stacked-name-pill">${id}</div>
             `;
-            // Split handlers: icon circle zooms (existing); name pill draws persistent bbox overlays
-            // for the device + its containing zone. The Home button is the only path that clears them.
+            // Icon and name pill share one handler — both drill into the
+            // machine view with the persistent selection-box highlight.
+            const machineHandler = (e) => {
+                e.stopPropagation();
+                this.showSelectionBoxes(id);
+                window.app.setContext('machine', id);
+            };
             const machineIconBtn = div.querySelector('.stacked-icon-circle');
             const machineNameBtn = div.querySelector('.stacked-name-pill');
-            if (machineIconBtn) {
-                machineIconBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    window.app.setContext('machine', id);
-                };
-            }
-            if (machineNameBtn) {
-                machineNameBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.showSelectionBoxes(id);
-                    window.app.setContext('machine', id);
-                };
-            }
+            if (machineIconBtn) machineIconBtn.onclick = machineHandler;
+            if (machineNameBtn) machineNameBtn.onclick = machineHandler;
             const obj = new CSS2DObject(div);
             // Height adjustment to avoid clipping (stack is taller than pill)
             obj.position.y += 0.5;
@@ -1829,23 +1983,17 @@ class Renderer {
                 </div>
                 <div class="stacked-name-pill">${name}</div>
             `;
-            // [USER] Split Handlers: Icon zooms to 1st device, Name Pill zooms to entire zone (far)
+            // Icon and name pill share one handler — both frame the whole
+            // zone with the zone outline + member-machine highlights pinned.
+            const zoneHandler = (e) => {
+                e.stopPropagation();
+                this.pinZoneHighlights(zoneId);
+                window.app.setContext('zone', zoneId);
+            };
             const iconBtn = iconDiv.querySelector('.stacked-icon-circle');
             const nameBtn = iconDiv.querySelector('.stacked-name-pill');
-            
-            if (iconBtn && machines.length > 0) {
-                iconBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    window.app.setContext('machine', machines[0]);
-                };
-            }
-            if (nameBtn) {
-                nameBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.pinZoneHighlights(zoneId);
-                    window.app.setContext('zone', zoneId);
-                };
-            }
+            if (iconBtn) iconBtn.onclick = zoneHandler;
+            if (nameBtn) nameBtn.onclick = zoneHandler;
 
             const iconLabel = new CSS2DObject(iconDiv);
             // Raw materials chip sits one step higher than other zone chips so

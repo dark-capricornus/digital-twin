@@ -174,7 +174,7 @@ export default class SidebarController {
 
         // Update Uptime in Header
         const uptimeEl = document.getElementById('sidebar-uptime');
-        if (uptimeEl && data.uptime) {
+        if (uptimeEl && data.uptime != null) {
             const upText = `${data.uptime} MINUTES`;
             if (uptimeEl.textContent !== upText) uptimeEl.textContent = upText;
         }
@@ -401,25 +401,35 @@ export default class SidebarController {
             .join('_');
     }
 
-    _cycleZone(dir, selectLast = false) {
+    _cycleZone(dir, selectLast = false, autoSelectAsset = false) {
         this.currentZoneIndex = (this.currentZoneIndex + dir + this.zones.length) % this.zones.length;
         const zoneId = this.zones[this.currentZoneIndex];
         const assets = this.zoneAssets[zoneId] || [];
-        
-        if (assets.length > 0) {
+
+        // Zone arrow navigation = zone-level view. Do NOT auto-select the
+        // first child machine (that overrides the zone camera/highlights with
+        // a single-machine focus). The user has to click an asset pill — or
+        // use the asset arrows, which pass autoSelectAsset=true — to drill
+        // into a specific machine.
+        if (autoSelectAsset && assets.length > 0) {
             this.currentAssetId = selectLast ? assets[assets.length - 1] : assets[0];
             this._renderZone();
             this._updateAssetPills();
             this._scrollToActiveAsset();
             this._updateAssetNameHeader();
+            // Only the asset callback fires — it's a machine-level navigation
+            // (asset arrow wrapped past a zone boundary). Firing onZoneChange
+            // too would race a zone-frame animation against the machine-frame
+            // animation, and the last one (zone) would win — leaving the user
+            // looking at a zone view while the sidebar shows a single machine.
             if (this.onAssetSelect) this.onAssetSelect(this.currentAssetId);
         } else {
             this.currentAssetId = null;
             this._renderZone();
+            this._updateAssetPills();
             this._updateAssetNameHeader();
+            if (this.onZoneChange) this.onZoneChange(zoneId);
         }
-
-        if (this.onZoneChange) this.onZoneChange(zoneId);
     }
 
     _navigateAsset(dir) {
@@ -441,14 +451,14 @@ export default class SidebarController {
             if (currentIndex < assets.length - 1) {
                 commit(assets[currentIndex + 1]);
             } else {
-                this._cycleZone(1, false);
+                this._cycleZone(1, false, true);
             }
         } else {
             if (currentIndex === -1 && assets.length > 0) { commit(assets[assets.length - 1]); return; }
             if (currentIndex > 0) {
                 commit(assets[currentIndex - 1]);
             } else {
-                this._cycleZone(-1, true);
+                this._cycleZone(-1, true, true);
             }
         }
     }

@@ -6,6 +6,7 @@ venv/
 node_modules/
 dist/
 # User-specific
+bck
 textfile_codes/
 pki/
 Documentation/

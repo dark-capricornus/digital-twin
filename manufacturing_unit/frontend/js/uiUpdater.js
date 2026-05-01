@@ -499,7 +499,14 @@ class UIUpdater {
         };
 
         return {
-            uptime: raw['Step_Timer'] || raw['Uptime'] || raw['Total_Runtime'] || 240,
+            // Header uptime = how long this machine has been running, not the
+            // process step timer. Backend ships `Runtime_Total_Hrs` (hours);
+            // header label is "MINUTES" so convert. Step_Timer is the
+            // recipe-step countdown (e.g. 6.2 s) and was previously surfaced
+            // as "6.2 MINUTES" — wrong source AND wrong unit.
+            uptime: raw['Runtime_Total_Hrs'] != null
+                ? Math.round(raw['Runtime_Total_Hrs'] * 60)
+                : (raw['Uptime'] != null ? Math.round(raw['Uptime']) : (raw['Total_Runtime'] != null ? Math.round(raw['Total_Runtime']) : 0)),
             metrics,
             energy: padSplit(energy),
             production: padSplit(production),

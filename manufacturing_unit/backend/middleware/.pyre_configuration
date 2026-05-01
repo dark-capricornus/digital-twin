@@ -1,6 +1,0 @@
-{
-  "venv": "env",
-  "source_directories": [
-    "manufacturing_unit/backend"
-  ]
-}

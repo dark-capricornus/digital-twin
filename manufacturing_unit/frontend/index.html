@@ -11,224 +11,79 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..0"
         rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
-    <link rel="stylesheet" href="css/style.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 
 <body>
 
-    <!-- ─── Loading Screen ─────────────────────────────────── -->
-    <div id="loading-screen">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading Plant Model...</div>
+    <!-- ─── Top Navbar ─────────────────────────────────────── -->
+    <div id="top-navbar">
+        <div class="navbar-left">
+            <div class="navbar-accent-bar"></div>
+            <h1 class="navbar-title">DT-MANUFACTURING</h1>
+        </div>
+        <div class="navbar-right">
+            <div class="navbar-status-dot"></div>
+            <span class="navbar-status-text">Online</span>
+        </div>
     </div>
 
-    <!-- ─── 1. Top Status Strip (56px) ──────────────────── -->
-    <header id="top-status-strip">
-        <div class="strip-left">
-            <div class="icon">
-                <span class="material-symbols-outlined">factory</span>
-            </div>
-            <span>ALLOY WHEEL MANUFACTURING UNIT - DIGITAL TWIN</span>
-            <button id="branding-info-btn" class="kpi-chevron" title="Asset Information">
-                <span class="material-symbols-outlined">info</span>
-            </button>
-        </div>
-        <div class="strip-right">
-            <div class="status-indicator">
-                <span class="status-dot online"></span>
-                <span id="connection-status">System Online</span>
-            </div>
-            <div class="status-indicator">
-                <span class="material-symbols-outlined" style="font-size: 14px; color: var(--accent-blue)">hub</span>
-                <span id="gateway-latency">Node 12ms</span>
-            </div>
-            <div class="nav-clock">
-                <span class="material-symbols-outlined" style="font-size: 14px">schedule</span>
-                <span id="utc-time">00:00:00 UTC</span>
-            </div>
-        </div>
-    </header>
-
-    <!-- ─── New Floating Sidebar Trigger ──────────────────── -->
-    <button id="sidebar-trigger" class="sidebar-trigger" title="Toggle Sidebar">
-        <span class="material-symbols-outlined" id="trigger-icon">dashboard</span>
-    </button>
-
-    <!-- ─── 2. KPI Summary Row (collapsible, toggled by info icon) ── -->
-    <div id="kpi-summary-row" class="hidden-kpi">
-
-        <div class="kpi-card" style="border-left-color: var(--success)">
-            <span class="kpi-label">Plant Running</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-running" style="font-size: 18px;">-- / --</span>
-                <span class="kpi-unit">machines</span>
-            </div>
-        </div>
-
-        <div class="kpi-divider"></div>
-
-        <div class="kpi-card" style="border-left-color: var(--accent-blue)">
-            <span class="kpi-label">Throughput</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-prod">---</span>
-                <span class="kpi-unit">units</span>
-            </div>
-        </div>
-
-        <div class="kpi-card" style="border-left-color: var(--primary)">
-            <span class="kpi-label">OEE</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-oee">---</span>
-                <span class="kpi-unit">%</span>
-            </div>
-        </div>
-
-        <div class="kpi-card" style="border-left-color: #7c3aed">
-            <span class="kpi-label">Utilization</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-util">---</span>
-                <span class="kpi-unit">%</span>
-            </div>
-        </div>
-
-        <div class="kpi-divider"></div>
-
-        <div class="kpi-card" id="kpi-alarm-card" style="border-left-color: var(--text-dim)">
-            <span class="kpi-label">Active Alarms</span>
-            <div class="kpi-value-row">
-                <span class="kpi-value" id="plant-alarm-count" style="font-size: 18px;">0</span>
-                <span class="kpi-unit" id="plant-alarm-label">clear</span>
-            </div>
-        </div>
-
+    <!-- ─── Unified Right Sidebar (V1.2) Component ─── -->
+    <div id="hud-right-sidebar">
+        <!-- Injected via SidebarController -->
     </div>
 
-    <!-- ─── 3D Scene Container (100% viewport) ────────────── -->
+            <!-- 2. Plant Data (plant-level KPIs) -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">factory</span>
+                    <span class="sb-section-title">PLANT DATA</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-plant" class="sb-metric-flow"></div>
+            </div>
+
+            <!-- 3. Production Data -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">inventory_2</span>
+                    <span class="sb-section-title">PRODUCTION</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-production" class="sb-metric-flow"></div>
+            </div>
+
+            <!-- 4. Alarms -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">warning</span>
+                    <span class="sb-section-title">ALARMS</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-alarms"></div>
+            </div>
+
+            <!-- 5. Maintenance -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">build</span>
+                    <span class="sb-section-title">MAINTENANCE</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-maintenance"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- ─── 3D Scene Container (viewport minus sidebar) ────── -->
     <div id="container"></div>
 
-    <!-- ─── 3. Dual Sidebar Architecture ────────────────── -->
-    <!-- Left Sidebar: Plant & Zone Analytics -->
-    <div id="left-sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-header-top-row">
-                <div id="left-header-nav" class="header-nav-container"></div>
-                <button id="close-left-panel" class="close-btn">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <div id="left-panel-title" class="sidebar-header-title">Plant Overview</div>
-        </div>
-        <div id="left-panel-content" class="sidebar-content">
-            <div class="sidebar-nav-list" id="left-nav-list">
-                <!-- Nav items injected via JS -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Sidebar: Machine Precision Data -->
-    <div id="right-sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-header-top-row">
-                <div id="right-header-nav" class="header-nav-container"></div>
-                <button id="close-right-panel" class="close-btn">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <div id="right-panel-title" class="sidebar-header-title">Machine Details</div>
-        </div>
-        <div id="right-panel-content" class="sidebar-content">
-            <!-- Dynamic content injection -->
-        </div>
-    </div>
-
-    <!-- ─── 4. Compact Zone Selector (Above Bottom Bar) ───── -->
-    <div id="compact-zone-selector" class="hidden">
-        <div class="zone-scroll">
-            <button class="zone-pill" data-zone="smelting">Smelting</button>
-            <button class="zone-pill" data-zone="die_casting">Die Casting</button>
-            <button class="zone-pill" data-zone="machining">Machining</button>
-            <button class="zone-pill" data-zone="heat_treating">Heat Treating</button>
-            <button class="zone-pill" data-zone="qc">QC</button>
-            <button class="zone-pill" data-zone="paint_shop">Paint Shop</button>
-            <button class="zone-pill" data-zone="shipping">Shipping</button>
-        </div>
-    </div>
-
-    <!-- ─── Gemba Tour Bar (Twinzo Style) ─────────────── -->
-    <div id="gemba-tour-bar" style="display: none;">
-        <button id="gemba-start-mode-btn" class="gemba-start-btn">
-            <span class="material-symbols-outlined">play_circle</span>
-            START GEMBA WALK
-        </button>
-
-        <div id="gemba-nav-controls" style="display: none; align-items: center; width: 100%; gap: 0;">
-            <!-- Media controls -->
-            <div class="gemba-media-group">
-                <button id="gemba-prev" class="gemba-ctrl-btn" title="Previous">
-                    <span class="material-symbols-outlined">skip_previous</span>
-                </button>
-                <button id="gemba-pause" class="gemba-ctrl-btn gemba-ctrl-primary" title="Pause">
-                    <span class="material-symbols-outlined">pause</span>
-                </button>
-                <button id="gemba-next" class="gemba-ctrl-btn" title="Next">
-                    <span class="material-symbols-outlined">skip_next</span>
-                </button>
-            </div>
-
-            <div class="gemba-bar-sep"></div>
-
-            <!-- Current waypoint display -->
-            <div class="gemba-wp-label">
-                <span class="gemba-wp-step" id="gemba-bar-step">1 / 14</span>
-                <span class="gemba-wp-name" id="gemba-bar-name">--</span>
-            </div>
-
-            <div class="gemba-bar-sep"></div>
-
-            <!-- Progress dots -->
-            <div id="gemba-timeline" class="gemba-track"></div>
-
-            <div class="gemba-bar-sep"></div>
-
-            <!-- End button -->
-            <button id="gemba-stop" class="gemba-end-btn" title="End Tour">
-                <span class="material-symbols-outlined">stop</span>
-                END
-            </button>
-        </div>
-    </div>
-
-    <!-- ─── 5. Bottom Icon Control Bar (72px) ─────────────── -->
-    <footer id="bottom-control-bar">
-        <button class="nav-item active" data-action="plant">
-            <span class="material-symbols-outlined">factory</span>
-            <span class="nav-label">Plant</span>
-        </button>
-        <button class="nav-item" data-action="zones">
-            <span class="material-symbols-outlined">map</span>
-            <span class="nav-label">Zones</span>
-        </button>
-        <button class="nav-item" data-action="machines">
-            <span class="material-symbols-outlined">inventory</span>
-            <span class="nav-label">Assets</span>
-        </button>
-        <button class="nav-item" data-action="energy">
-            <span class="material-symbols-outlined">bolt</span>
-            <span class="nav-label">Energy</span>
-        </button>
-        <button class="nav-item" data-action="alarm">
-            <span class="material-symbols-outlined">shield</span>
-            <span class="nav-label">Alarm</span>
-        </button>
-        <button class="nav-item" data-action="maintenance">
-            <span class="material-symbols-outlined">construction</span>
-            <span class="nav-label">Maintenance</span>
-        </button>
-        <button class="nav-item" data-action="gemba">
-            <span class="material-symbols-outlined">accessibility</span>
-            <span class="nav-label">Gemba</span>
-        </button>
-    </footer>
+    <!-- ─── Home Button (bottom-left) ──────────────────────── -->
+    <button id="home-btn" title="Reset camera">
+        <span class="material-symbols-outlined">home</span>
+    </button>
 
 
 
@@ -241,7 +96,9 @@
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "three/addons/loaders/EXRLoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/EXRLoader.js",
+                "three/addons/loaders/RGBELoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/RGBELoader.js"
             }
         }
     </script>

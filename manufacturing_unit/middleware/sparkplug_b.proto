@@ -1,0 +1,114 @@
+syntax = "proto2";
+
+// Namespace
+package org.eclipse.tahu.protobuf;
+
+message Payload {
+    /*
+        Payloads contain the timestamp and a list of metrics
+    */
+    optional uint64   timestamp = 1;
+    repeated Metric   metrics   = 2;
+    optional uint64   seq       = 3;
+    optional string   uuid      = 4;
+    optional bytes    body      = 5;
+
+    /*
+        Metric details
+    */
+    message Metric {
+        optional string   name          = 1;
+        optional uint64   alias         = 2;
+        optional uint64   timestamp     = 3;
+        optional uint32   datatype      = 4;
+        optional bool     is_historical = 5;
+        optional bool     is_transient  = 6;
+        optional bool     is_null       = 7;
+        optional MetaData metadata      = 8;
+        optional PropertySet properties = 9;
+
+        // Values
+        optional uint32   int_value                      = 10;
+        optional uint64   long_value                     = 11;
+        optional float    float_value                    = 12;
+        optional double   double_value                   = 13;
+        optional bool     boolean_value                  = 14;
+        optional string   string_value                   = 15;
+        optional bytes    bytes_value                    = 16;
+        optional DataSet  dataset_value                  = 17;
+        optional Template template_value                 = 18;
+        optional Payload.Template.Parameter.ExtensionValue extension_value = 19;
+    }
+
+    message MetaData {
+        optional uint64   seq          = 1;
+        optional string   file_name    = 2;
+        optional string   file_type    = 3;
+        optional string   md5          = 4;
+        optional string   description  = 5;
+    }
+
+    message DataSet {
+        optional uint64   num_of_columns = 1;
+        repeated string   columns        = 2;
+        repeated uint32   types          = 3;
+        repeated Row      rows           = 4;
+
+        message Row {
+            repeated DataSetValue elements = 1;
+        }
+
+        message DataSetValue {
+            optional uint32 int_value     = 1;
+            optional uint64 long_value    = 2;
+            optional float  float_value   = 3;
+            optional double double_value  = 4;
+            optional bool   boolean_value = 5;
+            optional string string_value  = 6;
+            optional Payload.Template.Parameter.ExtensionValue extension_value = 7;
+        }
+    }
+
+    message Template {
+        optional string version   = 1;
+        repeated Metric metrics   = 2;
+        repeated Parameter parameters = 3;
+        optional string template_ref = 4;
+        optional bool is_definition = 5;
+
+        message Parameter {
+            optional string name        = 1;
+            optional uint32 type        = 2;
+            
+            optional uint32 int_value     = 3;
+            optional uint64 long_value    = 4;
+            optional float  float_value   = 5;
+            optional double double_value  = 6;
+            optional bool   boolean_value = 7;
+            optional string string_value  = 8;
+            optional Payload.Template.Parameter.ExtensionValue extension_value = 9;
+
+            message ExtensionValue {
+                optional bytes value = 1;
+            }
+        }
+    }
+
+    message PropertySet {
+        repeated string keys = 1;
+        repeated PropertyValue values = 2;
+    }
+
+    message PropertyValue {
+        optional uint32 type = 1;
+        optional bool is_null = 2; 
+
+        optional uint32 int_value     = 3;
+        optional uint64 long_value    = 4;
+        optional float  float_value   = 5;
+        optional double double_value  = 6;
+        optional bool   boolean_value = 7;
+        optional string string_value  = 8;
+        optional PropertySet propertyset_value = 9;
+    }
+}

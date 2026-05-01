@@ -22,10 +22,23 @@ class StateManager {
      * [ARCHITECTURE] No direct processing or UI updates here.
      */
     setRawState(rawId, state, payload) {
-        // Alias inbound_01 and storage_01 → rawmaterials so they share one entry in all views
+        // Alias storage_*/inbound_*/buffer_*/raw_materials → rawmaterials so they share one entry in all views
         let id = rawId.toLowerCase();
-        if (id === 'inbound_01' || id === 'storage_01') id = 'rawmaterials';
-        this.stateBuffer.set(id, { state, payload, timestamp: Date.now() });
+        if (id.startsWith('storage') || id.startsWith('inbound') || id.startsWith('buffer') || id === 'raw_materials') {
+            id = 'rawmaterials';
+        }
+        // Merge payloads when multiple source IDs alias to the same target
+        // (e.g. INBOUND_01 + STORAGE_01 both → rawmaterials) so neither side wins/loses fields.
+        const existing = this.stateBuffer.get(id);
+        if (existing) {
+            this.stateBuffer.set(id, {
+                state: state || existing.state,
+                payload: { ...existing.payload, ...payload },
+                timestamp: Date.now()
+            });
+        } else {
+            this.stateBuffer.set(id, { state, payload, timestamp: Date.now() });
+        }
     }
 
     /**
@@ -134,7 +147,9 @@ class StateManager {
 
     getDeviceState(rawId) {
         let key = rawId.toLowerCase();
-        if (key === 'inbound_01' || key === 'storage_01') key = 'rawmaterials';
+        if (key.startsWith('storage') || key.startsWith('inbound') || key.startsWith('buffer') || key === 'raw_materials') {
+            key = 'rawmaterials';
+        }
         
         // 1. Exact match
         if (this.deviceStates.has(key)) return this.deviceStates.get(key);

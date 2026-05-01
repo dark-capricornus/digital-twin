@@ -6,6 +6,7 @@ venv/
 node_modules/
 dist/
 # User-specific
+bck
 textfile_codes/
 pki/
 Documentation/
@@ -60,3 +61,16 @@ tags_check.json
 
 #blend files
 layout_model_15.blend
+.gitignore
+sample_data_report.pdf
+tag_report.pdf
+generate_sample_data_pdf.py
+generate_tag_report_pdf.py
+
+manufacturing_unit/frontend/assets/plant.glb
+manufacturing_unit/frontend/assets/plant_latest.glb
+plant_v2.glb
+textures/
+blend files/
+tags.json
+plant_v3.glb

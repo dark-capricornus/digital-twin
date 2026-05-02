@@ -28,51 +28,51 @@ The purpose of V2 is to:
 **Version**: V1 – Integrated Process Flow & 3D Visualization  
 **Status**: Production Consolidated
 
-## 🏭 Overview
+## Overview
 The Digital Twin V1 provides a high-fidelity, real-time 3D orchestration of an Alloy Wheel Manufacturing plant. It bridges industrial PLC data (OPC-UA/MQTT) with a modern web interface to visualize production flow, material tracking, and operational KPIs.
 
-## 📂 Project Structure
+## Project Structure
 The project is organized into a modular architecture for better maintainability and scalability:
 
-### 🏛️ Core (manufacturing_unit/)
+### Core (manufacturing_unit/)
 *   **frontend/**: 3D Dashboard (HTML/JS/Vanilla CSS). Served as static assets.
     *   `assets.json`: Machine maintenance metadata.
 *   **middleware/**: The **Unified Bridge** (`bridge.py`). Handles WebSocket communication, OPC-UA polling, and MQTT broadcasting.
 *   **backend/**: PLC logic and factory simulation services.
 *   **data_gateway/**: Protocol adapters (Sparkplug B / JSON).
 
-### 📖 Documentation & Config (docs/)
+### Documentation & Config (docs/)
 *   **tags.json**: The **Single Source of Truth** for the entire factory tag hierarchy.
 *   **API_CONTRACTS.md**: Technical specifications for PLC data exchange.
 
-### 🛠️ Utilities (Root)
-*   `generate_tag_report_pdf.py`: Generates a comprehensive technical data sheet of the factory tags.
-*   `inspect_glb.py`: Tool for auditing mesh names and collections in the 3D plant model.
-*   `browse_opc.py`: Debug utility for exploring live OPC-UA node trees.
-
-## 🚀 Execution Instructions
+## Execution Instructions
 
 ### 1. Prerequisites
 *   Python 3.11+
 *   Virtual environment initialized: `.\env\Scripts\activate`
 *   Dependencies installed: `pip install -r requirements.txt`
 
-### 2. Start the Unified Bridge
-The Bridge serves both the real-time data stream and the frontend interface:
+### Start the PLC Simulation & OPC-UA Server
+This command initializes the virtual factory logic and the OPC-UA server:
+```powershell
+python manufacturing_unit/backend/plc/engine.py
+```
+
+### Start the Data Gateway
+If you need to bridge data to MQTT or external databases:
+```powershell
+python manufacturing_unit/data_gateway/main.py
+```
+
+### Start the Unified Bridge
+The Bridge connects the PLC data to the 3D Dashboard and serves the web interface:
 ```powershell
 python manufacturing_unit/middleware/bridge.py
 ```
-*   **Unified URL**: [http://localhost:8000](http://localhost:8000)
+*   **Access the Twin**: [http://localhost:8000](http://localhost:8000)
 
-### 3. Generate Technical Documentation
-To update the factory tag report based on the latest `docs/tags.json`:
-```powershell
-python generate_tag_report_pdf.py
-```
-The report will be generated as `tag_report.pdf`.
 
-## 🛠️ Key Technical Details
-*   **Master Config**: The system uses `docs/tags.json` as the unified source for both the 3D renderer and the middleware cache.
+## Key Technical Details
 *   **Industrial Protocols**: Supports OPC-UA (polling), MQTT (pub/sub), and Sparkplug B decoding.
 *   **3D Engine**: Built on Three.js with custom GLB mesh highlighting and dynamic labeling.
 >>>>>>> f109be2 (Updated README.md)

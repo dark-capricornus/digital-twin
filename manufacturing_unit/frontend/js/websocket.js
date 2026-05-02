@@ -1,12 +1,13 @@
 /**
- * WebSocket Connection Handler
- * Connects to backend WebSocket and processes incoming device state messages
+ * WebSocket Handler (Decoupled)
+ * Purely handles connection and raw data extraction.
+ * Writes UNPROCESSED data to StateManager buffer.
  */
 
 class WebSocketHandler {
-    constructor(url, onMessage, onStatusChange) {
+    constructor(url, stateManager, onStatusChange) {
         this.url = url;
-        this.onMessage = onMessage;
+        this.stateManager = stateManager;
         this.onStatusChange = onStatusChange;
         this.ws = null;
         this.isConnected = false;
@@ -14,184 +15,169 @@ class WebSocketHandler {
         this.reconnectTimer = null;
     }
 
-    getReadyStateText() {
-        if (!this.ws) return 'NULL';
-        const states = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-        return states[this.ws.readyState] || 'UNKNOWN';
-    }
-
     connect() {
         try {
-            if (this.ws) {
-                this.ws.close();
-            }
+            if (this.ws) this.ws.close();
             this.ws = new WebSocket(this.url);
 
             this.ws.onopen = () => {
-                console.log('[WebSocket] Connected to', this.url);
+                console.log('[WebSocket] Connected');
                 this.isConnected = true;
                 this.onStatusChange('connected');
-                if (this.reconnectTimer) {
-                    clearTimeout(this.reconnectTimer);
-                    this.reconnectTimer = null;
-                }
+                if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
             };
 
             this.ws.onmessage = (event) => {
                 try {
-                    // [DEBUG] Log raw incoming telemetry for precision verification
-                    console.log('[WebSocket] Raw Data:', event.data);
                     const data = JSON.parse(event.data);
                     this.handleMessage(data);
-                } catch (error) {
-                    console.error('[WebSocket] Parse error:', error);
-                }
-            };
-
-            this.ws.onerror = (error) => {
-                console.error('[WebSocket] Error:', error);
+                } catch (error) { console.error('[WebSocket] Parse error:', error); }
             };
 
             this.ws.onclose = () => {
-                console.log('[WebSocket] Disconnected');
                 this.isConnected = false;
                 this.onStatusChange('disconnected');
                 this.scheduleReconnect();
             };
-
         } catch (error) {
-            console.error('[WebSocket] Connection failed:', error);
             this.onStatusChange('disconnected');
             this.scheduleReconnect();
         }
     }
 
-    /**
-     * Derive a canonical state string from a device payload object.
-     *
-     * Priority order (strict):
-     *  1. Explicit State / Status string key  → use as-is
-     *  2. IsRunning / Enabled booleans        → 'Running' | 'Stopped'
-     *  3. No recognisable signal              → null (message is skipped)
-     *
-     * The old "activity keywords" fallback has been removed — it was the
-     * main cause of OFF machines being reported as 'Active' / green because
-     * they still emitted numeric telemetry (Temperature, PressurePSI …).
-     */
+    handleMessage(data) {
+        if (!data.topic || !data.payload) return;
+        const payload = data.payload;
+
+        // [USER] Case 0: Industrial Bridge OPC Batch (Direct ID mapping)
+        if (data.topic === 'opc/batch' && data.type === 'json') {
+            Object.keys(payload).forEach(devId => {
+                const devData = payload[devId];
+                const state = this.extractState(devData);
+                this.stateManager.setRawState(devId, state, devData);
+            });
+            return;
+        }
+
+        // Case 1: Legacy Batch JSON (devices map)
+        if (data.type === 'json' && payload.devices) {
+            const systemKeys = ['topic', 'type', 'timestamp', 'source', 'status', 'connected_clients', 'active'];
+            Object.keys(payload.devices).forEach(rawId => {
+                if (systemKeys.includes(rawId.toLowerCase())) return;
+                const devId = this._extractDeviceId(rawId, payload.devices[rawId]);
+                if (devId) {
+                    this.stateManager.setRawState(devId, this.extractState(payload.devices[rawId]), payload.devices[rawId]);
+                }
+            });
+        } 
+        // Case 2: Individual Device Update or Flat Payload
+        else {
+            const state = this.extractState(payload);
+            const deviceId = this._extractDeviceId(data.topic, payload);
+            if (deviceId) {
+                this.stateManager.setRawState(deviceId, state, payload);
+            }
+        }
+    }
+
+    _extractDeviceId(topic, payload) {
+        if (!topic) return null;
+
+        // 1. Try common Sparkplug B format: spBv1.0/group/.../unit/DEVICE_ID
+        const parts = topic.split('/');
+        if (parts.length >= 5) {
+            const id = parts[parts.length - 1].trim().toUpperCase();
+            if (this._isValidMachineId(id)) return id;
+        }
+
+        // 2. Try OPC Path format: VirtualPLC.Devices.DEVICE_ID.Status
+        // Look for known machine prefixes with numbers
+        const machinePattern = /(FURNACE|DEGASSER|LPDC|CNC|HEAT|INSPECTION|PAINT|COOLING|XRAY|QC|PRETREAT|OUTBOUND|RAWMATERIALS|SHIPPING)[_]*(\d+)/i;
+        const match = topic.match(machinePattern);
+        if (match) {
+            const prefix = match[1].toUpperCase();
+            const num = match[2].padStart(2, '0');
+            return `${prefix}_${num}`;
+        }
+
+        // 3. Fallback: check payload for device_id/id fields
+        const payloadId = payload?.device_id || payload?.id;
+        if (payloadId && typeof payloadId === 'string' && this._isValidMachineId(payloadId)) {
+            return payloadId.toUpperCase();
+        }
+
+        // 4. Special Case: Plant-wide data
+        if (topic.includes('Plant') || topic.includes('FACTORY')) return 'PLANT';
+
+        // 5. Direct Prefix check for name-only matches
+        const machineIds = ['FURNACE', 'DEGASSER', 'LPDC', 'CNC', 'HEAT', 'INSPECTION', 'PAINT', 'COOLING', 'XRAY', 'QC', 'PRETREAT', 'OUTBOUND', 'RAWMATERIALS', 'SHIPPING'];
+        const upperTopic = topic.toUpperCase();
+        for (const m of machineIds) {
+            if (upperTopic.includes(m)) {
+                const subMatch = upperTopic.match(new RegExp(`${m}[_]*(\\d+)`));
+                if (subMatch) return `${m}_${subMatch[1].padStart(2, '0')}`;
+                return m; // Return base name if no number found (e.g. RAWMATERIALS)
+            }
+        }
+
+        return null;
+    }
+
+    _isValidMachineId(id) {
+        if (!id) return false;
+        const machineIds = ['FURNACE', 'DEGASSER', 'LPDC', 'CNC', 'HEAT', 'INSPECTION', 'PAINT', 'COOLING', 'XRAY', 'QC', 'PRETREAT', 'OUTBOUND', 'RAWMATERIALS', 'SHIPPING'];
+        return machineIds.some(m => id.toUpperCase().includes(m));
+    }
+
+
+
     extractState(payload) {
         if (!payload || typeof payload !== 'object') return null;
-
-        // ── 1. Explicit state string (most reliable) ──────────────────────
-        // Check 'State' before 'Status' — Status can be a gateway-level key
-        // with values like 'connected' that should not drive machine colour.
         const stateKeys = ['State', 'state', 'Status', 'status', 'current_state'];
         for (const key of stateKeys) {
             if (payload[key] !== undefined) {
                 const val = payload[key];
-                // Reject gateway-level values that bleed into device messages
-                if (typeof val === 'string' &&
-                    ['connected', 'disconnected', 'connecting', 'online', 'offline'].includes(val.toLowerCase())) {
-                    continue; // skip — this is a connection-status flag, not a machine state
-                }
+                if (typeof val === 'string' && ['connected', 'disconnected', 'online', 'offline'].includes(val.toLowerCase())) continue;
                 return val;
             }
         }
-
-        // ── 2. Boolean / numeric IsRunning / Enabled ──────────────────────
-        // Only use these flags when no explicit state string is present.
-        const runningKey = Object.keys(payload).find(k =>
-            k.toLowerCase() === 'isrunning' || k.toLowerCase() === 'is_running' || k.toLowerCase() === 'enabled'
-        );
-
+        const runningKey = Object.keys(payload).find(k => ['isrunning', 'is_running', 'enabled'].includes(k.toLowerCase()));
         if (runningKey !== undefined) {
             const val = payload[runningKey];
-            if (typeof val === 'boolean') return val ? 'Running' : 'Stopped';
-            if (val === 1 || val === '1' || val === 'true') return 'Running';
-            if (val === 0 || val === '0' || val === 'false') return 'Stopped';
+            return (val === true || val === 1 || val === 'true') ? 'Running' : 'Stopped';
         }
-
-        // ── 3. Nothing usable — let caller skip this message ──────────────
-        // Partial telemetry update without state/status keys.
-        // Return null so we don't overwrite the existing running state.
         return null;
-    }
-
-    handleMessage(data) {
-        if (!data.topic || !data.payload) return;
-
-        const payload = data.payload;
-
-        // ── Case 1: Batch JSON Object (digital-twin/state gateway format) ──
-        if (data.type === 'json' && !payload.metrics && !data.topic.includes('spBv1.0')) {
-            const deviceMap = payload.devices || payload;
-
-            // Strip gateway-level envelope keys that are not machine IDs
-            const systemKeys = [
-                'topic', 'type', 'timestamp', 'source', 'status',
-                'connected_clients', 'active'
-            ];
-            const deviceIds = Object.keys(deviceMap).filter(
-                k => !systemKeys.map(s => s.toLowerCase()).includes(k.toLowerCase())
-            );
-
-            if (deviceIds.length > 0) {
-                let processedCount = 0;
-                deviceIds.forEach(rawId => {
-                    const devicePayload = deviceMap[rawId];
-                    if (!devicePayload || typeof devicePayload !== 'object') return;
-
-                    const state = this.extractState(devicePayload);
-                    // Pass null state forward so telemetry still updates
-                    if (state !== undefined) {
-                        this.onMessage(rawId.trim(), state, devicePayload);
-                        processedCount++;
-                    }
-                });
-                if (processedCount > 0) {
-                    console.log(`[WebSocket] Batch processed: ${processedCount} devices`);
-                    return;
-                }
-            }
-        }
-
-        // ── Case 2: Individual Device (Sparkplug B / single JSON) ─────────
-        const parts = data.topic.split('/');
-        if (parts.length >= 5) {
-            const deviceId = parts[4].trim();
-
-            // Skip Sparkplug system/runtime topics
-            const skipIds = ['runtime', 'plc', 'plant', 'commands'];
-            if (skipIds.includes(deviceId.toLowerCase())) return;
-
-            const state = this.extractState(payload);
-
-            // Pass null state forward so telemetry still updates
-            if (state !== undefined) {
-                if (state !== null) {
-                    console.log(`[WebSocket] Update: ${deviceId} = ${state}`);
-                }
-                this.onMessage(deviceId, state, payload);
-            }
-        }
     }
 
     scheduleReconnect() {
         if (this.reconnectTimer) return;
-        this.onStatusChange('connecting');
-        this.reconnectTimer = setTimeout(() => {
-            console.log('[WebSocket] Attempting to reconnect...');
-            this.connect();
-        }, this.reconnectInterval);
+        this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectInterval);
     }
 
-    disconnect() {
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
+    sendCommand(deviceId, command, value = null) {
+        if (!this.isConnected || !this.ws) {
+            console.error('[WebSocket] Cannot send command: Not connected');
+            return false;
         }
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+
+        const payload = {
+            topic: `spBv1.0/factory/DCMD/unit/${deviceId}`,
+            type: 'command',
+            timestamp: Date.now(),
+            payload: {
+                command: command,
+                value: value,
+                device_id: deviceId
+            }
+        };
+
+        try {
+            this.ws.send(JSON.stringify(payload));
+            console.log(`[WebSocket] Command sent: ${command} -> ${deviceId}`);
+            return true;
+        } catch (error) {
+            console.error('[WebSocket] Send error:', error);
+            return false;
         }
     }
 }

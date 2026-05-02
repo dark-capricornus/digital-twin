@@ -13,7 +13,6 @@ h11==0.16.0
 idna==3.11
 lxml==6.0.2
 numpy==2.4.1
-opcua==0.98.13
 paho-mqtt==2.1.0
 protobuf==4.25.3
 grpcio-tools==1.62.1

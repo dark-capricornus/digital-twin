@@ -409,6 +409,14 @@ async def publish_message(request: MqttPublishRequest):
 # --- Unified Static Serving ---
 # Map to frontend directory
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+docs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs"))
+
+@app.get("/tags.json")
+async def serve_tags():
+    tags_path = os.path.join(docs_dir, "tags.json")
+    if os.path.exists(tags_path):
+        return FileResponse(tags_path, media_type="application/json")
+    return {"error": "tags.json not found in docs/"}, 404
 
 @app.get("/assets/models/plant.glb")
 async def serve_glb():

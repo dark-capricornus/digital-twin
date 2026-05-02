@@ -4,7 +4,7 @@
  */
 
 import Renderer from './renderer.js';
-import WebSocketHandler from './websocketHandler.js';
+import WebSocketHandler from './websocket.js';
 import StateManager from './stateManager.js';
 import UIUpdater from './uiUpdater.js';
 import EnergyAnalytics from './EnergyAnalytics.js';

@@ -1,0 +1,50 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#0A0A0A"/>
+  
+  <!-- Configuration Layer -->
+  <rect x="50" y="50" width="700" height="120" rx="10" fill="#1A1A1A" stroke="#444" stroke-width="2"/>
+  <text x="60" y="40" fill="#EC5B13" font-family="Arial" font-size="14" font-weight="bold">CONFIGURATION LAYER (JSON)</text>
+  
+  <rect x="80" y="80" width="140" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="150" y="115" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Site Manifest</text>
+  
+  <rect x="240" y="80" width="140" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="310" y="115" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Asset Library</text>
+  
+  <rect x="400" y="80" width="160" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="480" y="115" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Telemetry Dictionary</text>
+  
+  <rect x="580" y="80" width="140" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="650" y="115" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Process Flow</text>
+
+  <!-- Connectors -->
+  <line x1="150" y1="170" x2="150" y2="250" stroke="#EC5B13" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="310" y1="170" x2="310" y2="450" stroke="#EC5B13" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="480" y1="170" x2="480" y2="250" stroke="#EC5B13" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="650" y1="170" x2="650" y2="250" stroke="#EC5B13" stroke-width="2" stroke-dasharray="5,5"/>
+
+  <!-- Backend Services -->
+  <rect x="50" y="250" width="700" height="120" rx="10" fill="#1A1A1A" stroke="#444" stroke-width="2"/>
+  <text x="60" y="240" fill="#06B6D4" font-family="Arial" font-size="14" font-weight="bold">BACKEND SERVICES (PYTHON)</text>
+  
+  <rect x="80" y="280" width="300" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="230" y="315" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Simulation Engine</text>
+  
+  <rect x="420" y="280" width="300" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="570" y="315" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Data Bridge (OPC-UA/MQTT)</text>
+
+  <!-- Connectors -->
+  <line x1="230" y1="370" x2="230" y2="450" stroke="#06B6D4" stroke-width="3"/>
+  <path d="M 570 370 L 570 420 L 750 420 L 750 510 L 720 510" fill="none" stroke="#06B6D4" stroke-width="3" stroke-dasharray="10,5"/>
+  <text x="755" y="460" fill="#06B6D4" font-family="Arial" font-size="10" transform="rotate(90, 755, 460)">WebSocket Stream</text>
+
+  <!-- Frontend Engine -->
+  <rect x="50" y="450" width="700" height="120" rx="10" fill="#1A1A1A" stroke="#444" stroke-width="2"/>
+  <text x="60" y="440" fill="#F97316" font-family="Arial" font-size="14" font-weight="bold">FRONTEND ENGINE (JS/THREE.JS)</text>
+  
+  <rect x="80" y="480" width="300" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="230" y="515" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Scene Orchestrator (3D Builder)</text>
+  
+  <rect x="410" y="480" width="300" height="60" rx="5" fill="#2A2A2A"/>
+  <text x="560" y="515" fill="#EEE" font-family="Arial" font-size="12" text-anchor="middle">Discovery UI Factory (Sidebar)</text>
+</svg>

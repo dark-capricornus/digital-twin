@@ -2,8 +2,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
 :root {
-    --primary: #ec5b13; /* Industrial Orange */
-    --accent-orange: #FF8C00; 
+    --primary: #ec5b13;
+    /* Industrial Orange */
+    --accent-orange: #FF8C00;
     --success: #00E676;
     --danger: #FF3030;
     --warning: #FFC400;
@@ -13,17 +14,23 @@
     --border: #222;
     --text-main: #FFFFFF;
     --text-dim: #666666;
-    --radius: 0px; 
+    --radius: 0px;
 
     /* Sidebar Redesign Tokens — each color owns exactly ONE purpose.
        Status colors (--success/--warning/--danger) are exempt and may repeat. */
     --sb-bg: #131313;
-    --sb-asset-name: #E6B332;      /* Asset identifier heading */
-    --sb-dept-title: #5D5FEF;      /* Department / zone title */
-    --sb-metric-value: #24B0BD;    /* Primary metric readouts on chips */
-    --sb-energy: #FF8026;          /* Energy-specific readouts */
-    --sb-hover-accent: #BF2424;    /* Interactive hover borders */
-    --sb-label: #808080;           /* Secondary label text */
+    --sb-asset-name: #E6B332;
+    /* Asset identifier heading */
+    --sb-dept-title: #5D5FEF;
+    /* Department / zone title */
+    --sb-metric-value: #24B0BD;
+    /* Primary metric readouts on chips */
+    --sb-energy: #FF8026;
+    /* Energy-specific readouts */
+    --sb-hover-accent: #BF2424;
+    /* Interactive hover borders */
+    --sb-label: #808080;
+    /* Secondary label text */
     --sb-font: 'Montserrat', sans-serif;
     --sidebar-width: 300px;
 }
@@ -37,7 +44,8 @@
     background-color: #0A0A0A;
     overflow: hidden;
 }
-#hud-right-sidebar.hidden ~ #container,
+
+#hud-right-sidebar.hidden~#container,
 body.sidebar-hidden #container {
     right: 0;
 }
@@ -186,7 +194,8 @@ body {
     margin-bottom: 8px;
     background: #FFFFFF05;
     border-right: 4px solid var(--accent);
-    padding: 0; /* Changed to handle collapsible header Better */
+    padding: 0;
+    /* Changed to handle collapsible header Better */
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -211,12 +220,14 @@ body {
 }
 
 .sb-segment-chevron {
-    font-size: 22px; /* Increased size */
+    font-size: 22px;
+    /* Increased size */
     color: var(--sb-label);
 }
 
 .sb-segment.collapsed .sb-segment-chevron {
-    transform: rotate(0deg); /* No rotation needed for up/down icons */
+    transform: rotate(0deg);
+    /* No rotation needed for up/down icons */
 }
 
 .sb-segment-body {
@@ -278,9 +289,17 @@ body {
 }
 
 /* Status Colors */
-.status-green { color: #24BF86 !important; }
-.status-amber { color: #FF8C00 !important; }
-.status-red { color: #FF3030 !important; }
+.status-green {
+    color: #24BF86 !important;
+}
+
+.status-amber {
+    color: #FF8C00 !important;
+}
+
+.status-red {
+    color: #FF3030 !important;
+}
 
 /* Temperature List */
 .sb-temp-list {
@@ -321,10 +340,17 @@ body {
     padding: 0 0 10px 0;
     border-bottom: 1px solid #222;
 }
-.sb-dept-name .zone-nav-btn:first-child { justify-self: start; }
-.sb-dept-name .zone-nav-btn:last-child { justify-self: end; }
 
-.zone-nav-btn, .asset-nav-btn {
+.sb-dept-name .zone-nav-btn:first-child {
+    justify-self: start;
+}
+
+.sb-dept-name .zone-nav-btn:last-child {
+    justify-self: end;
+}
+
+.zone-nav-btn,
+.asset-nav-btn {
     background: #00000000;
     border: none;
     color: #FFFFFF;
@@ -337,14 +363,17 @@ body {
     transition: all 0.2s;
 }
 
-.zone-nav-btn:hover, .asset-nav-btn:hover {
+.zone-nav-btn:hover,
+.asset-nav-btn:hover {
     opacity: 1;
     transform: scale(1.2);
 }
 
-.zone-nav-btn, .asset-nav-btn {
+.zone-nav-btn,
+.asset-nav-btn {
     padding: 4px;
 }
+
 .zone-nav-btn .material-symbols-outlined,
 .asset-nav-btn .material-symbols-outlined {
     font-size: 20px;
@@ -391,8 +420,14 @@ body {
     align-items: center;
     padding: 0;
 }
-.sb-asset-name-row .asset-nav-btn:first-child { justify-self: start; }
-.sb-asset-name-row .asset-nav-btn:last-child { justify-self: end; }
+
+.sb-asset-name-row .asset-nav-btn:first-child {
+    justify-self: start;
+}
+
+.sb-asset-name-row .asset-nav-btn:last-child {
+    justify-self: end;
+}
 
 .sb-asset-name {
     font-family: var(--sb-font);
@@ -497,8 +532,10 @@ body {
 }
 
 .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
 }
 
 /* ─── 5. LOADING SCREEN (COMPONENT) ─────────────────── */
@@ -522,43 +559,149 @@ body {
 }
 
 @keyframes loader-text-pulse {
-    0%, 100% { opacity: 0.8; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 /* ─── 6. TAILWIND UTILITIES (Polyfill for non-TW pages) ── */
-.fixed { position: fixed; }
-.absolute { position: absolute; }
-.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-.top-0 { top: 0; }
-.right-0 { right: 0; }
-.h-full { height: 100%; }
-.w-full { width: 100%; }
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-6 { gap: 1.5rem; }
-.p-6 { padding: 1.5rem; }
-.p-4 { padding: 1rem; }
-.z-5000 { z-index: 5000; }
-.z-6000 { z-index: 6000; }
-.z-9999 { z-index: 9999; }
-.border-l { border-left: 1px solid; }
-.border-b { border-bottom: 1px solid; }
-.border-slate-800 { border-color: #1e293b; }
-.overflow-y-auto { overflow-y: auto; }
-.mt-auto { margin-top: auto; }
-.font-bold { font-weight: 700; }
-.uppercase { text-transform: uppercase; }
-.tracking-widest { letter-spacing: 0.1em; }
-.tracking-tight { letter-spacing: -0.025em; }
-.text-white { color: #FFFFFF; }
-.text-slate-500 { color: #64748B; }
-.text-slate-400 { color: #94a3b8; }
-.text-\[18px\] { font-size: 18px; }
-.text-\[10px\] { font-size: 10px; }
-.size-8 { width: 2rem; height: 2rem; }
+.fixed {
+    position: fixed;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.inset-0 {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.top-0 {
+    top: 0;
+}
+
+.right-0 {
+    right: 0;
+}
+
+.h-full {
+    height: 100%;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-6 {
+    gap: 1.5rem;
+}
+
+.p-6 {
+    padding: 1.5rem;
+}
+
+.p-4 {
+    padding: 1rem;
+}
+
+.z-5000 {
+    z-index: 5000;
+}
+
+.z-6000 {
+    z-index: 6000;
+}
+
+.z-9999 {
+    z-index: 9999;
+}
+
+.border-l {
+    border-left: 1px solid;
+}
+
+.border-b {
+    border-bottom: 1px solid;
+}
+
+.border-slate-800 {
+    border-color: #1e293b;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
+}
+
+.mt-auto {
+    margin-top: auto;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.uppercase {
+    text-transform: uppercase;
+}
+
+.tracking-widest {
+    letter-spacing: 0.1em;
+}
+
+.tracking-tight {
+    letter-spacing: -0.025em;
+}
+
+.text-white {
+    color: #FFFFFF;
+}
+
+.text-slate-500 {
+    color: #64748B;
+}
+
+.text-slate-400 {
+    color: #94a3b8;
+}
+
+.text-\[18px\] {
+    font-size: 18px;
+}
+
+.text-\[10px\] {
+    font-size: 10px;
+}
+
+.size-8 {
+    width: 2rem;
+    height: 2rem;
+}
 
 /* ─── 4. HUD COMPONENTS ─────────────────────────────── */
 
@@ -629,9 +772,18 @@ body {
     letter-spacing: 0.1em;
 }
 
-.diag-status.stable, .diag-status.sync { color: var(--success); }
-.diag-status.warning { color: var(--warning); }
-.diag-status.alarm { color: var(--danger); }
+.diag-status.stable,
+.diag-status.sync {
+    color: var(--success);
+}
+
+.diag-status.warning {
+    color: var(--warning);
+}
+
+.diag-status.alarm {
+    color: var(--danger);
+}
 
 /* TrendMetric (Sidebar Footer / Summary) */
 .trend-metric {
@@ -657,8 +809,13 @@ body {
     margin-top: 2px;
 }
 
-.trend-delta.positive { color: var(--success); }
-.trend-delta.negative { color: var(--danger); }
+.trend-delta.positive {
+    color: var(--success);
+}
+
+.trend-delta.negative {
+    color: var(--danger);
+}
 
 /* MessageLog (Asset Filtered) */
 .message-log-container {
@@ -678,13 +835,24 @@ body {
     gap: 12px;
 }
 
-.log-entry .time { color: var(--text-dim); }
-.log-entry .id { color: var(--primary); font-weight: 700; }
-.log-entry .msg { color: var(--text-main); opacity: 0.8; }
+.log-entry .time {
+    color: var(--text-dim);
+}
+
+.log-entry .id {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.log-entry .msg {
+    color: var(--text-main);
+    opacity: 0.8;
+}
 
 /* ─── 5. 3D CHIPS (Analytic HUD Version) ─────────────── */
 .machine-chip {
-    background: #0D1117D9; /* Premium dark translucent */
+    background: #0D1117D9;
+    /* Premium dark translucent */
     border: 1px solid #FFFFFF26;
     border-radius: 100px;
     padding: 2px 4px;
@@ -724,7 +892,8 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-left: 8px;
-    pointer-events: none; /* Let icon-chip handle clicks through wrapper */
+    pointer-events: none;
+    /* Let icon-chip handle clicks through wrapper */
 }
 
 .zone-chip-wrapper {
@@ -751,7 +920,8 @@ body {
 .stacked-icon-circle {
     width: 32px;
     height: 32px;
-    background: #1C1C1C; /* Neutralized (Non-Status) */
+    background: #1C1C1C;
+    /* Neutralized (Non-Status) */
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -787,7 +957,8 @@ body {
     right: -2px;
     width: 10px;
     height: 10px;
-    background: #00E676; /* Status Class handles this, but default to success hex */
+    background: #00E676;
+    /* Status Class handles this, but default to success hex */
     border-radius: 50%;
     border: 2px solid #000000;
 }
@@ -861,10 +1032,12 @@ body {
         transform: scale(1);
         box-shadow: 0 2px 4px #00000080, inset 1px 1px 2px #FFFFFF0D;
     }
+
     50% {
         transform: scale(1.05);
         box-shadow: 0 4px 8px #00000099, inset 1px 1px 3px #FFFFFF1A;
     }
+
     100% {
         transform: scale(1);
         box-shadow: 0 2px 4px #00000080, inset 1px 1px 2px #FFFFFF0D;
@@ -922,8 +1095,8 @@ body {
         inset 0 1px 1px #FFFFFF1A;
     font-family: 'Public Sans', sans-serif;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .machine-chip:hover .chip-unified-value {
@@ -949,10 +1122,21 @@ body {
 }
 
 /* ─── 6. SCROLLBARS ──────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-dark); }
-::-webkit-scrollbar-thumb { background: var(--surface-dark); }
-::-webkit-scrollbar-thumb:hover { background: var(--border); }
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--surface-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border);
+}
 
 .health-progress-fill {
     height: 100%;
@@ -1183,12 +1367,28 @@ body {
         padding: 0 12px !important;
         z-index: 7000 !important;
     }
-    .navbar-title { font-size: 11px !important; }
-    .navbar-clock { display: none !important; }
 
-    .stacked-name-pill { font-size: 9px !important; padding: 4px 12px !important; }
-    .stacked-icon-circle { width: 28px !important; height: 28px !important; }
-    .stacked-icon-circle .material-symbols-outlined { font-size: 16px !important; }
+    .navbar-title {
+        font-size: 11px !important;
+    }
+
+    .navbar-clock {
+        display: none !important;
+    }
+
+    .stacked-name-pill {
+        font-size: 9px !important;
+        padding: 4px 12px !important;
+    }
+
+    .stacked-icon-circle {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .stacked-icon-circle .material-symbols-outlined {
+        font-size: 16px !important;
+    }
 }
 
 /* ─── 7. LARGE SCREEN SCALING ─────────────────────────── */
@@ -1199,10 +1399,20 @@ body {
         width: 420px;
         height: 76px;
     }
-    .navbar-title { font-size: 16px; }
 
-    .stacked-icon-circle { width: 38px; height: 38px; }
-    .stacked-name-pill { font-size: 12px; padding: 6px 16px; }
+    .navbar-title {
+        font-size: 16px;
+    }
+
+    .stacked-icon-circle {
+        width: 38px;
+        height: 38px;
+    }
+
+    .stacked-name-pill {
+        font-size: 12px;
+        padding: 6px 16px;
+    }
 }
 
 /* 2. Full HD+ / 2K Displays (1921px+) */
@@ -1213,11 +1423,24 @@ body {
         left: 48px;
         top: 48px;
     }
-    .navbar-title { font-size: 18px; }
 
-    .stacked-icon-circle { width: 44px; height: 44px; }
-    .stacked-icon-circle .material-symbols-outlined { font-size: 24px; }
-    .stacked-name-pill { font-size: 14px; padding: 8px 20px; }
+    .navbar-title {
+        font-size: 18px;
+    }
+
+    .stacked-icon-circle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .stacked-icon-circle .material-symbols-outlined {
+        font-size: 24px;
+    }
+
+    .stacked-name-pill {
+        font-size: 14px;
+        padding: 8px 20px;
+    }
 }
 
 
@@ -1230,18 +1453,38 @@ body {
         top: 80px;
         padding: 0 32px;
     }
-    .navbar-title { font-size: 32px; }
-    .navbar-accent-bar { height: 48px; width: 6px; }
 
-    .stacked-icon-circle { width: 100px; height: 100px; }
-    .stacked-icon-circle .material-symbols-outlined { font-size: 56px; }
-    .stacked-name-pill { font-size: 32px; padding: 24px 64px; border-radius: 60px; }
+    .navbar-title {
+        font-size: 32px;
+    }
 
-    .chip-name { font-size: 24px; }
-    .chip-val { font-size: 28px; padding: 16px 32px; border-radius: 24px; }
+    .navbar-accent-bar {
+        height: 48px;
+        width: 6px;
+    }
+
+    .stacked-icon-circle {
+        width: 100px;
+        height: 100px;
+    }
+
+    .stacked-icon-circle .material-symbols-outlined {
+        font-size: 56px;
+    }
+
+    .stacked-name-pill {
+        font-size: 32px;
+        padding: 24px 64px;
+        border-radius: 60px;
+    }
+
+    .chip-name {
+        font-size: 24px;
+    }
+
+    .chip-val {
+        font-size: 28px;
+        padding: 16px 32px;
+        border-radius: 24px;
+    }
 }
-
-
-
-
-

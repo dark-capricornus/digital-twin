@@ -13,15 +13,29 @@ class ISource(ABC):
         """
         pass
 
+    @abstractmethod
+    async def write(self, tag: str, value: Any) -> bool:
+        """
+        Writes data back to the source (Control commands).
+        """
+        pass
+
 class ISink(ABC):
     """
     Interface for data sinks (e.g. Rapid SCADA File, API, MQTT).
     """
     @abstractmethod
-    async def write(self, data: Dict[int, Any]) -> None:
+    async def write(self, data: Dict[Any, Any]) -> None:
         """
         Writes data to the sink.
-        Expecting a dictionary of {channel_id: value}.
+        """
+        pass
+
+    @abstractmethod
+    def set_command_callback(self, callback) -> None:
+        """
+        Set a callback for incoming commands from the sink.
+        Callback signature: async def callback(tag: str, value: Any)
         """
         pass
 

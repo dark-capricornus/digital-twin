@@ -11,17 +11,7 @@
             "department": "Logistics",
             "icon": "inventory_2"
         },
-        "STORAGE_01": {
-            "serial_number": "STR-001",
-            "model": "Heavy Storage",
-            "vendor": "LogiSystems",
-            "install_date": "2023-01-01",
-            "purchase_date": "2022-11-20",
-            "last_service_date": "2026-01-15",
-            "next_service_date": "2026-07-15",
-            "department": "Logistics",
-            "icon": "inventory_2"
-        },
+
         "FURNACE_01": {
             "serial_number": "FURN-2024-X10",
             "model": "Thermax 5000",

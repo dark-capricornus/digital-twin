@@ -109,11 +109,11 @@ class SimulationEngine:
         if self.orchestrator:
             wip = self.orchestrator.get_wip_state()
             for k, v in wip.items():
-                all_tags[f"Plant.WIP.{k}"] = v
+                all_tags[f"WIP_{k}"] = v
             
             kpis = self.orchestrator.get_kpis()
             for k, v in kpis.items():
-                all_tags[f"Plant.KPI.{k}"] = v
+                all_tags[f"KPI_{k}"] = v
                 
         return all_tags
     

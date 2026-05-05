@@ -50,6 +50,11 @@ class SimpleMachine(BaseMachine):
         
         # Accumulation State
         self.accumulating = False
+        
+        # Casting specific
+        if role == "casting":
+            self.furnace_level_kg = 1200.0
+            self.shot_weight_kg = 18.5
 
     # --- BaseMachine Implementation ---
 
@@ -118,17 +123,23 @@ class SimpleMachine(BaseMachine):
         self.stage_timer += dt
 
         if self.role == "casting":
+            # Dynamic Pressure Profile
             if self.progress < 20: 
                 self.cycle_status = "FILLING"
-                self.pressure_psi = 45.0
+                # Ramp pressure from 0 to 45 PSI
+                self.pressure_psi = (self.progress / 20.0) * 45.0
             elif self.progress < 70:
                 self.cycle_status = "HOLDING"
-                self.pressure_psi = 60.0 # Solidification pressure
-            elif self.progress < 90:
+                # Slight decay/oscillation in holding pressure
+                self.pressure_psi = 60.0 + random.uniform(-0.2, 0.2)
+            elif self.progress < 85:
                 self.cycle_status = "COOLING"
                 self.pressure_psi = 5.0
-            else:
+            elif self.progress < 95:
                 self.cycle_status = "EJECTING"
+                self.pressure_psi = 0.0
+            else:
+                self.cycle_status = "SPRAYING" # Die spray after ejection
                 self.pressure_psi = 0.0
                 
         elif self.role == "machining":
@@ -228,6 +239,15 @@ class SimpleMachine(BaseMachine):
             add_tag("Alarm_Status", self.alarm_status)
             add_tag("LPDC_Instant_kW", self.power_kw)
             add_tag("LPDC_Total_kWh", self.energy_kwh)
+            
+            # Consumption logic
+            if hasattr(self, "furnace_level_kg"):
+                add_tag("Furnace_Level_kg", round(self.furnace_level_kg, 1))
+                add_tag("Shot_Weight_kg", self.shot_weight_kg)
+                if self.cycle_status == "FILLING":
+                     # Decrement level during filling based on progress in that stage
+                     # This is a bit simplified but adds visual movement
+                     self.furnace_level_kg -= 0.01 # Simulated consumption rate
             
         elif self.role == "machining":
             # Dynamic Spindle Speed simulation

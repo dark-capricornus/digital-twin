@@ -23,9 +23,7 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     for i in range(100):
         inbound.queue_in.append(f"RawMaterial-{i}")
 
-    # 2. Storage - Buffer Role
-    storage = SimpleMachine("STORAGE_01", "Raw Storage", cycle_time=5.0, 
-                           role="buffer", capacity=50)
+
 
     # 3. Melting Furnace - Thermal
     furnace = ThermalMachine("FURNACE_01", "Melting Furnace", cycle_time=10.0, target_temp=750.0)
@@ -80,7 +78,7 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     outbound2 = SimpleMachine("OUTBOUND_02", "Shipping Dock 2", cycle_time=2.0)
 
     # Add all to engine
-    machines = [inbound, storage, furnace, degasser, degasser2, cooling1, lpdc, lpdc2, lpdc3, heat_treat, heat_treat2, 
+    machines = [inbound, furnace, degasser, degasser2, cooling1, lpdc, lpdc2, lpdc3, heat_treat, heat_treat2, 
                 cooling2, cnc, cnc2, inspection, pretreat, paint1, paint2, outbound, outbound2]
     
     for m in machines:

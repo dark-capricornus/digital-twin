@@ -220,6 +220,8 @@ class BaseMachine(ABC):
         base_tags = {
             f"{self.id}.state": self.state.value,
             f"{self.id}.is_running": self.state == MachineState.RUNNING,
+            f"{self.id}.IsRunning": self.state == MachineState.RUNNING,
+            "IsRunning": self.state == MachineState.RUNNING,
             f"{self.id}.enabled": self.enabled,
             f"{self.id}.fault_code": self.fault_code,
             f"{self.id}.processed_count": self.processed_count,

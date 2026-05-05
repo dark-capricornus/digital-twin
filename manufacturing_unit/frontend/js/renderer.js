@@ -82,8 +82,6 @@ class Renderer {
             'paint_02': 'paint_02',
             'paint01': 'paint_01',
             'paint02': 'paint_02',
-            'storage_01': 'raw_materials',
-            'storage01': 'raw_materials',
             'inbound_01': 'raw_materials',
             'inbound01': 'raw_materials',
             'buffer_01': 'raw_materials',

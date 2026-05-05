@@ -1,64 +1,64 @@
-import time
-import sys
-import argparse
-import os
 import asyncio
+import logging
+import os
+import sys
 
-# --- Fix Path for Imports ---
-# Allow importing 'data_gateway' from its parent directory (manufacturing_unit)
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_gateway.core.engine import DataEngine
-from data_gateway.core.interfaces import ISource, ISink
-from data_gateway.adapters.sink_mqtt import MQTTSink
-from data_gateway.adapters.sink_file import RapidScadaFileSink
-import requests
-from typing import Dict, Any
+# Ensure project root is in path for imports
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
-from data_gateway.adapters.source_rest import RestSourceAdapter
-from data_gateway.adapters.source_opcua import OPCUASourceAdapter
+try:
+    from manufacturing_unit.data_gateway.core.engine import DataEngine
+    from manufacturing_unit.data_gateway.adapters.source_opcua import OPCUASourceAdapter
+    from manufacturing_unit.data_gateway.adapters.sink_mqtt import MQTTSink
+    from manufacturing_unit.common.manifest_manager import ManifestManager
+except ImportError:
+    try:
+        from .core.engine import DataEngine
+        from .adapters.source_opcua import OPCUASourceAdapter
+        from .adapters.sink_mqtt import MQTTSink
+        from ..common.manifest_manager import ManifestManager
+    except ImportError:
+        from data_gateway.core.engine import DataEngine
+        from data_gateway.adapters.source_opcua import OPCUASourceAdapter
+        from data_gateway.adapters.sink_mqtt import MQTTSink
+        from common.manifest_manager import ManifestManager
+
+logging.basicConfig(level=logging.INFO, format='[GATEWAY] %(asctime)s | %(message)s', datefmt='%H:%M:%S')
+logger = logging.getLogger("GatewayMain")
 
 async def main():
-    # Parse Arguments
-    parser = argparse.ArgumentParser(description="Digital Twin Data Gateway")
-    parser.add_argument("--sink", choices=["mqtt", "file"], default="mqtt", help="Select data sink (mqtt or file)")
-    args, unknown = parser.parse_known_args()
-
-    print(f">>> Initializing Data Gateway using {args.sink.upper()} Sink...")
+    # 1. Initialize Manifest
+    manifest = ManifestManager()
     
-    # 1. Configuration
-    OPCUA_ENDPOINT = "opc.tcp://localhost:4840/freeopcua/server/"
+    # 2. Setup Adapters
+    # In production, these would come from a config file or env vars
+    opc_endpoint = os.getenv("OPCUA_ENDPOINT", "opc.tcp://localhost:4840/freeopcua/server/")
+    mqtt_host = os.getenv("MQTT_HOST", "localhost")
+    mqtt_port = int(os.getenv("MQTT_PORT", "1883"))
+    mqtt_topic = "factory/telemetry"
     
-    # 2. Components
-    source = OPCUASourceAdapter(OPCUA_ENDPOINT)
-    sink: ISink
+    source = OPCUASourceAdapter(endpoint=opc_endpoint)
+    sink = MQTTSink(broker=mqtt_host, port=mqtt_port, topic=mqtt_topic)
     
-    if args.sink == "mqtt":
-        MQTT_BROKER = "localhost"
-        MQTT_PORT = 1883
-        MQTT_TOPIC = "digital-twin/state"
-        sink = MQTTSink(MQTT_BROKER, MQTT_PORT, MQTT_TOPIC)
-    else:
-        # Default file path for file sink
-        FILE_PATH = "gateway_output.txt" 
-        sink = RapidScadaFileSink(FILE_PATH)
+    # 3. Connect Sinks
+    await sink.connect()
     
-    # Mapping
-    mapping = None
-    if args.sink == "file":
-         mapping = {str(i): i for i in range(100, 1000)}
+    # 4. Initialize Engine
+    # The engine now works on the raw dictionary from source, 
+    # which is already structured by machine ID thanks to the refactored source adapter.
+    engine = DataEngine(source=source, sink=sink)
     
-    engine = DataEngine(source, sink, mapping)
-    # 3. Start
+    # 5. Run Loop
     try:
-        await sink.connect()
-        await engine.run(interval=1.0)
+        logger.info("Starting Data Gateway...")
+        await engine.run(interval=0.5) # 500ms scan rate
     except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"[FATAL] Gateway Error: {e}")
+        logger.info("Gateway stopping...")
     finally:
-        if 'sink' in locals():
-            await sink.disconnect()
+        await source.disconnect()
+        await sink.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -12,6 +12,17 @@ class DataEngine:
         self.sink = sink
         self.mapping = mapping
         self.running = False
+        
+        # Link Command Flow (Sink -> Source)
+        self.sink.set_command_callback(self.on_command_received)
+
+    async def on_command_received(self, tag: str, value: Any):
+        """
+        Callback triggered when a command arrives from the Sink (MQTT).
+        Relays it to the Source (OPC UA).
+        """
+        print(f">>> Command Relayed: {tag} -> {value}")
+        await self.source.write(tag, value)
 
     async def step(self):
         # 1. Read
@@ -42,14 +53,21 @@ class DataEngine:
 
     async def run(self, interval: float = 1.0):
         self.running = True
-        try:
-            print(f">>> Gateway Started. Polling every {interval}s...")
-            while self.running:
+        retry_delay = 5.0
+        
+        print(f">>> Gateway Started. Polling every {interval}s...")
+        
+        while self.running:
+            try:
                 await self.step()
                 await asyncio.sleep(interval)
-        except asyncio.CancelledError:
-            self.running = False
-            print(">>> Gateway Stopped (Cancelled).")
-        except Exception as e:
-            self.running = False
-            print(f">>> Gateway Stopped. Error: {e}")
+                # Reset delay on success
+                retry_delay = 5.0
+            except asyncio.CancelledError:
+                self.running = False
+                print(">>> Gateway Stopped (Cancelled).")
+            except Exception as e:
+                print(f">>> Gateway Iteration Failed: {e}. Retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+                # Exponential backoff (max 60s)
+                retry_delay = min(retry_delay * 2, 60.0)

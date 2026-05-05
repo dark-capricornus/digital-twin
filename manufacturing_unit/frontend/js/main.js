@@ -201,6 +201,7 @@ class DigitalTwinApp {
                 'Status': ['Alarm_Status']
             },
             'PLANT': {
+                'PLC Status': ['PLC_State', 'PLC_ScanTime'],
                 'WIP Metrics': ['Molten_Metal_Kg', 'Degassed_Metal_Kg', 'Ingots_Kg', 'Cast_Parts', 'Cooled_Parts_1', 'Cooled_Parts_2', 'Heat_Treated_Parts', 'Machined_Parts', 'Pretreated_Parts', 'Painted_Parts'],
                 'Quality': ['Xray_Passed', 'Qc_Passed', 'Scrap_Parts']
             },
@@ -344,7 +345,7 @@ class DigitalTwinApp {
         let id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
         
         // [FIX] Explicit matching for RAWMATERIALS variants from scene/assets
-        if (id.includes('RAWMATERIALS') || id.includes('STORAGE') || id.includes('INBOUND') || id.includes('RAW')) {
+        if (id.includes('RAWMATERIALS') || id.includes('INBOUND') || id.includes('RAW')) {
             return 'RAWMATERIALS';
         }
 
@@ -382,7 +383,9 @@ class DigitalTwinApp {
             'Plant_KPI_Throughput': 'Plant Throughput',
             'Plant_KPI_Yield': 'First Pass Yield',
             'IsRunning': 'Operational',
-            'capacity': 'Storage Capacity'
+            'capacity': 'Storage Capacity',
+            'PLC_State': 'PLC Power State',
+            'PLC_ScanTime': 'PLC Scan Time'
         };
         if (labelMap[tag]) return labelMap[tag];
         return tag.replace(/_/g, ' ');
@@ -403,7 +406,10 @@ class DigitalTwinApp {
         if (upperTag.includes('RPM')) return 'RPM';
         if (upperTag.includes('SPEED')) return 'm/min';
         if (upperTag.includes('HUMIDITY') || upperTag.includes('PCT') || upperTag.includes('%')) return '%';
-        if (upperTag.includes('TIME') || upperTag.includes('TIMER')) return 's';
+        if (upperTag.includes('TIME') || upperTag.includes('TIMER')) {
+            if (upperTag.includes('SCAN')) return 'ms';
+            return 's';
+        }
         if (upperTag === 'CAPACITY') return 'units';
 
         return '';
@@ -502,8 +508,8 @@ class DigitalTwinApp {
         const key = id.toUpperCase();
 
         // 1. [BRANDING] Standardization for Raw Materials
-        if (key.includes('INBOUND') || key.includes('STORAGE') || key === 'RAWMATERIALS') {
-            const base = this.assetData['RAWMATERIALS'] || this.assetData['STORAGE_01'] || this.assetData['INBOUND_01'] || {};
+        if (key.includes('INBOUND') || key === 'RAWMATERIALS') {
+            const base = this.assetData['RAWMATERIALS'] || this.assetData['INBOUND_01'] || {};
             return {
                 ...base,
                 name: 'Raw Materials',

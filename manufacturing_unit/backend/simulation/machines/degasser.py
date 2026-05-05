@@ -83,24 +83,31 @@ class DegasserMachine(BaseMachine):
                 self.rotor_speed = 0.0
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
-        return {
-            f"{self.id}.VacuumLevel": round(self.vacuum_level, 2),
-            f"{self.id}.temperature": round(self.temperature, 1),
-            f"{self.id}.progress": round(self.progress, 2),
-            f"{self.id}.queue_in": len(self.queue_in),
-            f"{self.id}.queue_out": len(self.queue_out),
-            f"{self.id}.Gas_Flow_Rate": round(self.gas_flow_rate, 2),
-            f"{self.id}.Rotor_Speed": round(self.rotor_speed, 1),
-            f"{self.id}.Treatment_Time": self.cycle_time,
-            f"{self.id}.Alarm_Status": "Clear" if self.state != MachineState.FAULTED else "Alarm",
-            f"{self.id}.Degasser_Run_Status": self.state.value,
-            f"{self.id}.Degasser_Instant_kW": self.power_kw,
-            f"{self.id}.Degasser_Total_kWh": self.energy_kwh,
-            "IsRunning": self.state == MachineState.RUNNING,
-            # Plant level WIP for this sector
-            f"{self.id}.Plant_WIP_Degassed_Metal": round(450.0 + (self.processed_count * 25.5) % 1000, 1),
-            "Plant_WIP_Degassed_Metal": round(450.0 + (self.processed_count * 25.5) % 1000, 1)
-        }
+        tags = {}
+        
+        def add_tag(key, val):
+            tags[f"{self.id}.{key}"] = val
+            tags[key] = val
+
+        add_tag("VacuumLevel", round(self.vacuum_level, 2))
+        add_tag("temperature", round(self.temperature, 1))
+        add_tag("progress", round(self.progress, 2))
+        add_tag("queue_in", len(self.queue_in))
+        add_tag("queue_out", len(self.queue_out))
+        add_tag("Gas_Flow_Rate", round(self.gas_flow_rate, 2))
+        add_tag("Rotor_Speed", round(self.rotor_speed, 1))
+        add_tag("Treatment_Time", self.cycle_time)
+        add_tag("Alarm_Status", "Clear" if self.state != MachineState.FAULTED else "Alarm")
+        add_tag("Degasser_Run_Status", self.state.value)
+        add_tag("Degasser_Instant_kW", self.power_kw)
+        add_tag("Degasser_Total_kWh", self.energy_kwh)
+        add_tag("IsRunning", self.state == MachineState.RUNNING)
+        
+        # Plant level WIP for this sector
+        wip_val = round(450.0 + (self.processed_count * 25.5) % 1000, 1)
+        add_tag("Plant_WIP_Degassed_Metal", wip_val)
+        
+        return tags
 
     def _calculate_power(self) -> float:
         """

@@ -524,9 +524,9 @@ class UIUpdater {
         const normAssetId = assetId.toLowerCase().replace(/[^a-z0-9]/g, '');
 
         // RAWMATERIALS has no dedicated folder in tags.json — it's an aggregate of
-        // INBOUND_01 and STORAGE_01. Pull tags from both folders and dedupe.
+        // INBOUND_01. Pull tags and dedupe.
         const targetNames = (normAssetId === 'rawmaterials')
-            ? ['inbound01', 'storage01']
+            ? ['inbound01']
             : [normAssetId];
 
         const findFolderRecursive = (folder, target) => {

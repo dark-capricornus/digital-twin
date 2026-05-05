@@ -16,17 +16,17 @@ export default class SidebarController {
         this.onCollapse = null;
         this.isInitialized = false;
         this.assetData = {};
-        
+
         // [USER] Track expanded/navigation state of 7 sections (OPEN BY DEFAULT)
         this.expandedSections = new Set([
-            'MACHINE METRICS', 
-            'ENERGY CONSUMPTION', 
-            'PRODUCTION DATA', 
-            'STATUS & RUN INFO', 
-            'ALARMS', 
-            'MAINTENANCE', 
+            'MACHINE METRICS',
+            'ENERGY CONSUMPTION',
+            'PRODUCTION DATA',
+            'STATUS & RUN INFO',
+            'ALARMS',
+            'MAINTENANCE',
             'ASSET INFO'
-        ]); 
+        ]);
         this.container = null;
     }
 
@@ -43,7 +43,7 @@ export default class SidebarController {
         this.onAssetSelect = callbacks.onAssetSelect || null;
         this.onZoneChange = callbacks.onZoneChange || null;
         this.onCollapse = callbacks.onCollapse || null;
-        
+
         if (callbacks.assetData) this.assetData = callbacks.assetData;
 
         this.isInitialized = true;
@@ -100,7 +100,7 @@ export default class SidebarController {
         if (assetNext) assetNext.onclick = (e) => { e.stopPropagation(); this._navigateAsset(1); };
 
         this.sidebarEl = this.container;
-        
+
         // [USER] Close sidebar on outside click
         document.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
@@ -137,7 +137,7 @@ export default class SidebarController {
         this.currentAssetId = assetId;
 
         this._updateAssetNameHeader();
-        
+
         // Reset uptime for new asset
         const uptimeEl = document.getElementById('sidebar-uptime');
         if (uptimeEl) uptimeEl.textContent = '---';
@@ -187,13 +187,13 @@ export default class SidebarController {
         //   - Amber for maintenance (caution, distinct from alarm red)
         //   - Neutral slate for asset metadata
         const segmentsDef = [
-            ['metrics',     'MACHINE METRICS',    '#06B6D4', 'list'],
-            ['energy',      'ENERGY CONSUMPTION', '#F97316', 'split'],
-            ['production',  'PRODUCTION DATA',    '#22C55E', 'split'],
-            ['status',      'STATUS & RUN INFO',  '#3B82F6', 'list'],
-            ['alarms',      'ALARMS',             '#EF4444', 'list'],
-            ['maintenance', 'MAINTENANCE',        '#F59E0B', 'list'],
-            ['assetInfo',   'ASSET INFO',         '#94A3B8', 'list'],
+            ['metrics', 'MACHINE METRICS', '#06B6D4', 'list'],
+            ['energy', 'ENERGY CONSUMPTION', '#F97316', 'split'],
+            ['production', 'PRODUCTION DATA', '#22C55E', 'split'],
+            ['status', 'STATUS & RUN INFO', '#3B82F6', 'list'],
+            ['alarms', 'ALARMS', '#EF4444', 'list'],
+            ['maintenance', 'MAINTENANCE', '#F59E0B', 'list'],
+            ['assetInfo', 'ASSET INFO', '#94A3B8', 'list'],
         ];
 
         // Structural signature: asset + segment shapes/labels (NO values).
@@ -469,7 +469,7 @@ export default class SidebarController {
         if (carousel && activePill) {
             const pillRect = activePill.getBoundingClientRect();
             const carouselRect = carousel.getBoundingClientRect();
-            
+
             // If pill is outside carousel view, scroll it into view
             if (pillRect.left < carouselRect.left || pillRect.right > carouselRect.right) {
                 activePill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -611,7 +611,7 @@ export default class SidebarController {
         }
 
         const item = items[0];
-        const topId = item.id || sectionId; 
+        const topId = item.id || sectionId;
         if (container.dataset.renderedLogId !== topId) {
             container.innerHTML = `
                 <div class="sb-clean-row sb-log-row">
@@ -672,7 +672,7 @@ export default class SidebarController {
         if (sectionId === 'asset') {
             const assetData = (this.assetData && this.currentAssetId) ? (this.assetData[this.currentAssetId] || {}) : {};
             const assetName = this.currentAssetId ? this.currentAssetId.replace(/_/g, ' ') : 'UNKNOWN ASSET';
-            
+
             const metaToSync = {
                 'name': assetName,
                 'model': assetData.model || 'INDUSTRIAL_UNIT',
@@ -707,7 +707,7 @@ export default class SidebarController {
         const scrollEl = document.getElementById('sidebar-scroll');
         const sectionData = this._getSectionData(sectionId, data);
         const sectionName = sectionId === 'asset' ? 'METADATA' : `${sectionId.toUpperCase()} DATA`;
-        
+
         let headerIcon = 'analytics';
         if (sectionId === 'plant') headerIcon = 'factory';
         if (sectionId === 'production') headerIcon = 'inventory_2';

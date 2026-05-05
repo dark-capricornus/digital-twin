@@ -19,33 +19,29 @@ from datetime import datetime
 
 # --- Integration Imports ---
 try:
-    from ..simulation.factory import build_factory
-    from ..plc.adapter import SimulationAdapter
-    from ..plc.power_state import PLCPowerState
-    from ..simulation.machines.base_machine import BaseMachine, MachineState
+    from manufacturing_unit.backend.plc.power_state import PLCPowerState
+    from manufacturing_unit.backend.plc.adapter import SimulationAdapter
+    from manufacturing_unit.backend.plc.opc_manager import OPCServerManager
+    from manufacturing_unit.backend.simulation.factory import build_factory
+    from manufacturing_unit.backend.simulation.machines.base_machine import BaseMachine, MachineState
+    from manufacturing_unit.common.manifest_manager import ManifestManager
 except ImportError:
-    # Fallback for direct execution
-    from simulation.factory import build_factory
-    from plc.adapter import SimulationAdapter
-    from plc.power_state import PLCPowerState
-    from simulation.machines.base_machine import BaseMachine, MachineState
+    # Fallback for localized execution or older structures
+    try:
+        from ..plc.power_state import PLCPowerState
+        from ..plc.adapter import SimulationAdapter
+        from ..plc.opc_manager import OPCServerManager
+        from ..simulation.factory import build_factory
+        from ..simulation.machines.base_machine import BaseMachine, MachineState
+        from ...common.manifest_manager import ManifestManager
+    except ImportError:
+        from plc.power_state import PLCPowerState
+        from plc.adapter import SimulationAdapter
+        from plc.opc_manager import OPCServerManager
+        from simulation.factory import build_factory
+        from simulation.machines.base_machine import BaseMachine, MachineState
+        from common.manifest_manager import ManifestManager
 
-# --- Custom User Manager for Dev/Ignition Compatibility ---
-class DevUserManager(UserManager):
-    def get_user(self, isession, username, password, certificate):
-        # Force everyone (Anonymous included) to be Admin for Phase 2 stability
-        return User(role=UserRole.Admin)
-
-# --- Custom Permissive Ruleset for Option 1 ---
-class PermissiveRoleRuleset(PermissionRuleset):
-    """
-    Allow EVERYTHING for EVERYONE.
-    Used for Phase 2 Validation to prevent Service-Level BadUserAccessDenied.
-    """
-    def check_validity(self, user, action_type_id, body):
-        return True
-
-# --- MONKEY PATCH START ---
 # Fix for Python 3.11+ issubclass behavior change affecting asyncua
 _orig_issubclass = builtins.issubclass
 
@@ -75,41 +71,26 @@ def load_config():
             "exposed_machines": [
                 "FURNACE_01", "LPDC_01", "LPDC_02", "LPDC_03", "CNC_01", "CNC_02", "INSPECTION_01", 
                 "DEGASSER_01", "DEGASSER_02", "HEAT_01", "HEAT_02", "PAINT_01", "PAINT_02", 
-                "INBOUND_01", "STORAGE_01", "COOLING_01", 
+                "INBOUND_01", "COOLING_01", 
                 "COOLING_02", "PRETREAT_01", "OUTBOUND_01"
             ]
         }
 
 CONFIG = cast(Dict[str, Any], load_config())
+MANIFEST = ManifestManager()
+
 PLC_SCAN_RATE_MS: float = float(cast(Any, CONFIG.get("scan_rate_ms", 100.0)))
 OPCUA_PORT = int(cast(Any, CONFIG.get("opcua_port", 4840)))
 OPCUA_ENDPOINT = f"opc.tcp://127.0.0.1:{OPCUA_PORT}/freeopcua/server/"
-tag_categories: Dict[str, Dict[str, str]] = cast(Dict[str, Dict[str, str]], CONFIG.get("tag_categories", {}))
-EXPOSED_MACHINES: builtins.set = builtins.set(cast(Any, CONFIG.get("exposed_machines", [])))
+EXPOSED_MACHINES: builtins.set = builtins.set(MANIFEST.get_exposed_machines())
 
 # Logging format mimicking PLC diagnostics
 logging.basicConfig(level=logging.INFO, format='[PLC] %(asctime)s | %(message)s', datefmt='%H:%M:%S')
 logger = logging.getLogger("VirtualPLC")
 
-class SubHandler(object):
-    """
-    Subscription Handler to process commands and log data changes.
-    Inherits from object as per asyncua requirements.
-    """
-    def __init__(self, plc=None):
-        self.plc = plc
-
-    def datachange_notification(self, node, val, data):
-        node_id = node.nodeid
-        # DEEP TRACE: Log EVERY write coming into the server
-        logger.info(f"[OPC TRACE] NodeID: {node_id.Identifier} (Type: {node_id.NodeIdType}), Value: {val}")
-        
-        # INDUSTRIAL FIX: Process commands instantly if they are in the Inputs folder
-        # We check ".Inputs." or ".Control." to support both global and local
-        id_str = str(node_id.Identifier)
-        if self.plc and (".Inputs." in id_str or ".Control." in id_str):
-            logger.info(f"[SUB EVENT] Routing command: {id_str}")
-            self.plc.process_individual_command_event(id_str, val)
+# Logging format mimicking PLC diagnostics
+logging.basicConfig(level=logging.INFO, format='[PLC] %(asctime)s | %(message)s', datefmt='%H:%M:%S')
+logger = logging.getLogger("VirtualPLC")
 
 # --- 1. Device Architecture (Passive Function Blocks) ---
 # DEPRECATED: Retained effectively as Interface/Legacy support for Phase 2.1
@@ -168,9 +149,8 @@ class Buffer(DeviceBase):
 class VirtualPLC:
     def __init__(self):
         # CRITICAL: Use PLCPowerState enum instead of boolean
-        self.power_state = PLCPowerState.STARTING  # Start in STARTING state to auto-run
-        self.opcua_server = Server(user_manager=DevUserManager())
-        self.opcua_nodes = {} # Map: "Device.Tag" -> UA Node
+        self.power_state = PLCPowerState.OFF  # Start in OFF state - requires explicit START command
+        self.opc = OPCServerManager(OPCUA_ENDPOINT, MANIFEST)
         
         # UNIFIED ARCHITECTURE: Own the Simulation Engine
         logger.info("Initializing Simulation Engine (Unified Architecture)...")
@@ -183,36 +163,17 @@ class VirtualPLC:
         self.machine_run_state = {}
         
         # Attribute Initialization for Linter
-        self.cmd_sub: Any = None
-        self.tag_state: Any = None
-        self.tag_scan_time: Any = None
-        self.cmd_start: Any = None
-        self.cmd_stop: Any = None
-        self.plant_nodes: Dict[str, Any] = {}
+        self.plant_nodes = {}
+        
+        # Transition Timers
+        self._starting_timer = 0.0
+        self._stopping_timer = 0.0
+        self.boot_delay = 2.0 # 2 seconds to boot
+        self.stop_delay = 2.0 # 2 seconds to shutdown
         
         # MAPPING LAYER: Connect Sim Machines to PLC Device Interfaces
-        # We manually map specific machines to preserve the specific NodeIDs SCADA expects.
-        mapping = {
-            "FURNACE_01": "FURNACE_01",
-            "DEGASSER_01": "DEGASSER_01",
-            "DEGASSER_02": "DEGASSER_02",
-            "LPDC_01": "LPDC_01",
-            "LPDC_02": "LPDC_02",
-            "LPDC_03": "LPDC_03",
-            "HEAT_01": "HEAT_01",
-            "HEAT_02": "HEAT_02",
-            "CNC_01": "CNC_01",
-            "CNC_02": "CNC_02",
-            "INSPECTION_01": "INSPECTION_01",
-            "PAINT_01": "PAINT_01",
-            "PAINT_02": "PAINT_02",
-            "INBOUND_01": "INBOUND_01",
-            "STORAGE_01": "STORAGE_01",
-            "COOLING_01": "COOLING_01",
-            "COOLING_02": "COOLING_02",
-            "PRETREAT_01": "PRETREAT_01",
-            "OUTBOUND_01": "OUTBOUND_01"
-        }
+        # Loaded dynamically from Site Manifest
+        mapping = MANIFEST.get_machine_mappings()
         
         for dev_id, sim_id in mapping.items():
             # Find the machine in the engine
@@ -225,331 +186,14 @@ class VirtualPLC:
                 logger.warning(f"Could not link {dev_id} to simulation machine {sim_id}")
     
     def is_running(self) -> bool:
-        """Check if PLC is in RUNNING state (for physics gating)"""
-        return self.power_state == PLCPowerState.RUNNING
+        """Check if PLC is in a state where simulation physics can step."""
+        return self.power_state in [PLCPowerState.RUNNING, PLCPowerState.STARTING, PLCPowerState.STOPPING]
 
     async def init_opcua(self):
-        """Initialize embedded OPC UA Server with strict Industrial Hierarchy"""
-        await self.opcua_server.init()
-        self.opcua_server.set_endpoint(OPCUA_ENDPOINT)
-        self.opcua_server.set_server_name("VirtualPLC Service")
+        """Initialize embedded OPC UA Server via Manager"""
+        await self.opc.init(command_callback=self.process_individual_command_event)
 
-        # SERVICE LEVEL PERMISSIONS (OPTION 1 FIX)
-        # Use our custom permissive ruleset to allow ALL services (Call, MonitoredItem, etc.)
-        self.opcua_server.permission_ruleset = PermissiveRoleRuleset()
-
-        # Setup Address Space
-        idx = await self.opcua_server.register_namespace("http://digitaltwin.plc")
-        logger.info(f"Registered Namespace 'http://digitaltwin.plc' with Index: {idx}")
-        
-        objects = self.opcua_server.nodes.objects
-        
-        # --- Hierarchy: Objects -> VirtualPLC -> Devices ---
-        # 1. VirtualPLC Root
-        plc_id = ua.NodeId("VirtualPLC", idx)
-        plc_node = await objects.add_object(plc_id, ua.QualifiedName("VirtualPLC", idx))
-        
-        # 2. PLC Core Tags
-        self.tag_state = await plc_node.add_variable(ua.NodeId("VirtualPLC.State", idx), ua.QualifiedName("State", idx), "STOPPED")
-        await self.tag_state.set_writable() # OPTION 1
-
-        self.tag_scan_time = await plc_node.add_variable(ua.NodeId("VirtualPLC.ScanTime_ms", idx), ua.QualifiedName("ScanTime_ms", idx), 0.0)
-        await self.tag_scan_time.set_writable() # OPTION 1
-        
-        # 3. PLC Control Folder
-        cmds_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Control", idx), ua.QualifiedName("Control", idx))
-        
-        self.cmd_start = await cmds_node.add_variable(ua.NodeId("VirtualPLC.Control.Start", idx), ua.QualifiedName("Start", idx), False, ua.VariantType.Boolean)
-        self.cmd_stop = await cmds_node.add_variable(ua.NodeId("VirtualPLC.Control.Stop", idx), ua.QualifiedName("Stop", idx), False, ua.VariantType.Boolean)
-        
-        logger.info(f"Created Start Command Node: {self.cmd_start.nodeid}")
-
-        # Allow Write for Commands (REQ 1)
-        for node in [self.cmd_start, self.cmd_stop]:
-             # Explicitly set AccessLevel and UserAccessLevel (CurrentRead | CurrentWrite = 3)
-             await node.write_attribute(ua.AttributeIds.AccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-             await node.write_attribute(ua.AttributeIds.UserAccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-             # Also use the helper for library-level state
-             await node.set_writable(True)
-             logger.info(f"Node {node.nodeid} access set to READ/WRITE")
-
-        # Expose Global Plant Tags (WIP, KPI)
-        self.plant_nodes = {}
-        plant_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Plant", idx), ua.QualifiedName("Plant", idx))
-        
-        # Explicitly create folders for VIP and KPI
-        wip_folder = await plant_node.add_object(ua.NodeId("VirtualPLC.Plant.WIP", idx), ua.QualifiedName("WIP", idx))
-        kpi_folder = await plant_node.add_object(ua.NodeId("VirtualPLC.Plant.KPI", idx), ua.QualifiedName("KPI", idx))
-        
-        # Expected WIP Keys
-        wip_keys = [
-            "ingots_kg", "molten_metal_kg", "degassed_metal_kg", "cast_parts", 
-            "cooled_parts_1", "cooled_parts_2", "heat_treated_parts", 
-            "pretreated_parts", "machined_parts", "painted_parts", 
-            "xray_passed", "qc_passed", "scrap_parts"
-        ]
-        for k in wip_keys:
-            tag_name = f"VirtualPLC.Plant.WIP.{k}"
-            # Explicitly set to Int32 to match write logic
-            node = await wip_folder.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"WIP_{k}", idx), 0, ua.VariantType.Int32)
-            self.plant_nodes[f"Plant.WIP.{k}"] = node
-            
-        # Expected KPI Keys
-        kpi_keys = [
-            "total_ingots_consumed", "total_wheels_produced", "total_scrap", 
-            "batches_completed", "throughput_wheels_hr", "yield_percent"
-        ]
-        for k in kpi_keys:
-            tag_name = f"VirtualPLC.Plant.KPI.{k}"
-            is_float = "throughput" in k or "yield" in k
-            val = 0.0 if is_float else 0
-            # Explicitly set type
-            v_type = ua.VariantType.Double if is_float else ua.VariantType.Int32
-            node = await kpi_folder.add_variable(ua.NodeId(tag_name, idx), ua.QualifiedName(f"KPI_{k}", idx), val, v_type)
-            self.plant_nodes[f"Plant.KPI.{k}"] = node
-
-
-        devs_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Devices", idx), ua.QualifiedName("Devices", idx))
-        
-        # Categorization Rules
-        # Categorization Rules
-        tag_categories = {
-            # Furnaces
-            "FURNACE_01": {
-                "Temperature": "Status", 
-                "TargetTemp": "Status",
-                "FurnaceMaxTemp": "Status",
-                "BurnerEnable": "Outputs",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # LPDCs
-            "LPDC_01": {
-                "PourRequest": "Inputs", 
-                "PressurePSI": "Status",
-                "Progress": "Status",
-                "ProcessedCount": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "LPDC_02": {
-                "PourRequest": "Inputs", 
-                "PressurePSI": "Status",
-                "Progress": "Status",
-                "ProcessedCount": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "LPDC_03": {
-                "PourRequest": "Inputs", 
-                "PressurePSI": "Status",
-                "Progress": "Status",
-                "ProcessedCount": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # CNCs
-            "CNC_01": {
-                "Trigger": "Inputs",
-                "SpindleRPM": "Status",
-                "Progress": "Status",
-                "ProcessedCount": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "CNC_02": {
-                "Trigger": "Inputs",
-                "SpindleRPM": "Status",
-                "Progress": "Status",
-                "ProcessedCount": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # Inspection
-            "INSPECTION_01": {
-                "RejectCount": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # Degassers
-            "DEGASSER_01": {
-                "VacuumLevel": "Status",
-                "Temp": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "DEGASSER_02": {
-                "VacuumLevel": "Status",
-                "Temp": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # Heat Treatment
-            "HEAT_01": {
-                "FurnaceTemperature": "Status",
-                "TemperatureSetpoint": "Status",
-                "ProcessStep": "Status",
-                "StepTimer": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "HEAT_02": {
-                "FurnaceTemperature": "Status",
-                "TemperatureSetpoint": "Status",
-                "ProcessStep": "Status",
-                "StepTimer": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # Paint Booths
-            "PAINT_01": {
-                "Booth_Cycle_Status": "Status",
-                "Booth_Temperature": "Status",
-                "Booth_Humidity": "Status",
-                "Air_Flow_Status": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "Power_kW": "Status",
-                "Runtime_Total_Hrs": "Status"
-            },
-            "PAINT_02": {
-                "Booth_Cycle_Status": "Status",
-                "Booth_Temperature": "Status",
-                "Booth_Humidity": "Status",
-                "Air_Flow_Status": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "Power_kW": "Status",
-                "Runtime_Total_Hrs": "Status"
-            },
-            # Pretreatment
-            "PRETREAT_01": {
-                "Stage_Status": "Status",
-                "Conveyor_Speed": "Status",
-                "Dryer_Temperature": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "Power_kW": "Status",
-                "Runtime_Total_Hrs": "Status"
-            },
-            # Cooling Arrays
-            "COOLING_01": {
-                "Temperature": "Status",
-                "TargetTemp": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            "COOLING_02": {
-                "Temperature": "Status",
-                "TargetTemp": "Status",
-                "Progress": "Status",
-                "State": "Status",
-                "IsRunning": "Status",
-                "PowerKW": "Status",
-                "RuntimeTotalHrs": "Status"
-            },
-            # Simple Conveyors / Buffers
-            "INBOUND_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"},
-            "OUTBOUND_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"},
-            "STORAGE_01": {"State": "Status", "IsRunning": "Status", "PartCount": "Status", "Capacity": "Status", "PowerKW": "Status", "RuntimeTotalHrs": "Status"}
-        }
-        
-
-        # Register Device Tags via Adapters
-        for device in self.devices:
-            dev_id_str = device.device_id
-            
-            # 5. User Device Object
-            d_nodeid = ua.NodeId(f"VirtualPLC.Devices.{dev_id_str}", idx)
-            d_node = await devs_node.add_object(d_nodeid, ua.QualifiedName(dev_id_str, idx))
-            
-            # 6. Functional Folders
-            grp_inputs = await d_node.add_object(ua.NodeId(f"{d_nodeid.Identifier}.Inputs", idx), ua.QualifiedName("Inputs", idx))
-            grp_outputs = await d_node.add_object(ua.NodeId(f"{d_nodeid.Identifier}.Outputs", idx), ua.QualifiedName("Outputs", idx))
-            grp_status = await d_node.add_object(ua.NodeId(f"{d_nodeid.Identifier}.Status", idx), ua.QualifiedName("Status", idx))
-            
-            cat_map = {"Inputs": grp_inputs, "Outputs": grp_outputs, "Status": grp_status}
-            
-            initial_tags = device.get_tags()
-            
-            # Special case for CNC Trigger (Ensure it isn't duplicated if in initial_tags)
-            if "CNC" in dev_id_str:
-                # We handle Trigger in the main loop if it exists, or manually here?
-                # The manual logic guarantees type/writable. Let's keep manual logic but update permissions logic.
-                trig_nid = ua.NodeId(f"{d_nodeid.Identifier}.Inputs.Trigger", idx)
-                trig_node = await grp_inputs.add_variable(trig_nid, ua.QualifiedName("Trigger", idx), False, ua.VariantType.Boolean)
-                # Fix 5: Ensure robust write permissions for SCADA
-                await trig_node.write_attribute(ua.AttributeIds.AccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-                await trig_node.write_attribute(ua.AttributeIds.UserAccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-                await trig_node.set_writable(True)
-                
-                self.opcua_nodes[f"{dev_id_str}.Trigger"] = trig_node
-
-            for tag, val in initial_tags.items():
-                if tag == "Trigger": continue # Handled above
-
-                category = "Status" # Default
-                # Force Input types to Inputs folder regardless of manual map
-                if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
-                    category = "Inputs"
-                else:
-                    dev_tags = tag_categories.get(dev_id_str, {})
-                    if tag in dev_tags:
-                        category = dev_tags[tag]
-                
-                parent_folder = cat_map[category]
-                
-                ua_type = ua.VariantType.Double if isinstance(val, float) else \
-                          ua.VariantType.Boolean if isinstance(val, bool) else \
-                          ua.VariantType.String if isinstance(val, str) else \
-                          ua.VariantType.Int32
-                
-                tag_nodeid_str = f"VirtualPLC.Devices.{dev_id_str}.{category}.{tag}"
-                tag_nodeid = ua.NodeId(tag_nodeid_str, idx)
-                
-                
-                node = await parent_folder.add_variable(tag_nodeid, ua.QualifiedName(tag, idx), val, ua_type)
-                
-                # ENFORCE Write Privileges on Inputs
-                if category == "Inputs" or tag in ["Start", "Stop", "Trigger", "PourRequest"]:
-                    await node.write_attribute(ua.AttributeIds.AccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-                    await node.write_attribute(ua.AttributeIds.UserAccessLevel, ua.DataValue(ua.Variant(3, ua.VariantType.Byte)))
-                    await node.set_writable(True)
-                    logger.info(f"Input Node {node.nodeid} access set to READ/WRITE")
-
-
-                self.opcua_nodes[f"{dev_id_str}.{tag}"] = node
+        # Address space initialization is now handled by OPCServerManager.init()
                 
         logger.info(f"OPC UA Server structure initialized.")
 
@@ -599,151 +243,50 @@ class VirtualPLC:
 
     async def _reset_node_after_event(self, identifier: str):
         """Separate task to reset command node after execution."""
-        try:
-            # Find the node from opcua_nodes map or identifier
-            node = None
-            # Scan map keys
-            for k, n in self.opcua_nodes.items():
-                if n.nodeid.Identifier == identifier:
-                    node = n
-                    break
-            
-            if node:
-                await asyncio.sleep(0.05) # Hold for 50ms total visibility
-                await node.set_value(False)
-                # logger.info(f"[ENGINE][ACK] {identifier} reset")
-        except:
-            pass
+        await self.opc.reset_node(identifier)
+
+    def start_plc(self):
+        """Programmatic trigger for PLC Start sequence"""
+        if self.power_state == PLCPowerState.OFF:
+            logger.info(">>> PLC STARTING (Programmatic) <<<")
+            self.power_state = PLCPowerState.STARTING
+
+    def stop_plc(self):
+        """Programmatic trigger for PLC Stop sequence"""
+        if self.power_state == PLCPowerState.RUNNING:
+            logger.info(">>> PLC STOPPING (Programmatic) <<<")
+            self.power_state = PLCPowerState.STOPPING
 
     async def _handle_opcua_inputs(self):
         """Handle Global PLC Commands and poll individual inputs for redundancy."""
-        # 1. Global PLC Control
-        start = await self.cmd_start.get_value()
-        stop = await self.cmd_stop.get_value()
+        controls = await self.opc.get_control_values()
+        start = controls.get("start")
+        stop = controls.get("stop")
         
         if start:
             if self.power_state == PLCPowerState.OFF:
                 logger.info(">>> PLC STARTING via OPC UA <<<")
                 self.power_state = PLCPowerState.STARTING
-            
-            for dev in self.devices:
-                if hasattr(dev.machine, 'enabled'):
-                    dev.machine.enabled = True
-            await self.cmd_start.set_value(False)
+            await self.opc.reset_control("start")
             
         if stop:
             if self.power_state == PLCPowerState.RUNNING:
                 logger.info(">>> PLC STOPPING via OPC UA <<<")
                 self.power_state = PLCPowerState.STOPPING
-            await self.cmd_stop.set_value(False)
-
-        # 2. Individual Device Inputs (Polled Fallback for high reliability)
-        for key, node in self.opcua_nodes.items():
-            # key is "DEV_ID.Tag"
-            if '.' not in key: continue
-            dev_id, tag = key.split('.')
-            
-            if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
-                try:
-                    val = await node.get_value()
-                    # If TRUE, route to event processor
-                    if val:
-                        logger.info(f"[POLL] Detected active input: {key}")
-                        self.process_individual_command_event(node.nodeid.Identifier, val)
-                except Exception as e:
-                    # Occasional noise during browse; safely ignore
-                    pass
+            await self.opc.reset_control("stop")
                  
     async def _update_opcua_outputs(self, scan_ms: float):
-        """
-        Write Python Device States to OPC UA.
-        
-        CRITICAL: Batch all writes with asyncio.gather for deterministic publishing.
-        All tags published EVERY scan with timestamps and Good quality.
-        """
-        timestamp = datetime.utcnow()
-        write_tasks = []
-        
-        # PLC State
-        state_str = self.power_state.name  # OFF/STARTING/RUNNING/STOPPING/FAULT
-        write_tasks.append(self._write_tag_with_quality(self.tag_state, state_str, ua.VariantType.String, timestamp))
-        write_tasks.append(self._write_tag_with_quality(self.tag_scan_time, scan_ms, ua.VariantType.Double, timestamp))
-        
-        # Device States
+        """Write Python Device States to OPC UA via Manager."""
+        data = {}
         for device in self.devices:
             curr_tags = device.get_tags()
             for tag, val in curr_tags.items():
-                # DO NOT overwrite Input Tags internally (SCADA controls these). We handle their resets locally.
                 if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
                     continue
-                    
-                key = f"{device.device_id}.{tag}"
-                node = self.opcua_nodes.get(key)
-                if node:
-                    # Determine variant type
-                    if isinstance(val, bool):
-                        variant_type = ua.VariantType.Boolean
-                    elif isinstance(val, int):
-                        variant_type = ua.VariantType.Int32
-                    elif isinstance(val, float):
-                        variant_type = ua.VariantType.Double
-                    else:
-                        variant_type = ua.VariantType.String
-                    
-                    write_tasks.append(self._write_tag_with_quality(node, val, variant_type, timestamp))
-                    
-        # Update Plant Nodes (V1 Orchestration)
-        all_sim_tags = self.sim_engine.get_all_tags()
-        for tag_key, node in self.plant_nodes.items():
-            if tag_key in all_sim_tags:
-                val = all_sim_tags[tag_key]
-                
-                # STRICT TYPE ENFORCEMENT based on Key Name
-                # To prevent Int/Float mismatch crashes
-                try:
-                    is_kpi_float = "throughput" in tag_key or "yield" in tag_key
-                    if is_kpi_float:
-                         val = float(val)
-                         variant_type = ua.VariantType.Double
-                    elif "ingots" in tag_key or "parts" in tag_key or "wheels" in tag_key or "scrap" in tag_key or "batches" in tag_key or "WIP" in tag_key:
-                         val = int(val)
-                         variant_type = ua.VariantType.Int32
-                    else:
-                         # Fallback
-                         if isinstance(val, int):
-                             variant_type = ua.VariantType.Int32
-                         elif isinstance(val, float):
-                             variant_type = ua.VariantType.Double
-                         else:
-                             variant_type = ua.VariantType.String
-
-                    write_tasks.append(self._write_tag_with_quality(node, val, variant_type, timestamp))
-                except Exception as e:
-                    logger.error(f"Error preparing write for {tag_key}: {e}")
-
-        # CRITICAL: Await ALL writes
-        try:
-            await asyncio.gather(*write_tasks)
-        except Exception as e:
-            logger.error(f"Batch Write Failed: {e}")
-            # Identify which task failed? Hard with gather.
-            # But the detailed try-except above catches preparation errors.
-            # The gather catches write errors (like TypeMismatch). 
-            # We need to Log strict Type info if it fails.
-            pass
-    
-    async def _write_tag_with_quality(self, node, value, variant_type, timestamp):
-        """
-        Write tag with explicit timestamp and quality.
-        Corrects DataValue instantiation for frozen dataclass with StatusCode_ field.
-        """
-        data_value = ua.DataValue(
-            Value=ua.Variant(value, variant_type),
-            StatusCode_=ua.StatusCode(ua.StatusCodes.Good),
-            SourceTimestamp=timestamp,
-            ServerTimestamp=timestamp
-        )
-        await node.write_value(data_value)
+                data[f"{device.device_id}.{tag}"] = val
+        
+        plant_data = self.sim_engine.get_all_tags()
+        await self.opc.write_batch(data, plant_data, self.power_state.name, scan_ms)
 
     async def run_scan_loop(self):
         """
@@ -776,48 +319,46 @@ class VirtualPLC:
                 
                 # --- 2. Power State Machine ---
                 if self.power_state == PLCPowerState.STARTING:
-                    # Single-pass initialization
-                    logger.info("PLC STARTING sequence")
+                    self._starting_timer += (PLC_SCAN_RATE_MS / 1000.0)
                     
-                    # 1. Initialize all machines to IDLE first (Safety)
-                    for dev in self.devices:
-                        if hasattr(dev.machine, 'state'):
-                            dev.machine.state = MachineState.IDLE
+                    if self._starting_timer < (PLC_SCAN_RATE_MS / 500.0): 
+                        logger.info("PLC STARTING sequence - Initializing machines")
+                        for dev in self.devices:
+                            if hasattr(dev.machine, 'state'):
+                                dev.machine.state = MachineState.IDLE
+                        for dev in self.devices:
+                            dev.bind_to_plc_state(True)
                     
-                    # 2. Propagate RUNNING signal to Adapters (Triggers autonomous starts like Furnace)
-                    for dev in self.devices:
-                        dev.bind_to_plc_state(True)
-                    
-                    # [Phase 24] Do NOT override machine states to RUNNING automatically.
-                    # Devices will require an independent "Start" command to begin operation.
-
-                    # Auto-transition to RUNNING
-                    self.power_state = PLCPowerState.RUNNING
-                    logger.info("PLC now RUNNING")
+                    if self._starting_timer >= self.boot_delay:
+                        self.power_state = PLCPowerState.RUNNING
+                        self._starting_timer = 0.0
+                        logger.info("PLC now RUNNING")
                 
                 elif self.power_state == PLCPowerState.RUNNING:
                     # Normal cyclic operation
                     self.sim_engine.step()  # Physics gated internally
                 
                 elif self.power_state == PLCPowerState.STOPPING:
-                    # Single-pass shutdown
-                    logger.info("PLC STOPPING sequence")
+                    self._stopping_timer += (PLC_SCAN_RATE_MS / 1000.0)
                     
-                    # Propagate STOP signal to Adapters
-                    for dev in self.devices:
-                        dev.bind_to_plc_state(False)
-
-                    # Force all machines to safe state
-                    for machine_obj in self.sim_engine.machines: 
-                        machine = cast(BaseMachine, machine_obj)
-                        machine.state = MachineState.IDLE
-                        if hasattr(machine, 'force_safe_state'):
-                            machine.force_safe_state()
+                    if self._stopping_timer < (PLC_SCAN_RATE_MS / 500.0):
+                        logger.info("PLC STOPPING sequence - Commanding all machines to stop")
+                        for dev in self.devices:
+                            dev.bind_to_plc_state(False)
                     
-                    # Physics already frozen by is_running() gate
-                    # Auto-transition to OFF
-                    self.power_state = PLCPowerState.OFF
-                    logger.info("PLC now OFF")
+                    self.sim_engine.step()
+                    
+                    if self._stopping_timer >= self.stop_delay:
+                        for machine_obj in self.sim_engine.machines: 
+                            machine = cast(BaseMachine, machine_obj)
+                            if machine.state != MachineState.IDLE:
+                                machine.state = MachineState.IDLE
+                            if hasattr(machine, 'force_safe_state'):
+                                machine.force_safe_state()
+                        
+                        self.power_state = PLCPowerState.OFF
+                        self._stopping_timer = 0.0
+                        logger.info("PLC now OFF")
 
                 # --- 3. Output Scan (PLC -> OPC UA) ---
                 t1 = time.perf_counter()
@@ -839,38 +380,15 @@ async def main_async():
     # 1. Setup
     plc = VirtualPLC()
     
-    # 2. Init OPC UA
+    # 2. Init OPC UA (Handles server start and subscriptions internally)
     await plc.init_opcua()
     
-    # 3. LIFECYCLE MANAGEMENT: Start Server Context Here
-    async with plc.opcua_server:
-        # 4. SUBSCRIPTION - Post-Start to ensure stability
-        idx = await plc.opcua_server.get_namespace_index("http://digitaltwin.plc")
-        handler = SubHandler(plc=plc)
-        plc.cmd_sub = await plc.opcua_server.create_subscription(500, handler)
-        
-        # Subscribe to all writable command nodes
-        subscription_nodes = [plc.cmd_start, plc.cmd_stop]
-        
-        # Also subscribe to all device-level Inputs to ensure event-driven execution
-        for key, node in plc.opcua_nodes.items():
-            # Match the category logic: process only the commands
-            if any(tag in key for tag in ["Start", "Stop", "Trigger", "PourRequest"]):
-                subscription_nodes.append(node)
-        
-        await plc.cmd_sub.subscribe_data_change(subscription_nodes)
-        logger.info(f"Subscribed to {len(subscription_nodes)} command nodes for event-driven logic.")
-        
-        for key, node in plc.opcua_nodes.items():
-            tag = key.split('.')[-1]
-            if tag in ["Start", "Stop", "Trigger", "PourRequest"]:
-                await plc.cmd_sub.subscribe_data_change(node)
-        
-        logger.info(f"OPC UA Subscription handler active for all Inputs.")
-        logger.info(f"OPC UA Server listening at {OPCUA_ENDPOINT}")
-
-        # 5. Enter Loop
+    # 3. Enter Loop
+    try:
         await plc.run_scan_loop()
+    finally:
+        # Cleanup
+        await plc.opc.stop()
 
 def main():
     try:

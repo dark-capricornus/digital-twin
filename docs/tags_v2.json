@@ -1,0 +1,999 @@
+{
+  "name": "AlloyWheel_Industry",
+  "tagType": "Folder",
+  "tags": [
+    {
+      "name": "Production_Floor",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "FURNACE_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "DEGASSER_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "DEGASSER_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "LPDC_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "PressurePSI",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.PressurePSI"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.Progress"
+            },
+            {
+              "name": "ProcessedCount",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.ProcessedCount"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.IsRunning"
+            },
+            {
+              "name": "PowerKW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.PowerKW"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "LPDC_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "PressurePSI",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.PressurePSI"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.Progress"
+            },
+            {
+              "name": "ProcessedCount",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.ProcessedCount"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.IsRunning"
+            },
+            {
+              "name": "PowerKW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.PowerKW"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "LPDC_03",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "PressurePSI",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.PressurePSI"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.Progress"
+            },
+            {
+              "name": "ProcessedCount",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.ProcessedCount"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.IsRunning"
+            },
+            {
+              "name": "PowerKW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.PowerKW"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "COOLING_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "COOLING_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "CNC_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "SpindleRPM",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.SpindleRPM"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.Progress"
+            },
+            {
+              "name": "ProcessedCount",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.ProcessedCount"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.IsRunning"
+            },
+            {
+              "name": "PowerKW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.PowerKW"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "CNC_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "SpindleRPM",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.SpindleRPM"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.Progress"
+            },
+            {
+              "name": "ProcessedCount",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.ProcessedCount"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.IsRunning"
+            },
+            {
+              "name": "PowerKW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.PowerKW"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "HEAT_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "Temperature_C",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Status.Temperature_C"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Status.IsRunning"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "HEAT_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "Temperature_C",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Status.Temperature_C"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Status.IsRunning"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "PRETREAT_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "PAINT_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.State"
+            },
+            {
+              "name": "Power_kW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.Power_kW"
+            },
+            {
+              "name": "Runtime_Total_Hrs",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.Runtime_Total_Hrs"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "PAINT_02",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.State"
+            },
+            {
+              "name": "Power_kW",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.Power_kW"
+            },
+            {
+              "name": "Runtime_Total_Hrs",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.Runtime_Total_Hrs"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "INSPECTION_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "INBOUND_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Inputs.Stop"
+            }
+          ]
+        },
+        {
+          "name": "OUTBOUND_01",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "State",
+              "tagType": "AtomicTag",
+              "dataType": "String",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.State"
+            },
+            {
+              "name": "IsRunning",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.IsRunning"
+            },
+            {
+              "name": "Progress",
+              "tagType": "AtomicTag",
+              "dataType": "Float4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.Progress"
+            },
+            {
+              "name": "Start",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Inputs.Start"
+            },
+            {
+              "name": "Stop",
+              "tagType": "AtomicTag",
+              "dataType": "Boolean",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Inputs.Stop"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PLC",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "Start",
+          "tagType": "AtomicTag",
+          "dataType": "Boolean",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "ns=2;s=VirtualPLC.Control.Start"
+        },
+        {
+          "name": "Stop",
+          "tagType": "AtomicTag",
+          "dataType": "Boolean",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "ns=2;s=VirtualPLC.Control.Stop"
+        },
+        {
+          "name": "State",
+          "tagType": "AtomicTag",
+          "dataType": "String",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "ns=2;s=VirtualPLC.State"
+        },
+        {
+          "name": "ScanTime",
+          "tagType": "AtomicTag",
+          "dataType": "Float8",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "ns=2;s=VirtualPLC.ScanTime_ms"
+        }
+      ]
+    },
+    {
+      "name": "Plant_Analytics",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "KPI",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "Throughput",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Plant.KPI.Throughput"
+            },
+            {
+              "name": "Yield",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Plant.KPI.Yield"
+            }
+          ]
+        },
+        {
+          "name": "WIP",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "Molten_Metal",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Plant.WIP.Molten_Metal"
+            },
+            {
+              "name": "Ingots_Available",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "ns=2;s=VirtualPLC.Plant.WIP.Ingots_Available"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Diagnostics",
+      "tagType": "AtomicTag",
+      "valueSource": "opc",
+      "opcServer": "Alloywheel_industry",
+      "opcItemPath": "ns=2;s=VirtualPLC.State"
+    }
+  ]
+}

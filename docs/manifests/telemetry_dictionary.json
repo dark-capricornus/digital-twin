@@ -1,0 +1,62 @@
+{
+    "device_types": {
+        "FURNACE": {
+            "Status": ["Temperature", "TargetTemp", "FurnaceMaxTemp", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Outputs": ["BurnerEnable"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "LPDC": {
+            "Status": ["PressurePSI", "Progress", "ProcessedCount", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["PourRequest", "Start", "Stop"]
+        },
+        "CNC": {
+            "Status": ["SpindleRPM", "Progress", "ProcessedCount", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Trigger", "Start", "Stop"]
+        },
+        "INSPECTION": {
+            "Status": ["RejectCount", "Progress", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "DEGASSER": {
+            "Status": ["VacuumLevel", "Temp", "Progress", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "HEAT_TREAT": {
+            "Status": ["FurnaceTemperature", "TemperatureSetpoint", "ProcessStep", "StepTimer", "Progress", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "PAINT_BOOTH": {
+            "Status": ["Booth_Cycle_Status", "Booth_Temperature", "Booth_Humidity", "Air_Flow_Status", "Progress", "State", "IsRunning", "Power_kW", "Runtime_Total_Hrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "PRETREAT": {
+            "Status": ["Stage_Status", "Conveyor_Speed", "Dryer_Temperature", "Progress", "State", "IsRunning", "Power_kW", "Runtime_Total_Hrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "COOLING": {
+            "Status": ["Temperature", "TargetTemp", "Progress", "State", "IsRunning", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "CONVEYOR": {
+            "Status": ["State", "IsRunning", "PartCount", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "STORAGE": {
+            "Status": ["State", "IsRunning", "PartCount", "Capacity", "PowerKW", "RuntimeTotalHrs"],
+            "Inputs": ["Start", "Stop"]
+        },
+        "PLC_CORE": {
+            "Status": ["State", "ScanTime_ms"],
+            "Inputs": ["Start", "Stop"]
+        }
+    },
+    "global_commands": ["VirtualPLC.Control.Start", "VirtualPLC.Control.Stop"],
+    "tag_metadata": {
+        "Temperature": { "unit": "°C", "min": 0, "max": 1200 },
+        "PressurePSI": { "unit": "PSI", "min": 0, "max": 100 },
+        "PowerKW": { "unit": "kW" },
+        "Progress": { "unit": "%", "min": 0, "max": 100 },
+        "PLC_State": { "label": "PLC Power State" },
+        "PLC_ScanTime": { "unit": "ms", "label": "PLC Scan Time" }
+    }
+}

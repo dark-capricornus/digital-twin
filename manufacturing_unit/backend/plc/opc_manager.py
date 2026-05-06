@@ -14,7 +14,7 @@ _STATUS_STRING_TAGS = {
 }
 # Status tag names that should be Int32 (counters / discrete counts).
 _STATUS_INT_TAGS = {
-    "ProcessedCount", "RejectCount", "PartCount", "Capacity",
+    "ProcessedCount", "RejectCount", "PartCount", "Capacity", "StateCode", "FaultCode",
 }
 
 def _infer_status_type(tag: str):

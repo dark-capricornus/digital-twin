@@ -8,895 +8,147 @@
       "tags": [
         {
           "name": "FURNACE_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.FURNACE_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Thermal_Machine",
+          "parameters": {
+            "DeviceName": "FURNACE_01"
+          }
         },
         {
           "name": "DEGASSER_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "DEGASSER_01"
+          }
         },
         {
           "name": "DEGASSER_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.DEGASSER_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "DEGASSER_02"
+          }
         },
         {
           "name": "LPDC_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "PressurePSI",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.PressurePSI"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.Progress"
-            },
-            {
-              "name": "ProcessedCount",
-              "tagType": "AtomicTag",
-              "dataType": "Int4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.ProcessedCount"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.IsRunning"
-            },
-            {
-              "name": "PowerKW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Status.PowerKW"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": "LPDC_01"
+          }
         },
         {
           "name": "LPDC_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "PressurePSI",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.PressurePSI"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.Progress"
-            },
-            {
-              "name": "ProcessedCount",
-              "tagType": "AtomicTag",
-              "dataType": "Int4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.ProcessedCount"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.IsRunning"
-            },
-            {
-              "name": "PowerKW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Status.PowerKW"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": "LPDC_02"
+          }
         },
         {
           "name": "LPDC_03",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "PressurePSI",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.PressurePSI"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.Progress"
-            },
-            {
-              "name": "ProcessedCount",
-              "tagType": "AtomicTag",
-              "dataType": "Int4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.ProcessedCount"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.IsRunning"
-            },
-            {
-              "name": "PowerKW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Status.PowerKW"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.LPDC_03.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": "LPDC_03"
+          }
         },
         {
           "name": "COOLING_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "COOLING_01"
+          }
         },
         {
           "name": "COOLING_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.COOLING_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "COOLING_02"
+          }
         },
         {
           "name": "CNC_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "SpindleRPM",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.SpindleRPM"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.Progress"
-            },
-            {
-              "name": "ProcessedCount",
-              "tagType": "AtomicTag",
-              "dataType": "Int4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.ProcessedCount"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.IsRunning"
-            },
-            {
-              "name": "PowerKW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Status.PowerKW"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/CNC_Machine",
+          "parameters": {
+            "DeviceName": "CNC_01"
+          }
         },
         {
           "name": "CNC_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "SpindleRPM",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.SpindleRPM"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.Progress"
-            },
-            {
-              "name": "ProcessedCount",
-              "tagType": "AtomicTag",
-              "dataType": "Int4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.ProcessedCount"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.IsRunning"
-            },
-            {
-              "name": "PowerKW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Status.PowerKW"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.CNC_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/CNC_Machine",
+          "parameters": {
+            "DeviceName": "CNC_02"
+          }
         },
         {
           "name": "HEAT_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "Temperature_C",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Status.Temperature_C"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Status.IsRunning"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Thermal_Machine",
+          "parameters": {
+            "DeviceName": "HEAT_01"
+          }
         },
         {
           "name": "HEAT_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "Temperature_C",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Status.Temperature_C"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Status.IsRunning"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.HEAT_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Thermal_Machine",
+          "parameters": {
+            "DeviceName": "HEAT_02"
+          }
         },
         {
           "name": "PRETREAT_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PRETREAT_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "PRETREAT_01"
+          }
         },
         {
           "name": "PAINT_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.State"
-            },
-            {
-              "name": "Power_kW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.Power_kW"
-            },
-            {
-              "name": "Runtime_Total_Hrs",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Status.Runtime_Total_Hrs"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Paint_Machine",
+          "parameters": {
+            "DeviceName": "PAINT_01"
+          }
         },
         {
           "name": "PAINT_02",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.State"
-            },
-            {
-              "name": "Power_kW",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.Power_kW"
-            },
-            {
-              "name": "Runtime_Total_Hrs",
-              "tagType": "AtomicTag",
-              "dataType": "Float8",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Status.Runtime_Total_Hrs"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.PAINT_02.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Paint_Machine",
+          "parameters": {
+            "DeviceName": "PAINT_02"
+          }
         },
         {
           "name": "INSPECTION_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INSPECTION_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "INSPECTION_01"
+          }
         },
         {
           "name": "INBOUND_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.INBOUND_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "INBOUND_01"
+          }
         },
         {
           "name": "OUTBOUND_01",
-          "tagType": "Folder",
-          "tags": [
-            {
-              "name": "State",
-              "tagType": "AtomicTag",
-              "dataType": "String",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.State"
-            },
-            {
-              "name": "IsRunning",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.IsRunning"
-            },
-            {
-              "name": "Progress",
-              "tagType": "AtomicTag",
-              "dataType": "Float4",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Status.Progress"
-            },
-            {
-              "name": "Start",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Inputs.Start"
-            },
-            {
-              "name": "Stop",
-              "tagType": "AtomicTag",
-              "dataType": "Boolean",
-              "valueSource": "opc",
-              "opcServer": "Alloywheel_industry",
-              "opcItemPath": "ns=2;s=VirtualPLC.Devices.OUTBOUND_01.Inputs.Stop"
-            }
-          ]
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Base_Machine",
+          "parameters": {
+            "DeviceName": "OUTBOUND_01"
+          }
         }
       ]
     },

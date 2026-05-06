@@ -1,0 +1,426 @@
+﻿{
+  "name": "AlloyWheel_Industry",
+  "tagType": "Folder",
+  "tags": [
+    {
+      "name": "Production_Floor",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "FURNACE_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Furnace_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "FURNACE_01"
+            }
+          }
+        },
+        {
+          "name": "DEGASSER_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Degasser_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "DEGASSER_01"
+            }
+          }
+        },
+        {
+          "name": "DEGASSER_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Degasser_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "DEGASSER_02"
+            }
+          }
+        },
+        {
+          "name": "LPDC_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "LPDC_01"
+            }
+          }
+        },
+        {
+          "name": "LPDC_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "LPDC_02"
+            }
+          }
+        },
+        {
+          "name": "LPDC_03",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/LPDC_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "LPDC_03"
+            }
+          }
+        },
+        {
+          "name": "COOLING_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Cooling_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "COOLING_01"
+            }
+          }
+        },
+        {
+          "name": "COOLING_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Cooling_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "COOLING_02"
+            }
+          }
+        },
+        {
+          "name": "CNC_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/CNC_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "CNC_01"
+            }
+          }
+        },
+        {
+          "name": "CNC_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/CNC_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "CNC_02"
+            }
+          }
+        },
+        {
+          "name": "HEAT_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/HeatTreat_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "HEAT_01"
+            }
+          }
+        },
+        {
+          "name": "HEAT_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/HeatTreat_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "HEAT_02"
+            }
+          }
+        },
+        {
+          "name": "PRETREAT_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Pretreat_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "PRETREAT_01"
+            }
+          }
+        },
+        {
+          "name": "PAINT_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/PaintBooth_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "PAINT_01"
+            }
+          }
+        },
+        {
+          "name": "PAINT_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/PaintBooth_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "PAINT_02"
+            }
+          }
+        },
+        {
+          "name": "INSPECTION_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Inspection_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "INSPECTION_01"
+            }
+          }
+        },
+        {
+          "name": "INBOUND_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Conveyor_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "INBOUND_01"
+            }
+          }
+        },
+        {
+          "name": "OUTBOUND_01",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Conveyor_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "OUTBOUND_01"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PLC",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "Start",
+          "tagType": "AtomicTag",
+          "dataType": "Boolean",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Control.Start"
+        },
+        {
+          "name": "Stop",
+          "tagType": "AtomicTag",
+          "dataType": "Boolean",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Control.Stop"
+        },
+        {
+          "name": "State",
+          "tagType": "AtomicTag",
+          "dataType": "String",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.State"
+        },
+        {
+          "name": "ScanTime",
+          "tagType": "AtomicTag",
+          "dataType": "Float8",
+          "valueSource": "opc",
+          "opcServer": "Alloywheel_industry",
+          "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.ScanTime_ms"
+        }
+      ]
+    },
+    {
+      "name": "Plant_Analytics",
+      "tagType": "Folder",
+      "tags": [
+        {
+          "name": "KPI",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "ingots_consumed",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.total_ingots_consumed"
+            },
+            {
+              "name": "wheels_produced",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.total_wheels_produced"
+            },
+            {
+              "name": "total_scrap",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.total_scrap"
+            },
+            {
+              "name": "batches_completed",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.batches_completed"
+            },
+            {
+              "name": "throughput",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.throughput_wheels_hr"
+            },
+            {
+              "name": "yield_percent",
+              "tagType": "AtomicTag",
+              "dataType": "Float8",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.yield_percent"
+            }
+          ]
+        },
+        {
+          "name": "WIP",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "ingots_kg",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.ingots_kg"
+            },
+            {
+              "name": "molten_metal_kg",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.molten_metal_kg"
+            },
+            {
+              "name": "degassed_metal_kg",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.degassed_metal_kg"
+            },
+            {
+              "name": "cast_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.cast_parts"
+            },
+            {
+              "name": "cooled_parts_1",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.cooled_parts_1"
+            },
+            {
+              "name": "cooled_parts_2",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.cooled_parts_2"
+            },
+            {
+              "name": "heat_treated_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.heat_treated_parts"
+            },
+            {
+              "name": "pretreated_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.pretreated_parts"
+            },
+            {
+              "name": "machined_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.machined_parts"
+            },
+            {
+              "name": "painted_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.painted_parts"
+            },
+            {
+              "name": "xray_passed",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.xray_passed"
+            },
+            {
+              "name": "qc_passed",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.qc_passed"
+            },
+            {
+              "name": "scrap_parts",
+              "tagType": "AtomicTag",
+              "dataType": "Int4",
+              "valueSource": "opc",
+              "opcServer": "Alloywheel_industry",
+              "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.WIP.scrap_parts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Diagnostics",
+      "tagType": "AtomicTag",
+      "dataType": "String",
+      "valueSource": "opc",
+      "opcServer": "Alloywheel_industry",
+      "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.State"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+﻿{
+  "name": "Machine_Library",
+  "tagType": "Folder",
+  "tags": [
+    {
+      "name": "Base_Machine",
+      "tagType": "UdtType",
+      "parameters": {
+        "DeviceName": { "dataType": "String", "value": "DEFAULT_MACHINE" }
+      },
+      "tags": [
+        { "name": "State",     "tagType": "AtomicTag", "dataType": "String",  "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.State" } },
+        { "name": "IsRunning", "tagType": "AtomicTag", "dataType": "Boolean", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.IsRunning" } },
+        { "name": "Start",     "tagType": "AtomicTag", "dataType": "Boolean", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Inputs.Start" } },
+        { "name": "Stop",      "tagType": "AtomicTag", "dataType": "Boolean", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Inputs.Stop" } }
+      ]
+    },
+    {
+      "name": "Furnace_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "FURNACE_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "Temperature",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Temperature" } },
+        { "name": "TargetTemp",      "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.TargetTemp" } },
+        { "name": "FurnaceMaxTemp",  "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.FurnaceMaxTemp" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } },
+        { "name": "BurnerEnable",    "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Outputs.BurnerEnable" } }
+      ]
+    },
+    {
+      "name": "LPDC_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "LPDC_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "PressurePSI",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PressurePSI" } },
+        { "name": "Progress",        "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "ProcessedCount",  "tagType": "AtomicTag", "dataType": "Int4",   "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.ProcessedCount" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } },
+        { "name": "PourRequest",     "tagType": "AtomicTag", "dataType": "Boolean","valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Inputs.PourRequest" } }
+      ]
+    },
+    {
+      "name": "CNC_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "CNC_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "SpindleRPM",      "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.SpindleRPM" } },
+        { "name": "Progress",        "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "ProcessedCount",  "tagType": "AtomicTag", "dataType": "Int4",   "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.ProcessedCount" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } },
+        { "name": "Trigger",         "tagType": "AtomicTag", "dataType": "Boolean","valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Inputs.Trigger" } }
+      ]
+    },
+    {
+      "name": "Inspection_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "INSPECTION_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "RejectCount",     "tagType": "AtomicTag", "dataType": "Int4",   "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RejectCount" } },
+        { "name": "Progress",        "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } }
+      ]
+    },
+    {
+      "name": "Degasser_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "DEGASSER_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "VacuumLevel",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.VacuumLevel" } },
+        { "name": "Temp",            "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Temp" } },
+        { "name": "Progress",        "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } }
+      ]
+    },
+    {
+      "name": "HeatTreat_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "HEAT_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "FurnaceTemperature",  "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.FurnaceTemperature" } },
+        { "name": "TemperatureSetpoint", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.TemperatureSetpoint" } },
+        { "name": "ProcessStep",         "tagType": "AtomicTag", "dataType": "String", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.ProcessStep" } },
+        { "name": "StepTimer",           "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.StepTimer" } },
+        { "name": "Progress",            "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "PowerKW",             "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } }
+      ]
+    },
+    {
+      "name": "PaintBooth_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "PAINT_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "Booth_Cycle_Status", "tagType": "AtomicTag", "dataType": "String", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Booth_Cycle_Status" } },
+        { "name": "Booth_Temperature",  "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Booth_Temperature" } },
+        { "name": "Booth_Humidity",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Booth_Humidity" } },
+        { "name": "Air_Flow_Status",    "tagType": "AtomicTag", "dataType": "String", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Air_Flow_Status" } },
+        { "name": "Progress",           "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "Power_kW",           "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Power_kW" } },
+        { "name": "Runtime_Total_Hrs",  "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Runtime_Total_Hrs" } }
+      ]
+    },
+    {
+      "name": "Pretreat_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "PRETREAT_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "Stage_Status",      "tagType": "AtomicTag", "dataType": "String", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Stage_Status" } },
+        { "name": "Conveyor_Speed",    "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Conveyor_Speed" } },
+        { "name": "Dryer_Temperature", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Dryer_Temperature" } },
+        { "name": "Progress",          "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "Power_kW",          "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Power_kW" } },
+        { "name": "Runtime_Total_Hrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Runtime_Total_Hrs" } }
+      ]
+    },
+    {
+      "name": "Cooling_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "COOLING_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "Temperature",     "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Temperature" } },
+        { "name": "TargetTemp",      "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.TargetTemp" } },
+        { "name": "Progress",        "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.Progress" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } }
+      ]
+    },
+    {
+      "name": "Conveyor_Machine",
+      "tagType": "UdtType",
+      "parameters": { "DeviceName": { "dataType": "String", "value": "INBOUND_01" } },
+      "tags": [
+        { "name": "Base", "tagType": "UdtInstance", "typeId": "Machine_Library/Base_Machine", "parameters": { "DeviceName": { "dataType": "String", "bindType": "parameter", "binding": "{DeviceName}" } } },
+        { "name": "PartCount",       "tagType": "AtomicTag", "dataType": "Int4",   "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PartCount" } },
+        { "name": "PowerKW",         "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.PowerKW" } },
+        { "name": "RuntimeTotalHrs", "tagType": "AtomicTag", "dataType": "Float8", "valueSource": "opc", "opcServer": "Alloywheel_industry", "opcItemPath": { "bindType": "parameter", "binding": "nsu=http://digitaltwin.plc;s=VirtualPLC.Devices.{DeviceName}.Status.RuntimeTotalHrs" } }
+      ]
+    }
+  ]
+}

@@ -37,7 +37,7 @@ async def main():
     opc_endpoint = os.getenv("OPCUA_ENDPOINT", "opc.tcp://localhost:4840/freeopcua/server/")
     mqtt_host = os.getenv("MQTT_HOST", "localhost")
     mqtt_port = int(os.getenv("MQTT_PORT", "1883"))
-    mqtt_topic = "factory/telemetry"
+    mqtt_topic = "opc/batch"
     
     source = OPCUASourceAdapter(endpoint=opc_endpoint)
     sink = MQTTSink(broker=mqtt_host, port=mqtt_port, topic=mqtt_topic)

@@ -130,84 +130,80 @@ class DigitalTwinApp {
     _getSidebarSchemas() {
         return {
             'FURNACE': {
-                'Core Energy': ['Furnace_Instant_kW', 'Furnace_Total_kWh', 'Motor_Load_Pct'],
-                'Temperature': ['Melt_Bath_Temperature', 'Wall_Temperature', 'Roof_Temperature', 'Zone_Temperatures', 'TargetTemp'],
-                'Process': ['Furnace_Mode', 'Progress', 'Step_Timer', 'QueueIn'],
-                'Status': ['IsRunning', 'Furnace_Run_Status', 'Alarm_Status', 'Oil_Level_Pct', 'Air_Supply_PSI']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Temperature': ['Temperature', 'TargetTemp', 'FurnaceMaxTemp'],
+                'Process': ['Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode', 'FaultCode']
             },
             'DEGASSER': {
-                'Core Energy': ['Degasser_Instant_kW', 'Degasser_Total_kWh', 'Motor_Load_Pct'],
-                'Process': ['Degassing_Power_Pct', 'Treatment_Time', 'Processed_Count'],
-                'Status': ['IsRunning', 'Degasser_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Process': ['VacuumLevel', 'Temp', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'LPDC': {
-                'Core Energy': ['LPDC_Instant_kW', 'LPDC_Total_kWh', 'Motor_Load_Pct'],
-                'Production': ['Shot_Count', 'Processed_Count', 'Model_ID', 'Cycle_Time'],
-                'Pressure': ['Riser_Pressure', 'Air_Supply_PSI'],
-                'Temperature': ['Holding_Furnace_Temperature', 'Die_Top_Temperature', 'Die_Bottom_Temperature', 'Internal_Temp'],
-                'Status': ['IsRunning', 'LPDC_Run_Status', 'Cycle_Status', 'Alarm_Status', 'Oil_Level_Pct']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Production': ['ProcessedCount', 'State', 'Progress'],
+                'Pressure': ['PressurePSI'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'COOLING': {
-                'Core Energy': ['Cooling_Instant_kW', 'Cooling_Total_kWh'],
-                'Temperature': ['Internal_Temp', 'Return_Temp', 'Tank_Temperature'],
-                'Process': ['Cooling_Time', 'Vibration_mm_s'],
-                'Status': ['IsRunning', 'Cooling_Run_Status', 'Alarm_Status']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Temperature': ['Temperature', 'TargetTemp'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'CNC': {
-                'Core Energy': ['CNC_Instant_kW', 'CNC_Total_kWh', 'Motor_Load_Pct'],
-                'Production': ['Part_Count', 'Good_Part_Count', 'Reject_Count', 'Processed_Count', 'Program_ID', 'Progress', 'Cycle_Time'],
-                'Process': ['Spindle_RPM', 'Vibration_mm_s', 'Internal_Temp', 'Air_Supply_PSI', 'Oil_Level_Pct', 'Tool_ID', 'In_Cycle', 'Part_ID'],
-                'Status': ['IsRunning', 'CNC_Run_Status', 'Cycle_Status', 'Alarm_Status']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Production': ['ProcessedCount', 'Progress', 'State'],
+                'Process': ['SpindleRPM'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'HEAT': {
-                'Core Energy': ['HT_Instant_kW', 'HT_Total_kWh', 'Motor_Load_Pct'],
-                'Temperature': ['Furnace_Temperature', 'Temperature_Setpoint'],
-                'Process': ['Process_Step', 'Step_Timer', 'Vibration_mm_s', 'Internal_Temp', 'RuntimeTotalHrs'],
-                'Status': ['IsRunning', 'HT_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Temperature': ['FurnaceTemperature', 'TemperatureSetpoint'],
+                'Process': ['ProcessStep', 'StepTimer', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'INSPECTION': {
-                'Core Energy': ['XRay_Instant_kW', 'XRay_Total_kWh', 'Motor_Load_Pct'],
-                'Production': ['Inspected_Count', 'OK_Count', 'NG_Count', 'Processed_Count'],
-                'Process': ['Inspection_Cycle_Time', 'Scan_Status', 'Vibration_mm_s'],
-                'Status': ['IsRunning', 'XRay_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Production': ['RejectCount', 'ProcessedCount', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'PRETREAT': {
-                'Core Energy': ['PT_Instant_kW', 'PT_Total_kWh', 'Motor_Load_Pct'],
-                'Process': ['Conveyor_Speed', 'Stage_Status', 'Dryer_Temperature', 'Vibration_mm_s'],
-                'Status': ['IsRunning', 'PT_Run_Status', 'Alarm_Status', 'Air_Supply_PSI']
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
+                'Process': ['Stage_Status', 'Conveyor_Speed', 'Dryer_Temperature', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'PAINT_01': {
-                'Core Energy': ['PB1_Instant_kW', 'PB1_Total_kWh', 'Motor_Load_Pct'],
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status', 'Vibration_mm_s', 'Processed_Count', 'RuntimeTotalHrs'],
-                'Status': ['IsRunning', 'PB1_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
+                'Process': ['Booth_Cycle_Status', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'PAINT_02': {
-                'Core Energy': ['PB2_Instant_kW', 'PB2_Total_kWh', 'Motor_Load_Pct'],
+                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
                 'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status', 'Vibration_mm_s', 'Processed_Count', 'RuntimeTotalHrs'],
-                'Status': ['IsRunning', 'PB2_Run_Status', 'Alarm_Status', 'Air_Supply_PSI', 'Oil_Level_Pct']
+                'Process': ['Booth_Cycle_Status', 'Progress', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'OUTBOUND': {
-                'Production': ['Plant_KPI_Total_Produced', 'Dispatched_Count', 'Processed_Count'],
-                'Status': ['IsRunning', 'Outbound_Status', 'Alarm_Status']
+                'Production': ['PartCount', 'State'],
+                'Status': ['IsRunning', 'StateCode']
             },
             'RAWMATERIALS': {
-                'Storage Status': ['IsRunning', 'capacity'],
-                'Inventory': ['Plant_WIP_Ingots_Available', 'Plant_KPI_Ingots_Consumed']
+                'Storage Status': ['IsRunning', 'Capacity'],
+                'Inventory': ['PartCount']
             },
             'SHIPPING': {
-                'Output': ['Plant_KPI_Total_Produced'],
-                'Status': ['Alarm_Status']
+                'Status': ['State']
             },
             'PLANT': {
-                'PLC Status': ['PLC_State', 'PLC_ScanTime'],
+                'PLC Status': ['State', 'ScanTime_ms'],
                 'WIP Metrics': ['Molten_Metal_Kg', 'Degassed_Metal_Kg', 'Ingots_Kg', 'Cast_Parts', 'Cooled_Parts_1', 'Cooled_Parts_2', 'Heat_Treated_Parts', 'Machined_Parts', 'Pretreated_Parts', 'Painted_Parts'],
                 'Quality': ['Xray_Passed', 'Qc_Passed', 'Scrap_Parts']
             },
             'PRODUCTION': {
                 'KPI Overview': ['Production_Target', 'Yield_Pct', 'OEE_Target', 'Uptime_Target', 'Hourly_Throughput', 'Energy_Efficiency_Pct'],
-                'Global Output': ['Plant_KPI_Total_Produced', 'Batches_Completed']
+                'Global Output': ['Batches_Completed']
             }
         };
     }
@@ -473,34 +469,21 @@ class DigitalTwinApp {
         const raw = this.stateManager?.getDeviceState(id)?.data || {};
         
         // 1. Prioritize standard PLC status tags for ground truth
-        let isRunning = false;
-        const runKeys = ['Is Running', 'Run Status', 'IsRunning', 'RunStatus', 'Enabled'];
-        for (const k of runKeys) {
-            const val = this.getValue(raw, k);
-            if (val !== undefined && val !== null) {
-                isRunning = (val === true || val === 'true' || val === 1 || String(val).toLowerCase() === 'running');
-                if (isRunning) return 'RUNNING';
-            }
-        }
+        if (raw['IsRunning'] === true) return 'RUNNING';
+        if (raw['IsRunning'] === false) return 'STOPPED';
 
         // 2. Direct tag match (exact key)
-        let state = raw['State'] || raw['CalculatedState'] || '';
+        let state = raw['State'] || '';
         if (state) return String(state).toUpperCase();
 
-        // 3. Device-specific RunStatus tags (prefix-based)
-        for (const [k, v] of Object.entries(raw)) {
-            const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (nk.includes('runstatus')) {
-                state = String(v);
-                if (state) return state.toUpperCase();
-            }
+        // 3. StateCode Fallback (PackML)
+        const code = raw['StateCode'];
+        if (code !== undefined) {
+            const mapping = { 0: 'STOPPED', 1: 'IDLE', 2: 'RUNNING', 3: 'FAULTED' };
+            return mapping[code] || 'UNKNOWN';
         }
 
-        // 4. Fallback to analytics engine
-        const machineData = this._findMachineData(id);
-        state = machineData?.state || '';
-        
-        return state ? String(state).toUpperCase() : 'OFFLINE';
+        return 'OFFLINE';
     }
 
     _findAsset(id) {

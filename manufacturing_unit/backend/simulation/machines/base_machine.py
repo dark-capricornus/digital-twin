@@ -15,11 +15,11 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 class MachineState(Enum):
-    """Simplified ISA-88 aligned state machine"""
-    IDLE = "IDLE"
-    RUNNING = "RUNNING"
-    STOPPED = "STOPPED"
-    FAULTED = "FAULTED"
+    """Industrial State Codes (PackML Aligned)"""
+    STOPPED = 0
+    IDLE = 1
+    RUNNING = 2
+    FAULTED = 3
 
 
 class BaseMachine(ABC):
@@ -40,8 +40,7 @@ class BaseMachine(ABC):
         self.name = name
         self.plc = plc_ref  # Reference to parent PLC
         
-        # State
-        self.state = MachineState.IDLE
+        self.state = MachineState.STOPPED
         self.enabled = False  # CRITICAL: Must be True to START
         self.fault_code = 0   # 0 = no fault, >0 = fault code
         
@@ -76,26 +75,31 @@ class BaseMachine(ABC):
         
         CRITICAL: Enforces enable flag check
         """
-        if self.state != MachineState.IDLE:
+        # print(f"[MACHINE][{self.id}] handle_start_command entered. Current State: {self.state}")
+        
+        if self.state.value != MachineState.IDLE.value:
+            # print(f"[MACHINE][{self.id}] Start rejected: State value is {self.state.value} (Not IDLE)")
             return False
         
         if not self.enabled:
-            self.fault_code = 101  # "Device not enabled"
-            self.state = MachineState.FAULTED
+            # Silently ignore start command if not enabled (prevents faulting when PLC is OFF)
+            print(f"[MACHINE][{self.id}] Start ignored: Machine not enabled (PLC might be OFF)")
             return False
         
         if not self._pre_start_checks():
+            # print(f"[MACHINE][{self.id}] Start failed: Pre-start checks failed")
             self.fault_code = 102  # "Pre-start check failed"
             self.state = MachineState.FAULTED
             return False
         
+        # print(f"[MACHINE][{self.id}] Transitioning to RUNNING")
         self.state = MachineState.RUNNING
         self._on_start()  # Device-specific startup logic
         return True
     
     def handle_stop_command(self) -> bool:
         """Command-driven transition: RUNNING → STOPPED"""
-        if self.state == MachineState.RUNNING:
+        if self.state.value == MachineState.RUNNING.value:
             self.state = MachineState.STOPPED
             self._on_stop()  # Device-specific shutdown logic
             return True
@@ -103,7 +107,7 @@ class BaseMachine(ABC):
     
     def handle_reset_command(self) -> bool:
         """Command-driven transition: STOPPED/FAULTED → IDLE"""
-        if self.state in [MachineState.STOPPED, MachineState.FAULTED]:
+        if self.state.value in [MachineState.STOPPED.value, MachineState.FAULTED.value]:
             self.fault_code = 0
             self.state = MachineState.IDLE
             self._on_reset()  # Device-specific reset logic
@@ -112,7 +116,7 @@ class BaseMachine(ABC):
     
     def force_safe_state(self):
         """Called during PLC STOPPING - force to safe state"""
-        if self.state == MachineState.RUNNING:
+        if self.state.value == MachineState.RUNNING.value:
             self.state = MachineState.STOPPED
         self._on_safe_stop()
     
@@ -139,14 +143,14 @@ class BaseMachine(ABC):
         CRITICAL: This is called by SimulationEngine, which is gated by PLC power.
         """
         # Check for faults (automatic transition)
-        if self.state == MachineState.RUNNING:
+        if self.state.value == MachineState.RUNNING.value:
             if self._detect_fault():
                 self.fault_code = self._get_fault_code()
                 self.state = MachineState.FAULTED
                 return
         
         # Execute device-specific logic
-        if self.state == MachineState.RUNNING:
+        if self.state.value == MachineState.RUNNING.value:
             self.runtime_total_hrs += dt / 3600.0
             self._execute_running_logic(dt)
         
@@ -157,7 +161,7 @@ class BaseMachine(ABC):
         self.energy_kwh += self.power_kw * (dt / 3600.0)
         
         # --- Simulate Industrial Tags ---
-        is_running = self.state == MachineState.RUNNING
+        is_running = self.state.value == MachineState.RUNNING.value
         
         # 1. Vibration (Operational intensity without random noise)
         if is_running:
@@ -219,9 +223,10 @@ class BaseMachine(ABC):
         """
         base_tags = {
             f"{self.id}.state": self.state.value,
-            f"{self.id}.is_running": self.state == MachineState.RUNNING,
-            f"{self.id}.IsRunning": self.state == MachineState.RUNNING,
-            "IsRunning": self.state == MachineState.RUNNING,
+            f"{self.id}.state_code": self.state.value,
+            f"{self.id}.is_running": self.state.value == MachineState.RUNNING.value,
+            f"{self.id}.IsRunning": self.state.value == MachineState.RUNNING.value,
+            "IsRunning": self.state.value == MachineState.RUNNING.value,
             f"{self.id}.enabled": self.enabled,
             f"{self.id}.fault_code": self.fault_code,
             f"{self.id}.processed_count": self.processed_count,

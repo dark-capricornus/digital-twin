@@ -97,11 +97,11 @@ class DegasserMachine(BaseMachine):
         add_tag("Gas_Flow_Rate", round(self.gas_flow_rate, 2))
         add_tag("Rotor_Speed", round(self.rotor_speed, 1))
         add_tag("Treatment_Time", self.cycle_time)
-        add_tag("Alarm_Status", "Clear" if self.state != MachineState.FAULTED else "Alarm")
+        add_tag("Alarm_Status", "Clear" if self.state.value != MachineState.FAULTED.value else "Alarm")
         add_tag("Degasser_Run_Status", self.state.value)
         add_tag("Degasser_Instant_kW", self.power_kw)
         add_tag("Degasser_Total_kWh", self.energy_kwh)
-        add_tag("IsRunning", self.state == MachineState.RUNNING)
+        add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
         
         # Plant level WIP for this sector
         wip_val = round(450.0 + (self.processed_count * 25.5) % 1000, 1)
@@ -113,7 +113,7 @@ class DegasserMachine(BaseMachine):
         """
         Calculate power based on load and state.
         """
-        is_running = self.state == MachineState.RUNNING
+        is_running = self.state.value == MachineState.RUNNING.value
         has_load = self.current_item is not None
         
         if is_running and has_load:

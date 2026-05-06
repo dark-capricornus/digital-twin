@@ -351,8 +351,8 @@ class VirtualPLC:
                     if self._stopping_timer >= self.stop_delay:
                         for machine_obj in self.sim_engine.machines: 
                             machine = cast(BaseMachine, machine_obj)
-                            if machine.state != MachineState.IDLE:
-                                machine.state = MachineState.IDLE
+                            if machine.state.value != MachineState.STOPPED.value:
+                                machine.state = MachineState.STOPPED
                             if hasattr(machine, 'force_safe_state'):
                                 machine.force_safe_state()
                         

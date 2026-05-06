@@ -48,7 +48,7 @@ class ThermalMachine(BaseMachine):
         Override: Physics runs ALWAYS (unless SimulationEngine is frozen), 
         logic runs only if RUNNING.
         """
-        if self.state != MachineState.RUNNING:
+        if self.state.value != MachineState.RUNNING.value:
              self.heater_power = 0.0
         
         self.physics.step(dt, {'heater_power': self.heater_power})
@@ -178,7 +178,7 @@ class ThermalMachine(BaseMachine):
             add_tag("Water_Inlet_Temp", 18.0 + (self.processed_count % 5) * 0.5)
             add_tag("Water_Outlet_Temp", temp + 2.5)
             add_tag("Target_Temperature", self.target_temp)
-            add_tag("Flow_Rate", 45.5 if self.state == MachineState.RUNNING else 0.0)
+            add_tag("Flow_Rate", 45.5 if self.state.value == MachineState.RUNNING.value else 0.0)
             add_tag("Cooling_Time", self.cycle_time)
             add_tag("Cooling_Status", self.mode)
             add_tag("Cooling_Mode", self.mode)
@@ -218,7 +218,7 @@ class ThermalMachine(BaseMachine):
         """
         Calculate power based on furnace/tank type and state.
         """
-        is_running = self.state == MachineState.RUNNING
+        is_running = self.state.value == MachineState.RUNNING.value
         
         if "furnace" in self.id.lower():
             base = 120.0 if is_running else 15.0

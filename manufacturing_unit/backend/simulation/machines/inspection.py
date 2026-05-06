@@ -90,7 +90,7 @@ class InspectionMachine(BaseMachine):
             f"{self.id}.Inspection_Cycle_Time": self.cycle_time,
             f"{self.id}.Beam_Current_mA": 12.5 if self.scan_status == "SCANNING" else 0.0,
             f"{self.id}.Beam_Voltage_kV": 160.0 if self.scan_status == "SCANNING" else 0.0,
-            f"{self.id}.Alarm_Status": "Clear" if self.state != MachineState.FAULTED else "Fault",
+            f"{self.id}.Alarm_Status": "Clear" if self.state.value != MachineState.FAULTED.value else "Fault",
             f"{self.id}.XRay_Run_Status": self.state.value,
             f"{self.id}.XRay_Instant_kW": self.power_kw,
             f"{self.id}.XRay_Total_kWh": self.energy_kwh
@@ -100,7 +100,7 @@ class InspectionMachine(BaseMachine):
         """
         Calculate power based on load and state.
         """
-        return 15.0 if self.state == MachineState.RUNNING else 2.0
+        return 15.0 if self.state.value == MachineState.RUNNING.value else 2.0
 
     # --- Legacy Helper ---
 

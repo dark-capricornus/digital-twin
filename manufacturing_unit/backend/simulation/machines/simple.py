@@ -60,6 +60,7 @@ class SimpleMachine(BaseMachine):
 
     def _pre_start_checks(self) -> bool:
         """Safe to start if no critical faults (implied by BaseMachine check too)"""
+        # print(f"[SIMPLE-MACHINE][{self.id}] Running pre-start checks...")
         return True
 
     def _detect_fault(self) -> bool:
@@ -233,7 +234,7 @@ class SimpleMachine(BaseMachine):
             add_tag("Cycle_Time", self.cycle_time)
             add_tag("Fill_Time", round(self.cycle_time * 0.2, 1))
             add_tag("Solidification_Time", round(self.cycle_time * 0.5, 1))
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
             add_tag("LPDC_Run_Status", self.state.value)
             add_tag("Cycle_Status", self.cycle_status)
             add_tag("Alarm_Status", self.alarm_status)
@@ -251,9 +252,9 @@ class SimpleMachine(BaseMachine):
             
         elif self.role == "machining":
             # Dynamic Spindle Speed simulation
-            if self.state == MachineState.RUNNING and self.cycle_status == "RUNNING":
+            if self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING":
                 current_rpm = 3500.0 + random.uniform(-15.0, 15.0)
-            elif self.state == MachineState.RUNNING:
+            elif self.state.value == MachineState.RUNNING.value:
                 current_rpm = 1200.0 + random.uniform(-5.0, 5.0) # Idle rotation
             else:
                 current_rpm = 0.0
@@ -265,9 +266,9 @@ class SimpleMachine(BaseMachine):
             add_tag("Good_Part_Count", self.good_count)
             add_tag("Reject_Count", self.reject_count)
             add_tag("Cycle_Time", self.cycle_time)
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
-            add_tag("Spindle_Vibration", round(random.uniform(0.002, 0.008), 4) if (self.state == MachineState.RUNNING and self.cycle_status == "RUNNING") else 0.0)
-            add_tag("Coolant_Pressure", 85.0 if (self.state == MachineState.RUNNING and self.cycle_status == "RUNNING") else 0.0)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
+            add_tag("Spindle_Vibration", round(random.uniform(0.002, 0.008), 4) if (self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING") else 0.0)
+            add_tag("Coolant_Pressure", 85.0 if (self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING") else 0.0)
             add_tag("Tool_Number", random.randint(1, 12) if self.cycle_status == "RUNNING" else 0)
             add_tag("CNC_Run_Status", self.state.value)
             add_tag("Cycle_Status", self.cycle_status)
@@ -281,7 +282,7 @@ class SimpleMachine(BaseMachine):
             add_tag("Booth_Humidity", round(self.humidity, 1))
             add_tag("Air_Flow_Status", "ACTIVE")
             add_tag("Booth_Cycle_Status", self.cycle_status)
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
             add_tag(f"{prefix}_Run_Status", self.state.value)
             add_tag("Paint_Run_Status", self.state.value)
             add_tag(f"{prefix}_Instant_kW", self.power_kw)
@@ -292,7 +293,7 @@ class SimpleMachine(BaseMachine):
             add_tag("Conveyor_Speed", self.conveyor_speed)
             add_tag("Stage_Status", self.cycle_status)
             add_tag("Dryer_Temperature", 120.0 if self.cycle_status == "DRY" else 45.0)
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
             add_tag("PT_Run_Status", self.state.value)
             add_tag("Pretreat_Run_Status", self.state.value)
             add_tag("PT_Instant_kW", self.power_kw)
@@ -300,7 +301,7 @@ class SimpleMachine(BaseMachine):
             add_tag("Alarm_Status", self.alarm_status)
             
         elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower():
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
             add_tag("capacity", self.capacity)
             add_tag("Material_Count", self.part_count)
             add_tag("Pallet_Count", max(1, self.part_count // 4))
@@ -309,7 +310,7 @@ class SimpleMachine(BaseMachine):
             add_tag("Plant_KPI_Ingots_Consumed", 1500 + self.part_count)
             
         elif "outbound" in self.role or "outbound" in self.id.lower():
-            add_tag("IsRunning", self.state == MachineState.RUNNING)
+            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
             add_tag("part_count", self.part_count)
             add_tag("capacity", self.capacity)
             add_tag("Pallet_Count", self.part_count)
@@ -330,7 +331,7 @@ class SimpleMachine(BaseMachine):
         """
         Calculate power based on role and state.
         """
-        is_running = self.state == MachineState.RUNNING
+        is_running = self.state.value == MachineState.RUNNING.value
         
         if self.role == "machining":
             base = 40.0 if is_running else 2.0

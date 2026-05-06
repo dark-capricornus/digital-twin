@@ -10,11 +10,80 @@ logger = logging.getLogger("OPCManager")
 
 # Status tag names that should be String (state-machine / mode strings).
 _STATUS_STRING_TAGS = {
-    "State", "ProcessStep", "Stage_Status", "Booth_Cycle_Status", "Air_Flow_Status",
+    "State", "Process Step", "Stage Status", "Booth Cycle Status", "Air Flow Status",
+    "Furnace Mode", "Cycle Status", "Scan Status", "Program ID", "Model ID", "Zone Temp",
+    "Run Status"
 }
 # Status tag names that should be Int32 (counters / discrete counts).
 _STATUS_INT_TAGS = {
-    "ProcessedCount", "RejectCount", "PartCount", "Capacity", "StateCode", "FaultCode",
+    "Processed Count", "Reject Count", "Part Count", "Capacity", "StateCode", "FaultCode",
+    "Shot Count", "Good Part Count", "Inspected Count", "OK Count", "Not Good Count"
+}
+
+# Mapping from Simulator Raw Names (underscores) to Report Clean Names (spaces/labels)
+TAG_NAME_MAP = {
+    "Furnace_Instant_kW":    "Instant Power",
+    "Furnace_Total_kWh":      "Total Energy Consumed",
+    "LPDC_Instant_kW":       "Instant Power",
+    "LPDC_Total_kWh":        "Total Energy Consumed",
+    "CNC_Instant_kW":        "Instant Power",
+    "CNC_Total_kWh":         "Total Energy Consumed",
+    "XRay_Instant_kW":       "Instant Power",
+    "XRay_Total_kWh":        "Total Energy Consumed",
+    "HT_Instant_kW":         "Instant Power",
+    "HT_Total_kWh":          "Total Energy Consumed",
+    "Degasser_Instant_kW":   "Instant Power",
+    "PowerKW":               "Instant Power",
+    "RuntimeTotalHrs":       "Total Runtime",
+    
+    "Melt_Bath_Temperature":  "Melt Bath Temp",
+    "Zone_Temperatures":      "Zone Temp",
+    "Furnace_Temperature":    "Furnace Temp",
+    "Temperature_Setpoint":   "Temp Setpoint",
+    "Die_Top_Temperature":    "Die Top Temp",
+    "Die_Bottom_Temperature": "Die Bottom Temp",
+    "Dryer_Temperature":      "Dryer Temp",
+    "Booth_Temperature":      "Booth Temp",
+    "Temperature":            "Process Temp",
+    "TargetTemp":             "Target Temp",
+    "Temp":                   "Process Temp",
+    "temperature":            "Process Temp",
+    
+    "Riser_Pressure":         "Riser Pressure",
+    "Pressure_Setpoint":      "Pressure Setpoint",
+    "Holding_Pressure":       "Holding Pressure",
+    "VacuumLevel":            "Vacuum Level",
+    "PressurePSI":            "Pressure",
+    
+    "Shot_Count":             "Shot Count",
+    "Part_Count":             "Part Count",
+    "Good_Part_Count":        "Good Part Count",
+    "Reject_Count":           "Reject Count",
+    "Inspected_Count":        "Inspected Count",
+    "OK_Count":               "OK Count",
+    "NG_Count":               "Not Good Count",
+    "ProcessedCount":         "Processed Count",
+    "PartCount":              "Part Count",
+    
+    "Cycle_Time":             "Cycle Time",
+    "Cycle_Status":           "Cycle Status",
+    "Scan_Status":            "Scan Status",
+    "Furnace_Mode":           "Furnace Mode",
+    "Process_Step":           "Process Step",
+    "ProcessStep":            "Process Step",
+    "Step_Timer":             "Step Timer",
+    "Booth_Cycle_Status":     "Booth Cycle Status",
+    "Air_Flow_Status":        "Air Flow Status",
+    "Stage_Status":           "Stage Status",
+    "Conveyor_Speed":         "Conveyor Speed",
+    "Booth_Humidity":         "Booth Humidity",
+    "Program_ID":             "Program ID",
+    "Model_ID":               "Model ID",
+    "IsRunning":              "Is Running",
+    
+    "PourRequest":            "Pour Request",
+    "Start":                  "Start",
+    "Stop":                   "Stop"
 }
 
 def _infer_status_type(tag: str):
@@ -57,8 +126,8 @@ class OPCServerManager:
         self.endpoint = endpoint
         self.manifest = manifest_manager
         self.server = Server(user_manager=DevUserManager())
-        self.nodes = {} # Map: "Device.Tag" -> UA Node
-        self.node_types = {} # Map: "Device.Tag" -> ua.VariantType
+        self.nodes = {} # Map: "Device.CleanTag" -> UA Node
+        self.node_types = {} # Map: "Device.CleanTag" -> ua.VariantType
         self.plant_nodes = {}
         self.plant_node_types = {}
         self.plc_nodes = {}
@@ -157,12 +226,16 @@ class OPCServerManager:
         tasks.append(self._write_node(self.plc_nodes["scan_time"], scan_time, ua.VariantType.Double, timestamp))
         
         for key, val in data.items():
-            if key in self.nodes:
-                v_type = self.node_types[key]
-                tasks.append(self._write_node(self.nodes[key], val, v_type, timestamp))
+            # key is "Device.RawTag" (e.g. "Furnace_01.Furnace_Instant_kW")
+            dev_id, raw_tag = key.split(".", 1)
+            clean_tag = TAG_NAME_MAP.get(raw_tag, raw_tag)
+            lookup_key = f"{dev_id}.{clean_tag}"
+            
+            if lookup_key in self.nodes:
+                v_type = self.node_types[lookup_key]
+                tasks.append(self._write_node(self.nodes[lookup_key], val, v_type, timestamp))
 
         for key, val in plant_data.items():
-            # key is like "WIP_ingots_kg"
             if key in self.plant_nodes:
                 v_type = self.plant_node_types[key]
                 tasks.append(self._write_node(self.plant_nodes[key], val, v_type, timestamp))
@@ -171,7 +244,6 @@ class OPCServerManager:
 
     async def _write_node(self, node, value, v_type, timestamp):
         try:
-            # Ensure value matches v_type to avoid BadTypeMismatch
             if v_type == ua.VariantType.Double:
                 value = float(value)
             elif v_type == ua.VariantType.Int32:
@@ -198,7 +270,6 @@ class OPCServerManager:
             await self.plc_nodes[name].set_value(False)
             
     async def reset_node(self, identifier: str):
-        # Find node by identifier string
         for node in self.nodes.values():
             if str(node.nodeid.Identifier) == identifier:
                 await asyncio.sleep(0.05)

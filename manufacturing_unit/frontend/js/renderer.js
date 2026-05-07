@@ -5,6 +5,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { MANUAL_MAP, ASSOCIATED_MESH_NAMES, ANIMATION_GROUPS, CUSTOM_ZOOMS } from './config/RendererMappings.js';
 
 
 /**
@@ -54,109 +55,14 @@ class Renderer {
         this._pinnedHighlights = new Set(); // GLB highlight meshes (zone + machines) pinned visible
 
         // Manual mapping overrides for known discrepancies
-        this.manualMap = {
-            'cnc_01': 'cnc_01',
-            'cnc_02': 'cnc_02',
-            'cnc01': 'cnc_01',
-            'cnc02': 'cnc_02',
-            'inspection_01': 'inspection_01',
-            'inspection01': 'inspection_01',
-            'furnace_01': 'furnace_01',
-            'furnace01': 'furnace_01',
-            'cooling_01': 'cooling_01',
-            'cooling01': 'cooling_01',
-            'degasser_01': 'degasser_01',
-            'degasser_02': 'degasser_02',
-            'degasser01': 'degasser_01',
-            'degasser02': 'degasser_02',
-            'lpdc_01': 'lpdc_01',
-            'lpdc_02': 'lpdc_02',
-            'lpdc_03': 'lpdc_03',
-            'lpdc01': 'lpdc_01',
-            'lpdc02': 'lpdc_02',
-            'lpdc03': 'lpdc_03',
-            'heat_01': 'heat_01',
-            'heat01': 'heat_01',
-            'heattreatment_01': 'heat_01',
-            'paint_01': 'paint_01',
-            'paint_02': 'paint_02',
-            'paint01': 'paint_01',
-            'paint02': 'paint_02',
-            'inbound_01': 'raw_materials',
-            'inbound01': 'raw_materials',
-            'buffer_01': 'raw_materials',
-            'buffer01': 'raw_materials',
-            'raw_materials': 'raw_materials',
-            'rawmaterials': 'raw_materials',
-            'outbound_01': 'outbound_01',
-            'outbound01': 'outbound_01',
-            'outbound_02': 'outbound_02',
-            'outbound02': 'outbound_02',
-            // GLB ships `preteatment` (typo) — fall back onto fuzzy match too
-            'pretreat_01': 'preteatment',
-            'pretreat01': 'preteatment',
-            'pretreatment_01': 'preteatment',
-            'pretreat': 'pretreat',
-            // GLB has only group `inspection` (not `inspection_01`)
-            'inspection_01': 'inspection',
-            'inspection01': 'inspection',
-            // GLB has parent group `furnace` + siblings `furnace_01.00{1,2,3}`
-            'furnace_01': 'furnace',
-            'furnace01': 'furnace',
-            // heat_01 maps to the standalone `heat` node.
-            'heat_01': 'heat',
-            'heat01': 'heat',
-            'heattreatment_01': 'heat',
-        };
+        this.manualMap = MANUAL_MAP;
 
         // Exact extra mesh names that belong to a device but don't share its name prefix
-        // Note: GLB stores these with a dot separator (`aluminium_container.001`),
-        // and nodeRegistry keys preserve that punctuation.
-        this.associatedMeshNames = {
-            'degasser_01': ['aluminium_container.001', 'aluminium_container.005', 'ladel_01', 'degasser_01_ladel_01'],
-            'degasser_02': ['aluminium_container.003', 'ladel_02', 'degasser_02_ladel_02'],
-            'heat_01': ['heat', 'heat_02.001', 'heat_02.002', 'heat_treatment_conveyor', 'cooling_lift','cooling_conveyor'],
-        };
+        this.associatedMeshNames = ASSOCIATED_MESH_NAMES;
 
         // Animation groups: each animated node belongs to one or more logical
-        // devices. During isolation an animated mesh keeps its texture only
-        // when at least one of its group members is part of the current
-        // selection — without this, mid-flight transports (forklifts, ladles)
-        // would pop in zones they have no business being in. Names are
-        // lowercase node-registry keys; device IDs are uppercase. Groups are
-        // assigned per the actual GLB scene-graph (each forklift/conveyor
-        // carries a specific cargo node, which determines its route).
-        this.animationGroups = {
-            // forklift.001 → carries storage_01.013 → RAW MATERIALS ↔ FURNACE
-            'forklift.001':       ['RAWMATERIALS', 'FURNACE_01'],
-            'forklift_sweep.001': ['RAWMATERIALS', 'FURNACE_01'],
-            'storage_01.013':     ['RAWMATERIALS', 'FURNACE_01'],
-            // forklift.002 → carries ladel_furnace.001 → FURNACE ↔ DEGASSER
-            'forklift.002':       ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            'forklift_sweep.002': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            'ladel_furnace.001':  ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            // forklift.003 → carries `rack` → DIE_CASTING ↔ HEAT_TREATMENT
-            'forklift.003':       ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
-            'forklift_sweep.003': ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
-            'rack':               ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01', 'HEAT_01'],
-            // Independent ladle (ladel_furnace.002 + its aluminium container)
-            // also runs the FURNACE ↔ DEGASSER route.
-            'ladel_furnace.002':       ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            'aluminium_container.004': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            // Per-machine animated parts
-            'storage_01.008':         ['RAWMATERIALS', 'FURNACE_01'],
-            'storage_01.009':         ['RAWMATERIALS', 'FURNACE_01'],
-            'furnace_01.001':         ['FURNACE_01'],
-            'furnace_01.002':         ['FURNACE_01'],
-            'furnace_01.003':         ['FURNACE_01'],
-            'ladel_01':               ['DEGASSER_01'],
-            'degasser_01_spinner':    ['DEGASSER_01'],
-            'aluminium_container.005':['DEGASSER_01'],
-            'heat_02.001':            ['HEAT_01'],
-            'heat_02.002':            ['HEAT_01'],
-            'cooling_conveyor':       ['HEAT_01'],
-            'rack.001':               ['HEAT_01'],
-        };
+        // devices.
+        this.animationGroups = ANIMATION_GROUPS;
 
         // Fresnel overlay system has been removed. Hover feedback is handled
         // purely by machine elevation; cross-zone isolation by ghost materials.
@@ -170,18 +76,7 @@ class Renderer {
         this.pointerMoved = false;
 
         // [PRECISION] Custom Camera Zoom Map
-        this.customZooms = {
-            'raw_materials': 6.052,
-            'rawmaterials': 6.052,
-            'furnace': 3.91,
-            'inspection_01': 11.478,
-            'degasser_01': 5.9777,
-            'degasser_02': 5.9777,
-            'lpdc_02': 5.801,
-            'lpdc_03': 5.801,
-            'pretreat_01': 9.424,
-            'pretreat': 9.424
-        };
+        this.customZooms = CUSTOM_ZOOMS;
 
         this.lastCameraZoom = 0;
         this.lastCameraPos = new THREE.Vector3();

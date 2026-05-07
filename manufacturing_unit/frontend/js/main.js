@@ -10,6 +10,9 @@ import UIUpdater from './uiUpdater.js';
 import EnergyAnalytics from './EnergyAnalytics.js';
 import SidebarController from './sidebarController.js';
 import LoadingScreen from './loader.js';
+import { MACHINE_GROUPS, DEPARTMENT_LABELS, PRIMARY_TAGS } from './config/PlantConfig.js';
+import { SIDEBAR_SCHEMAS } from './config/SidebarSchemas.js';
+import { formatTagLabel, getUnit } from './config/TagFormatting.js';
 
 class DigitalTwinApp {
     constructor() {
@@ -34,21 +37,12 @@ class DigitalTwinApp {
         };
         this.lastChipMode = 'status';
 
-        this.sidebarSchemas = this._getSidebarSchemas();
+        this.sidebarSchemas = SIDEBAR_SCHEMAS;
         
         // [USER] Machine-specific Primary Tags for high-density Summary View
-        this.primaryTags = {
-            'FURNACE': ['Temperature', 'Furnace_Instant_kW', 'Processed_Count'],
-            'DEGASSER': ['Temperature', 'Degasser_Instant_kW', 'Processed_Count', 'Vibration_mm_s'],
-            'LPDC': ['Riser_Pressure', 'Cycle_Time', 'Shot_Count', 'Internal_Temp'],
-            'COOLING': ['Internal_Temp', 'Cooling_Instant_kW', 'Cooling_Run_Status'],
-            'CNC': ['Spindle_RPM', 'Part_Count', 'Cycle_Time', 'Motor_Load_Pct'],
-            'HEAT': ['Furnace_Temperature', 'Step_Timer', 'Internal_Temp', 'Process_Step'],
-            'INSPECTION': ['Inspected_Count', 'OK_Count', 'Inspection_Cycle_Time'],
-            'PAINT': ['Booth_Temperature', 'Booth_Humidity', 'Booth_Cycle_Status']
-        };
-        this.machineGroups = this._getMachineGroups();
-        this.departmentLabels = this._getDepartmentLabels();
+        this.primaryTags = PRIMARY_TAGS;
+        this.machineGroups = MACHINE_GROUPS;
+        this.departmentLabels = DEPARTMENT_LABELS;
 
         // Gemba Audit State
         this.auditLogs = [];
@@ -127,112 +121,6 @@ class DigitalTwinApp {
         }
     }
 
-    _getSidebarSchemas() {
-        return {
-            'FURNACE': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Temperature': ['Temperature', 'TargetTemp', 'FurnaceMaxTemp'],
-                'Process': ['Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode', 'FaultCode']
-            },
-            'DEGASSER': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Process': ['VacuumLevel', 'Temp', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'LPDC': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Production': ['ProcessedCount', 'State', 'Progress'],
-                'Pressure': ['PressurePSI'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'COOLING': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Temperature': ['Temperature', 'TargetTemp'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'CNC': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Production': ['ProcessedCount', 'Progress', 'State'],
-                'Process': ['SpindleRPM'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'HEAT': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Temperature': ['FurnaceTemperature', 'TemperatureSetpoint'],
-                'Process': ['ProcessStep', 'StepTimer', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'INSPECTION': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Production': ['RejectCount', 'ProcessedCount', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'PRETREAT': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Process': ['Stage_Status', 'Conveyor_Speed', 'Dryer_Temperature', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'PAINT_01': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'PAINT_02': {
-                'Core Energy': ['PowerKW', 'RuntimeTotalHrs'],
-                'Environment': ['Booth_Temperature', 'Booth_Humidity', 'Air_Flow_Status'],
-                'Process': ['Booth_Cycle_Status', 'Progress', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'OUTBOUND': {
-                'Production': ['PartCount', 'State'],
-                'Status': ['IsRunning', 'StateCode']
-            },
-            'RAWMATERIALS': {
-                'Storage Status': ['IsRunning', 'Capacity'],
-                'Inventory': ['PartCount']
-            },
-            'SHIPPING': {
-                'Status': ['State']
-            },
-            'PLANT': {
-                'PLC Status': ['State', 'ScanTime_ms'],
-                'WIP Metrics': ['Molten_Metal_Kg', 'Degassed_Metal_Kg', 'Ingots_Kg', 'Cast_Parts', 'Cooled_Parts_1', 'Cooled_Parts_2', 'Heat_Treated_Parts', 'Machined_Parts', 'Pretreated_Parts', 'Painted_Parts'],
-                'Quality': ['Xray_Passed', 'Qc_Passed', 'Scrap_Parts']
-            },
-            'PRODUCTION': {
-                'KPI Overview': ['Production_Target', 'Yield_Pct', 'OEE_Target', 'Uptime_Target', 'Hourly_Throughput', 'Energy_Efficiency_Pct'],
-                'Global Output': ['Batches_Completed']
-            }
-        };
-    }
-
-    _getMachineGroups() {
-        return {
-            'logistics': ['RAWMATERIALS'],
-            'smelting': ['FURNACE_01', 'DEGASSER_01', 'DEGASSER_02'],
-            'die_casting': ['LPDC_01', 'LPDC_02', 'LPDC_03', 'COOLING_01'],
-            'qc': ['INSPECTION_01'],
-            'heat_treating': ['HEAT_01'],
-            'machining': ['CNC_01', 'CNC_02'],
-            'paint_shop': ['PRETREAT_01', 'PAINT_01', 'PAINT_02'],
-            'shipping': ['OUTBOUND_01', 'OUTBOUND_02'],
-        };
-    }
-
-    _getDepartmentLabels() {
-        return {
-            'logistics': 'Raw Materials',
-            'smelting': 'Smelting',
-            'die_casting': 'Die Casting',
-            'qc': 'Quality Control',
-            'heat_treating': 'Heat Treatment',
-            'machining': 'Machining',
-            'paint_shop': 'Finishing',
-            'shipping': 'Shipping',
-        };
-    }
 
     setupSidebarToggles() {
         const trigger = document.getElementById('sidebar-trigger');
@@ -363,52 +251,14 @@ class DigitalTwinApp {
      * e.g., 'Furnace_Instant_kW' → 'Instant kW', 'Melt_Bath_Temperature' → 'Melt Bath Temperature'
      */
     _formatTagLabel(tag) {
-        if (!tag) return '';
-        // Map specific Ground Truth labels for premium naming
-        const labelMap = {
-            'Plant_WIP_Molten_Metal': 'Molten Metal Produced',
-            'Plant_WIP_Degassed_Metal': 'Molten Metal Degassed',
-            'Plant_WIP_Ingots_Available': 'Ingots Available',
-            'Plant_KPI_Ingots_Consumed': 'Ingots Consumed',
-            'Plant_WIP_Cast_Parts': 'Casting Output',
-            'Plant_WIP_Cooled_Parts_1': 'Cooled Parts (DC)',
-            'Plant_WIP_Machined_Parts': 'Processed Total',
-            'Plant_WIP_Cooled_Parts_2': 'Heat Treat Output',
-            'Plant_WIP_Painted_Parts': 'Painted Total',
-            'Plant_KPI_Total_Produced': 'Total Wheels Produced',
-            'Plant_KPI_Throughput': 'Plant Throughput',
-            'Plant_KPI_Yield': 'First Pass Yield',
-            'IsRunning': 'Operational',
-            'capacity': 'Storage Capacity',
-            'PLC_State': 'PLC Power State',
-            'PLC_ScanTime': 'PLC Scan Time'
-        };
-        if (labelMap[tag]) return labelMap[tag];
-        return tag.replace(/_/g, ' ');
+        return formatTagLabel(tag);
     }
 
     /**
      * Derive unit suffix for a tag based on tagUnits map.
      */
     _getUnit(tag) {
-        if (!tag) return '';
-        const upperTag = tag.toUpperCase();
-
-        if (upperTag.includes('KWH')) return 'kWh';
-        if (upperTag.includes('KW')) return 'kW';
-        if (upperTag.includes('MOLTEN') || upperTag.includes('METAL') || upperTag.includes('KG')) return 'kg';
-        if (upperTag.includes('TEMPERATURE') || upperTag.includes('TEMP')) return '°C';
-        if (upperTag.includes('PRESSURE') || upperTag.includes('PSI') || upperTag.includes('BAR')) return 'bar';
-        if (upperTag.includes('RPM')) return 'RPM';
-        if (upperTag.includes('SPEED')) return 'm/min';
-        if (upperTag.includes('HUMIDITY') || upperTag.includes('PCT') || upperTag.includes('%')) return '%';
-        if (upperTag.includes('TIME') || upperTag.includes('TIMER')) {
-            if (upperTag.includes('SCAN')) return 'ms';
-            return 's';
-        }
-        if (upperTag === 'CAPACITY') return 'units';
-
-        return '';
+        return getUnit(tag);
     }
 
     _hasChanged(type, id, data, keys) {

@@ -81,16 +81,20 @@ MANIFEST = ManifestManager()
 
 PLC_SCAN_RATE_MS: float = float(cast(Any, CONFIG.get("scan_rate_ms", 100.0)))
 OPCUA_PORT = int(cast(Any, CONFIG.get("opcua_port", 4840)))
-OPCUA_ENDPOINT = f"opc.tcp://127.0.0.1:{OPCUA_PORT}/freeopcua/server/"
+OPCUA_HOST = os.getenv("OPCUA_HOST", "0.0.0.0")
+OPCUA_ENDPOINT = f"opc.tcp://{OPCUA_HOST}:{OPCUA_PORT}/freeopcua/server/"
 EXPOSED_MACHINES: builtins.set = builtins.set(MANIFEST.get_exposed_machines())
 
 # Logging format mimicking PLC diagnostics
 logging.basicConfig(level=logging.INFO, format='[PLC] %(asctime)s | %(message)s', datefmt='%H:%M:%S')
 logger = logging.getLogger("VirtualPLC")
 
-# Logging format mimicking PLC diagnostics
-logging.basicConfig(level=logging.INFO, format='[PLC] %(asctime)s | %(message)s', datefmt='%H:%M:%S')
-logger = logging.getLogger("VirtualPLC")
+# Silence asyncua's per-request INFO chatter (browse/read/publish callbacks);
+# keep WARNING+ so genuine issues still surface.
+for _name in ("asyncua", "asyncua.server", "asyncua.server.internal_server",
+              "asyncua.server.uaprocessor", "asyncua.uaprotocol",
+              "asyncua.common.subscription", "asyncua.server.subscription_service"):
+    logging.getLogger(_name).setLevel(logging.WARNING)
 
 # --- 1. Device Architecture (Passive Function Blocks) ---
 # DEPRECATED: Retained effectively as Interface/Legacy support for Phase 2.1
@@ -197,47 +201,48 @@ class VirtualPLC:
                 
         logger.info(f"OPC UA Server structure initialized.")
 
-    def process_individual_command_event(self, identifier: str, val: Any):
-        """
-        Event-driven command processing (triggered by SubHandler).
-        identifier format: VirtualPLC.Devices.<DevID>.Inputs.<Tag>
-        """
+    async def process_individual_command_event(self, identifier: str, val: Any):
+        """Processes a single command event from the OPC UA subscription."""
         try:
             logger.info(f"[EVENT-MATCH] Processing: {identifier} with Value: {val}")
             
-            # 1. Extract device and tag from path
+            # Handle both:
+            # - VirtualPLC.Control.Start (Global)
+            # - VirtualPLC.Devices.FURNACE_01.Inputs.Start (Device-specific)
             parts = identifier.split('.')
             
-            # Handle Global Controls via event too
             if "Control" in identifier:
+                # Global PLC command
                 tag = parts[-1]
-                logger.info(f"[GLOBAL EVENT] {tag} = {val}")
-                # Logic for global start/stop is already in _handle_opcua_inputs 
-                # but we can trigger it here too if needed.
-                return
-
-            if len(parts) < 5: 
-                logger.warning(f"[EVENT-WARN] Identifier path too short: {identifier}")
-                return
+                logger.info(f"Global PLC Command Received: {tag} = {val}")
+                if val: # Only trigger on True
+                    if tag == "Start":
+                        await self.set_plc_state(True)
+                    elif tag == "Stop":
+                        await self.set_plc_state(False)
             
-            dev_id = parts[2]
-            tag = parts[4]
-            
-            logger.info(f"[EVENT-ROUTE] Device: {dev_id}, Tag: {tag}")
-
-            # Find adapter
-            device = next((d for d in self.devices if d.device_id == dev_id), None)
-            if device is None:
-                logger.warning(f"[EVENT-WARN] No device found for ID: {dev_id}")
-                return
-
-            # Execute if truthy (Edge Trigger)
-            if val:
-                logger.info(f"[COMMAND RECEIVED] {dev_id}.{tag} = {val}")
-                device.set_tag(tag, val)
+            elif "Devices" in identifier:
+                # Device specific command
+                # Format: VirtualPLC.Devices.{dev_id}.Inputs.{tag}
+                dev_id = parts[2]
+                tag = parts[4]
                 
-                # Small delay and reset is handled via one-shot task to not block notification
-                asyncio.create_task(self._reset_node_after_event(identifier))
+                # Find the device in self.devices (which is a list of SimulationAdapter)
+                device = next((d for d in self.devices if d.device_id == dev_id), None)
+                
+                if device:
+                    if val: # Only trigger on True (Edge trigger)
+                        logger.info(f"Device Command: {dev_id}.{tag} = {val}")
+                        # Use set_tag on adapter if it exists, otherwise on machine
+                        if hasattr(device, 'set_tag'):
+                            device.set_tag(tag, val)
+                        elif hasattr(device, 'machine') and hasattr(device.machine, 'set_tag'):
+                            device.machine.set_tag(tag, val)
+                        
+                        # Reset node after execution
+                        asyncio.create_task(self._reset_node_after_event(identifier))
+                else:
+                    logger.warning(f"Command received for unknown device: {dev_id}")
         except Exception as e:
             logger.error(f"Error processing command event {identifier}: {e}")
 
@@ -330,9 +335,16 @@ class VirtualPLC:
                             dev.bind_to_plc_state(True)
                     
                     if self._starting_timer >= self.boot_delay:
+                        # Enable and start all machines for immediate simulation
+                        for dev in self.devices:
+                            if hasattr(dev.machine, 'enabled'):
+                                dev.machine.enabled = True
+                            if hasattr(dev.machine, 'handle_start_command'):
+                                dev.machine.handle_start_command()
+                        
                         self.power_state = PLCPowerState.RUNNING
                         self._starting_timer = 0.0
-                        logger.info("PLC now RUNNING")
+                        logger.info("PLC now RUNNING — All machines enabled and started")
                 
                 elif self.power_state == PLCPowerState.RUNNING:
                     # Normal cyclic operation
@@ -383,7 +395,10 @@ async def main_async():
     # 2. Init OPC UA (Handles server start and subscriptions internally)
     await plc.init_opcua()
     
-    # 3. Enter Loop
+    # 3. Auto-start PLC so simulation runs immediately
+    plc.start_plc()
+    
+    # 4. Enter Loop
     try:
         await plc.run_scan_loop()
     finally:

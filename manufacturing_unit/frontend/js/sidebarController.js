@@ -115,8 +115,9 @@ export default class SidebarController {
 
     setZoneById(zoneId) {
         const idx = this.zones.indexOf(zoneId);
-        if (idx >= 0 && idx !== this.currentZoneIndex) {
+        if (idx >= 0 && (idx !== this.currentZoneIndex || !this._hasRenderedZone)) {
             this.currentZoneIndex = idx;
+            this._hasRenderedZone = true;
             this._renderZone();
         }
     }

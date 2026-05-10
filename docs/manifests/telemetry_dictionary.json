@@ -2,122 +2,224 @@
     "device_types": {
         "FURNACE": {
             "Status": [
-                "Instant Power", 
-                "Total Energy Consumed", 
-                "Melt Bath Temp", 
-                "Zone Temp", 
-                "Furnace Mode", 
-                "Step Timer",
-                "State", 
-                "Is Running"
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Melt_Bath_Temp",
+                "Zone_Temp",
+                "Furnace_Mode",
+                "Step_Timer",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Start", "Stop"]
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "LPDC": {
             "Status": [
-                "Instant Power", 
-                "Total Energy Consumed", 
-                "Riser Pressure", 
-                "Pressure Setpoint", 
-                "Holding Pressure", 
-                "Die Top Temp", 
-                "Die Bottom Temp", 
-                "Cycle Time", 
-                "Cycle Status", 
-                "Shot Count", 
-                "Model ID",
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Riser_Pressure",
+                "Pressure_Setpoint",
+                "Holding_Pressure",
+                "Die_Top_Temp",
+                "Die_Bottom_Temp",
+                "Cycle_Time",
+                "Cycle_Status",
+                "Shot_Count",
+                "Model_ID",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Pour Request", "Start", "Stop"]
+            "Inputs": [
+                "Pour_Request",
+                "Start",
+                "Stop"
+            ]
         },
         "CNC": {
             "Status": [
-                "Instant Power", 
-                "Total Energy Consumed", 
-                "Program ID", 
-                "Cycle Time", 
-                "Cycle Status", 
-                "Part Count", 
-                "Good Part Count", 
-                "Reject Count",
-                "Spindle Speed", 
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Program_ID",
+                "Cycle_Time",
+                "Cycle_Status",
+                "Part_Count",
+                "Good_Part_Count",
+                "Reject_Count",
+                "Spindle_Speed",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Trigger", "Start", "Stop"]
+            "Inputs": [
+                "Trigger",
+                "Start",
+                "Stop"
+            ]
         },
         "INSPECTION": {
             "Status": [
-                "Instant Power", 
-                "Total Energy Consumed", 
-                "Scan Status", 
-                "Inspected Count", 
-                "OK Count", 
-                "Not Good Count",
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Scan_Status",
+                "Inspected_Count",
+                "OK_Count",
+                "Not_Good_Count",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Start", "Stop"]
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "DEGASSER": {
-            "Status": ["Vacuum Level", "Process Temp", "Progress", "State", "Is Running", "Instant Power"],
-            "Inputs": ["Start", "Stop"]
+            "Status": [
+                "Vacuum_Level",
+                "Process_Temp",
+                "Progress",
+                "State",
+                "Is_Running",
+                "Instant_Power"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "HEAT_TREAT": {
             "Status": [
-                "Instant Power", 
-                "Total Energy Consumed", 
-                "Furnace Temp", 
-                "Temp Setpoint", 
-                "Process Step", 
-                "Step Timer", 
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Furnace_Temp",
+                "Temp_Setpoint",
+                "Process_Step",
+                "Step_Timer",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Start", "Stop"]
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "PAINT_BOOTH": {
             "Status": [
-                "Booth Cycle Status", 
-                "Booth Temp", 
-                "Booth Humidity", 
-                "Air Flow Status", 
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Booth_Cycle_Status",
+                "Booth_Temp",
+                "Booth_Humidity",
+                "Air_Flow_Status",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Start", "Stop"]
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "PRETREAT": {
             "Status": [
-                "Stage Status", 
-                "Conveyor Speed", 
-                "Dryer Temp", 
-                "Progress", 
-                "State", 
-                "Is Running"
+                "Stage_Status",
+                "Conveyor_Speed",
+                "Dryer_Temp",
+                "Progress",
+                "State",
+                "Is_Running"
             ],
-            "Inputs": ["Start", "Stop"]
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "COOLING": {
-            "Status": ["Process Temp", "Target Temp", "Progress", "State", "Is Running"],
-            "Inputs": ["Start", "Stop"]
+            "Status": [
+                "Process_Temp",
+                "Target_Temp",
+                "Progress",
+                "State",
+                "Is_Running"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         },
         "CONVEYOR": {
-            "Status": ["State", "Is Running", "Part Count", "Instant Power", "Total Runtime"],
-            "Inputs": ["Start", "Stop"]
+            "Status": [
+                "State",
+                "Is_Running",
+                "Part_Count",
+                "Instant_Power",
+                "Total_Runtime"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
+        },
+        "INBOUND": {
+            "Status": [
+                "State",
+                "Is_Running",
+                "Inbound_Count",
+                "Buffer_Occupancy"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
+        },
+        "OUTBOUND": {
+            "Status": [
+                "State",
+                "Is_Running",
+                "Outbound_Count",
+                "Dispatch_Ready"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
+        },
+        "PLC_CORE": {
+            "Status": [
+                "State",
+                "ScanTime_ms"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ]
         }
     },
-    "global_commands": ["VirtualPLC.Control.Start", "VirtualPLC.Control.Stop"],
+    "global_commands": [
+        "VirtualPLC.Control.Start",
+        "VirtualPLC.Control.Stop"
+    ],
     "tag_metadata": {
-        "Melt Bath Temp": { "unit": "°C", "min": 0, "max": 1200 },
-        "Riser Pressure": { "unit": "PSI", "min": 0, "max": 100 },
-        "Instant Power": { "unit": "kW" },
-        "Progress": { "unit": "%", "min": 0, "max": 100 }
+        "Melt_Bath_Temp": {
+            "unit": "\u00c2\u00b0C",
+            "min": 0,
+            "max": 1200
+        },
+        "Riser_Pressure": {
+            "unit": "PSI",
+            "min": 0,
+            "max": 100
+        },
+        "Instant_Power": {
+            "unit": "kW"
+        },
+        "Progress": {
+            "unit": "%",
+            "min": 0,
+            "max": 100
+        }
     }
 }

@@ -319,8 +319,9 @@ class DigitalTwinApp {
         const raw = this.stateManager?.getDeviceState(id)?.data || {};
         
         // 1. Prioritize standard PLC status tags for ground truth
-        if (raw['IsRunning'] === true) return 'RUNNING';
-        if (raw['IsRunning'] === false) return 'STOPPED';
+        const isRunning = raw['IsRunning'] ?? raw['Is_Running'] ?? raw['is_running'];
+        if (isRunning === true) return 'RUNNING';
+        if (isRunning === false) return 'STOPPED';
 
         // 2. Direct tag match (exact key)
         let state = raw['State'] || '';
@@ -503,6 +504,16 @@ class DigitalTwinApp {
                     this.activeContext = { type: 'plant', id: null };
                 }
             });
+
+            // [FIX] Auto-select first zone + first asset so sidebar shows data on load
+            if (this.sidebar.isInitialized && this.sidebar.zones.length > 0) {
+                const firstZone = this.sidebar.zones[0];
+                this.sidebar.setZoneById(firstZone);
+                const firstAssets = this.machineGroups[firstZone];
+                if (firstAssets && firstAssets.length > 0) {
+                    this.sidebar.setAsset(firstAssets[0]);
+                }
+            }
 
             const infoBtn = document.getElementById('branding-info-btn');
             const kpiSummaryRow = document.getElementById('kpi-summary-row');
@@ -825,20 +836,7 @@ class DigitalTwinApp {
         }
     }
 
-    /**
-     * [USER] Resolve machine operational state for UI coloring
-     */
-    _getMachineState(deviceId) {
-        const state = this.stateManager.getDeviceState(deviceId);
-        if (!state || !state.data) return 'UNKNOWN';
-        
-        // Standard machine state logic
-        const data = state.data;
-        if (data.alarm || data.fault) return 'FAULT';
-        if (data.warning) return 'WARNING';
-        if (data.running || data.state === 'RUNNING' || data.status === 'ONLINE') return 'RUNNING';
-        return 'STOPPED';
-    }
+    // _getMachineState: see primary definition near line 318 (uses PLC-standard tag checks)
 
     /**
      * [USER] Aggregate zone state based on its member machines

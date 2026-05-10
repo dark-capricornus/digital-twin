@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "AlloyWheel_Industry",
   "tagType": "Folder",
   "tags": [
@@ -253,7 +253,7 @@
           "tagType": "Folder",
           "tags": [
             {
-              "name": "ingots_consumed",
+              "name": "total_ingots_consumed",
               "tagType": "AtomicTag",
               "dataType": "Int4",
               "valueSource": "opc",
@@ -261,7 +261,7 @@
               "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.total_ingots_consumed"
             },
             {
-              "name": "wheels_produced",
+              "name": "total_wheels_produced",
               "tagType": "AtomicTag",
               "dataType": "Int4",
               "valueSource": "opc",
@@ -285,7 +285,7 @@
               "opcItemPath": "nsu=http://digitaltwin.plc;s=VirtualPLC.Plant.KPI.batches_completed"
             },
             {
-              "name": "throughput",
+              "name": "throughput_wheels_hr",
               "tagType": "AtomicTag",
               "dataType": "Float8",
               "valueSource": "opc",

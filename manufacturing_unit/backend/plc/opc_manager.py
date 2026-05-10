@@ -10,78 +10,86 @@ logger = logging.getLogger("OPCManager")
 
 # Status tag names that should be String (state-machine / mode strings).
 _STATUS_STRING_TAGS = {
-    "State", "Process Step", "Stage Status", "Booth Cycle Status", "Air Flow Status",
-    "Furnace Mode", "Cycle Status", "Scan Status", "Program ID", "Model ID", "Zone Temp",
-    "Run Status"
+    "State", "Process_Step", "Stage_Status", "Booth_Cycle_Status", "Air_Flow_Status",
+    "Furnace_Mode", "Cycle_Status", "Scan_Status", "Program_ID", "Model_ID", "Zone_Temp",
+    "Run_Status"
 }
 # Status tag names that should be Int32 (counters / discrete counts).
 _STATUS_INT_TAGS = {
-    "Processed Count", "Reject Count", "Part Count", "Capacity", "StateCode", "FaultCode",
-    "Shot Count", "Good Part Count", "Inspected Count", "OK Count", "Not Good Count"
+    "Processed_Count", "Reject_Count", "Part_Count", "Capacity", "StateCode", "FaultCode",
+    "Shot_Count", "Good_Part_Count", "Inspected_Count", "OK_Count", "Not_Good_Count"
 }
 
 # Mapping from Simulator Raw Names (underscores) to Report Clean Names (spaces/labels)
 TAG_NAME_MAP = {
-    "Furnace_Instant_kW":    "Instant Power",
-    "Furnace_Total_kWh":      "Total Energy Consumed",
-    "LPDC_Instant_kW":       "Instant Power",
-    "LPDC_Total_kWh":        "Total Energy Consumed",
-    "CNC_Instant_kW":        "Instant Power",
-    "CNC_Total_kWh":         "Total Energy Consumed",
-    "XRay_Instant_kW":       "Instant Power",
-    "XRay_Total_kWh":        "Total Energy Consumed",
-    "HT_Instant_kW":         "Instant Power",
-    "HT_Total_kWh":          "Total Energy Consumed",
-    "Degasser_Instant_kW":   "Instant Power",
-    "PowerKW":               "Instant Power",
-    "RuntimeTotalHrs":       "Total Runtime",
+    "Furnace_Instant_kW":    "Instant_Power",
+    "Furnace_Total_kWh":      "Total_Energy_Consumed",
+    "LPDC_Instant_kW":       "Instant_Power",
+    "LPDC_Total_kWh":        "Total_Energy_Consumed",
+    "CNC_Instant_kW":        "Instant_Power",
+    "CNC_Total_kWh":         "Total_Energy_Consumed",
+    "XRay_Instant_kW":       "Instant_Power",
+    "XRay_Total_kWh":        "Total_Energy_Consumed",
+    "HT_Instant_kW":         "Instant_Power",
+    "HT_Total_kWh":          "Total_Energy_Consumed",
+    "Degasser_Instant_kW":   "Instant_Power",
+    "PowerKW":               "Instant_Power",
+    "RuntimeTotalHrs":       "Total_Runtime",
     
-    "Melt_Bath_Temperature":  "Melt Bath Temp",
-    "Zone_Temperatures":      "Zone Temp",
-    "Furnace_Temperature":    "Furnace Temp",
-    "Temperature_Setpoint":   "Temp Setpoint",
-    "Die_Top_Temperature":    "Die Top Temp",
-    "Die_Bottom_Temperature": "Die Bottom Temp",
-    "Dryer_Temperature":      "Dryer Temp",
-    "Booth_Temperature":      "Booth Temp",
-    "Temperature":            "Process Temp",
-    "TargetTemp":             "Target Temp",
-    "Temp":                   "Process Temp",
-    "temperature":            "Process Temp",
-    
-    "Riser_Pressure":         "Riser Pressure",
-    "Pressure_Setpoint":      "Pressure Setpoint",
-    "Holding_Pressure":       "Holding Pressure",
-    "VacuumLevel":            "Vacuum Level",
+    "Melt_Bath_Temperature":  "Melt_Bath_Temp",
+    "Zone_Temperatures":      "Zone_Temp",
+    "Furnace_Temperature":    "Furnace_Temp",
+    "Temperature_Setpoint":   "Temp_Setpoint",
+    "Die_Top_Temperature":    "Die_Top_Temp",
+    "Die_Bottom_Temperature": "Die_Bottom_Temp",
+    "Dryer_Temperature":      "Dryer_Temp",
+    "Booth_Temperature":      "Booth_Temp",
+    "Temperature":            "Process_Temp",
+    "TargetTemp":             "Target_Temp",
+    "Temp":                   "Process_Temp",
+    "temperature":            "Process_Temp",
+    "Riser_Pressure":         "Riser_Pressure",
+    "Pressure_Setpoint":      "Pressure_Setpoint",
+    "Holding_Pressure":       "Holding_Pressure",
+    "VacuumLevel":            "Vacuum_Level",
     "PressurePSI":            "Pressure",
+    "ProcessedCount":         "Processed_Count",
+    "RejectCount":            "Reject_Count",
+    "Vibration_mm_s":         "Vibration",
+    "Motor_Load_Pct":         "Motor_Load",
+    "Oil_Level_Pct":          "Oil_Level",
+    "Air_Supply_PSI":         "Air_Supply",
+    "Internal_Temp":          "Internal_Temperature",
+    "PowerKW":                "Instant_Power",
+    "EnergyKWH":              "Total_Energy_Consumed",
+    "Temperature":            "Temperature",
+    "TargetTemp":             "Target_Temp",
     
-    "Shot_Count":             "Shot Count",
-    "Part_Count":             "Part Count",
-    "Good_Part_Count":        "Good Part Count",
-    "Reject_Count":           "Reject Count",
-    "Inspected_Count":        "Inspected Count",
-    "OK_Count":               "OK Count",
-    "NG_Count":               "Not Good Count",
-    "ProcessedCount":         "Processed Count",
-    "PartCount":              "Part Count",
+    "Part_Count":             "Part_Count",
+    "Good_Part_Count":        "Good_Part_Count",
+    "Reject_Count":           "Reject_Count",
+    "Inspected_Count":        "Inspected_Count",
+    "OK_Count":               "OK_Count",
+    "NG_Count":               "Not_Good_Count",
+    "PartCount":              "Part_Count",
     
-    "Cycle_Time":             "Cycle Time",
-    "Cycle_Status":           "Cycle Status",
-    "Scan_Status":            "Scan Status",
-    "Furnace_Mode":           "Furnace Mode",
-    "Process_Step":           "Process Step",
-    "ProcessStep":            "Process Step",
-    "Step_Timer":             "Step Timer",
-    "Booth_Cycle_Status":     "Booth Cycle Status",
-    "Air_Flow_Status":        "Air Flow Status",
-    "Stage_Status":           "Stage Status",
-    "Conveyor_Speed":         "Conveyor Speed",
-    "Booth_Humidity":         "Booth Humidity",
-    "Program_ID":             "Program ID",
-    "Model_ID":               "Model ID",
-    "IsRunning":              "Is Running",
+    "Cycle_Time":             "Cycle_Time",
+    "Cycle_Status":           "Cycle_Status",
+    "Scan_Status":            "Scan_Status",
+    "Furnace_Mode":           "Furnace_Mode",
+    "Process_Step":           "Process_Step",
+    "ProcessStep":            "Process_Step",
+    "Step_Timer":             "Step_Timer",
+    "Booth_Cycle_Status":     "Booth_Cycle_Status",
+    "Air_Flow_Status":        "Air_Flow_Status",
+    "Stage_Status":           "Stage_Status",
+    "Conveyor_Speed":         "Conveyor_Speed",
+    "Booth_Humidity":         "Booth_Humidity",
+    "Program_ID":             "Program_ID",
+    "Model_ID":               "Model_ID",
+    "IsRunning":              "Is_Running",
     
-    "PourRequest":            "Pour Request",
+    "PourRequest":            "Pour_Request",
     "Start":                  "Start",
     "Stop":                   "Stop"
 }
@@ -119,7 +127,13 @@ class SubHandler(object):
     def datachange_notification(self, node, val, data):
         id_str = str(node.nodeid.Identifier)
         if (".Inputs." in id_str or ".Control." in id_str):
-            self.command_callback(id_str, val)
+            # command_callback is async — must schedule it on the running loop
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.command_callback(id_str, val))
+            except RuntimeError:
+                # Fallback: no running loop (shouldn't happen in normal operation)
+                asyncio.ensure_future(self.command_callback(id_str, val))
 
 class OPCServerManager:
     def __init__(self, endpoint: str, manifest_manager):

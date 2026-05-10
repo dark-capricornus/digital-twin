@@ -123,5 +123,32 @@ class SimulationAdapter:
         if hasattr(self.machine, 'bind_to_plc_state'):
             self.machine.bind_to_plc_state(is_active)
         else:
-            # Fallback if machine doesn't have the method
-            pass
+            # Fallback: directly set enabled flag
+            if hasattr(self.machine, 'enabled'):
+                self.machine.enabled = is_active
+
+    def set_tag(self, tag: str, value: Any):
+        """
+        Route SCADA command tags to the machine's command interface.
+        
+        Maps OPC UA tag names (PascalCase) to BaseMachine.set_command (lowercase).
+        """
+        if not value:
+            return  # Only process rising edge (True)
+        
+        # Map SCADA tag names to machine command names
+        cmd_map = {
+            "Start": "start",
+            "Stop": "stop",
+            "Reset": "reset",
+            "Trigger": "start",       # CNC Trigger = Start cycle
+            "Pour_Request": "start",   # LPDC Pour = Start cycle
+        }
+        
+        cmd = cmd_map.get(tag)
+        if cmd and hasattr(self.machine, 'set_command'):
+            logger.info(f"[{self.device_id}] Routing tag '{tag}' -> set_command('{cmd}', {value})")
+            self.machine.set_command(cmd, value)
+        else:
+            logger.warning(f"[{self.device_id}] Unknown command tag: {tag}")
+

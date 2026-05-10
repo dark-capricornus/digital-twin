@@ -98,9 +98,9 @@ class BaseMachine(ABC):
         return True
     
     def handle_stop_command(self) -> bool:
-        """Command-driven transition: RUNNING → STOPPED"""
+        """Command-driven transition: RUNNING → IDLE (ready for restart)"""
         if self.state.value == MachineState.RUNNING.value:
-            self.state = MachineState.STOPPED
+            self.state = MachineState.IDLE
             self._on_stop()  # Device-specific shutdown logic
             return True
         return False

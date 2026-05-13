@@ -22,7 +22,6 @@ export default class SidebarController {
             'MACHINE METRICS',
             'ENERGY CONSUMPTION',
             'PRODUCTION DATA',
-            'STATUS & RUN INFO',
             'ALARMS',
             'MAINTENANCE',
             'ASSET INFO'
@@ -37,9 +36,10 @@ export default class SidebarController {
         this.container = document.getElementById('hud-right-sidebar');
         if (!this.container) return;
 
-        this.zones = Object.keys(machineGroups);
-        this.zoneAssets = machineGroups;
-        this.zoneLabels = departmentLabels || {};
+        this.zones = [...Object.keys(machineGroups)];
+        this.zoneAssets = { ...machineGroups };
+        this.zoneLabels = { ...departmentLabels };
+        this.machineToDept = callbacks.machineToDept || {};
         this.onAssetSelect = callbacks.onAssetSelect || null;
         this.onZoneChange = callbacks.onZoneChange || null;
         this.onCollapse = callbacks.onCollapse || null;
@@ -74,8 +74,18 @@ export default class SidebarController {
                 <div id="asset-carousel" class="sb-pill-carousel" style="display:none"></div>
 
                 <div class="sb-uptime-row">
-                    <span>UPTIME</span>
-                    <span id="sidebar-uptime" class="sb-uptime-val">---</span>
+                    <div class="sb-status-group">
+                        <span class="sb-status-label">RUN</span>
+                        <span id="sidebar-run-status" class="sb-status-val">---</span>
+                    </div>
+                    <div class="sb-status-group">
+                        <span class="sb-status-label">UPTIME</span>
+                        <span id="sidebar-uptime" class="sb-status-val">---</span>
+                    </div>
+                    <div class="sb-status-group">
+                        <span class="sb-status-label">OPERATION</span>
+                        <span id="sidebar-op-status" class="sb-status-val">---</span>
+                    </div>
                 </div>
 
                 <div class="sb-metrics-label">METRICS</div>
@@ -138,6 +148,7 @@ export default class SidebarController {
         this.currentAssetId = assetId;
 
         this._updateAssetNameHeader();
+        this._updateDepartmentHeader();
 
         // Reset uptime for new asset
         const uptimeEl = document.getElementById('sidebar-uptime');
@@ -176,8 +187,28 @@ export default class SidebarController {
         // Update Uptime in Header
         const uptimeEl = document.getElementById('sidebar-uptime');
         if (uptimeEl && data.uptime != null) {
-            const upText = `${data.uptime} MINUTES`;
+            const upText = `${data.uptime} MIN`;
             if (uptimeEl.textContent !== upText) uptimeEl.textContent = upText;
+        }
+
+        // [USER] Run Status & Operation Status
+        const runStatusEl = document.getElementById('sidebar-run-status');
+        const opStatusEl = document.getElementById('sidebar-op-status');
+
+        if (runStatusEl && data.runStatus) {
+            const rs = data.runStatus.toUpperCase();
+            if (runStatusEl.textContent !== rs) {
+                runStatusEl.textContent = rs;
+                runStatusEl.className = 'sb-status-val ' + this._getStatusColorClass(rs);
+            }
+        }
+
+        if (opStatusEl && data.opStatus) {
+            const os = data.opStatus.toUpperCase();
+            if (opStatusEl.textContent !== os) {
+                opStatusEl.textContent = os;
+                opStatusEl.className = 'sb-status-val ' + this._getStatusColorClass(os);
+            }
         }
 
         // [PALETTE] Cohesive accent set:
@@ -187,23 +218,16 @@ export default class SidebarController {
         //   - Red reserved for alarms only (no pink/magenta competing)
         //   - Amber for maintenance (caution, distinct from alarm red)
         //   - Neutral slate for asset metadata
-        const segmentsDef = [
-            ['metrics', 'MACHINE METRICS', '#06B6D4', 'list'],
-            ['energy', 'ENERGY CONSUMPTION', '#F97316', 'split'],
-            ['production', 'PRODUCTION DATA', '#22C55E', 'split'],
-            ['status', 'STATUS & RUN INFO', '#3B82F6', 'list'],
-            ['alarms', 'ALARMS', '#EF4444', 'list'],
-            ['maintenance', 'MAINTENANCE', '#F59E0B', 'list'],
-            ['assetInfo', 'ASSET INFO', '#94A3B8', 'list'],
-        ];
+        // [DYNAMIC] Render sections based on segments defined in the dictionary
+        const segments = data.segments || [];
+        const sig = this._buildStructuralSignature(data);
 
         // Structural signature: asset + segment shapes/labels (NO values).
         // Only a label/count change triggers a full re-render, so value flicker stops.
-        const sig = this._buildStructuralSignature(data, segmentsDef);
         if (container.dataset.sig !== sig) {
             let html = '';
-            segmentsDef.forEach(([key, title, accent, layout]) => {
-                if (data[key]) html += this._renderSegmentedBox(title, data[key], accent, layout);
+            segments.forEach(seg => {
+                html += this._renderSegmentedBox(seg.title, seg.items, seg.accent, seg.layout);
             });
             container.innerHTML = html;
             container.dataset.sig = sig;
@@ -211,14 +235,15 @@ export default class SidebarController {
         }
 
         // Targeted value/status updates — leaves DOM structure intact.
-        segmentsDef.forEach(([key, title, , layout]) => {
-            const items = data[key];
+        segments.forEach(seg => {
+            const items = seg.items;
             if (!items) return;
-            const slug = this._sigKey(title);
+            const slug = this._sigKey(seg.title);
             items.forEach((item, i) => {
                 const valEl = document.getElementById(`sb-v-${slug}-${i}`);
                 if (!valEl) return;
-                if (layout === 'split') {
+                
+                if (seg.layout === 'split') {
                     const newVal = item.value || '---';
                     if (valEl.textContent !== newVal) valEl.textContent = newVal;
                     const uEl = document.getElementById(`sb-u-${slug}-${i}`);
@@ -230,8 +255,9 @@ export default class SidebarController {
                     const txt = `${item.value || '---'} ${item.unit || ''}`.trim();
                     if (valEl.textContent !== txt) valEl.textContent = txt;
                 }
+                
                 const statusClass = item.status ? `status-${item.status.toLowerCase()}` : '';
-                const base = layout === 'split' ? 'sb-metric-value' : 'sb-temp-value';
+                const base = seg.layout === 'split' ? 'sb-metric-value' : 'sb-temp-value';
                 const desired = statusClass ? `${base} ${statusClass}` : base;
                 if (valEl.className !== desired) valEl.className = desired;
             });
@@ -242,12 +268,13 @@ export default class SidebarController {
         return String(title).replace(/[^a-zA-Z0-9]+/g, '-');
     }
 
-    _buildStructuralSignature(data, segmentsDef) {
+    _buildStructuralSignature(data) {
+        const segments = data.segments || [];
         const parts = [this.currentAssetId || ''];
-        segmentsDef.forEach(([key, title]) => {
-            const items = data[key];
-            if (!items) { parts.push(`${title}:0`); return; }
-            parts.push(`${title}:${items.length}:${items.map(it => it.label || '').join('|')}`);
+        segments.forEach(seg => {
+            const items = seg.items;
+            if (!items) { parts.push(`${seg.title}:0`); return; }
+            parts.push(`${seg.title}:${items.length}:${items.map(it => it.label || '').join('|')}`);
         });
         return parts.join('§');
     }
@@ -394,12 +421,38 @@ export default class SidebarController {
             nameEl.textContent = 'SELECT ASSET';
             return;
         }
+
         const raw = String(this.currentAssetId);
         // Preserve IDs like "Furnace_01" (Capitalize first letter of each underscore segment)
         nameEl.textContent = raw
             .split('_')
             .map(part => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
             .join('_');
+    }
+
+    _updateDepartmentHeader() {
+        const zoneId = this.zones[this.currentZoneIndex];
+        const nameEl = document.getElementById('zone-name');
+        if (!nameEl || !zoneId) return;
+
+        // [USER] Prioritize specific Department Label if an asset is selected
+        let label = this.zoneLabels[zoneId] || zoneId;
+        if (this.currentAssetId && this.machineToDept[this.currentAssetId]) {
+            label = this.machineToDept[this.currentAssetId];
+        }
+
+        nameEl.textContent = String(label).toUpperCase().trim();
+
+        const subEl = this.container?.querySelector('.sb-dept-sub');
+        if (subEl) subEl.textContent = (zoneId === 'PLANT') ? 'SYSTEM' : 'DEPARTMENT';
+    }
+
+    _getStatusColorClass(status) {
+        const s = (status || '').toLowerCase();
+        if (['running', 'active', 'ok', 'normal', 'melting', 'processing'].includes(s)) return 'status-green';
+        if (['idle', 'standby', 'warning'].includes(s)) return 'status-amber';
+        if (['faulted', 'stopped', 'error', 'alarm', 'off'].includes(s)) return 'status-red';
+        return '';
     }
 
     _cycleZone(dir, selectLast = false, autoSelectAsset = false) {
@@ -482,11 +535,10 @@ export default class SidebarController {
         const zoneId = this.zones[this.currentZoneIndex];
         if (!zoneId) return;
 
-        const nameEl = document.getElementById('zone-name');
-        if (nameEl) {
-            const label = (this.zoneLabels[zoneId] || zoneId).trim();
-            nameEl.textContent = label.toUpperCase();
-        }
+        this._updateDepartmentHeader();
+
+        const subEl = this.container?.querySelector('.sb-dept-sub');
+        if (subEl) subEl.textContent = (zoneId === 'PLANT') ? 'SYSTEM' : 'DEPARTMENT';
 
         const carousel = document.getElementById('asset-carousel');
         if (!carousel) return;

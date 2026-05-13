@@ -7,7 +7,7 @@ import sys
 
 # --- Fix Path for Imports ---
 # Allow importing 'backend' from project root
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from typing import List, Dict, Any, cast
 from abc import ABC, abstractmethod
@@ -180,6 +180,8 @@ class VirtualPLC:
         mapping = MANIFEST.get_machine_mappings()
         
         for dev_id, sim_id in mapping.items():
+            if dev_id == "VIRTUAL_PLC":
+                continue # PLC core handled internally
             # Find the machine in the engine
             machine = next((m for m in self.sim_engine.machines if m.id == sim_id), None)
             if machine:
@@ -221,23 +223,24 @@ class VirtualPLC:
                     elif tag == "Stop":
                         await self.set_plc_state(False)
             
-            elif "Devices" in identifier:
+            elif "Devices" in identifier and "Inputs" in identifier:
                 # Device specific command
                 # Format: VirtualPLC.Devices.{dev_id}.Inputs.{tag}
-                dev_id = parts[2]
-                tag = parts[4]
+                if len(parts) >= 5:
+                    dev_id = parts[2]
+                    tag = parts[4]
                 
-                # Find the device in self.devices (which is a list of SimulationAdapter)
-                device = next((d for d in self.devices if d.device_id == dev_id), None)
-                
-                if device:
-                    if val: # Only trigger on True (Edge trigger)
-                        logger.info(f"Device Command: {dev_id}.{tag} = {val}")
-                        # Use set_tag on adapter if it exists, otherwise on machine
-                        if hasattr(device, 'set_tag'):
-                            device.set_tag(tag, val)
-                        elif hasattr(device, 'machine') and hasattr(device.machine, 'set_tag'):
-                            device.machine.set_tag(tag, val)
+                    # Find the device in self.devices (which is a list of SimulationAdapter)
+                    device = next((d for d in self.devices if d.device_id == dev_id), None)
+                    
+                    if device:
+                        if val: # Only trigger on True (Edge trigger)
+                            logger.info(f"Device Command: {dev_id}.{tag} = {val}")
+                            # Use set_tag on adapter if it exists, otherwise on machine
+                            if hasattr(device, 'set_tag'):
+                                device.set_tag(tag, val)
+                            elif hasattr(device, 'machine') and hasattr(device.machine, 'set_tag'):
+                                device.machine.set_tag(tag, val)
                         
                         # Reset node after execution
                         asyncio.create_task(self._reset_node_after_event(identifier))
@@ -335,16 +338,14 @@ class VirtualPLC:
                             dev.bind_to_plc_state(True)
                     
                     if self._starting_timer >= self.boot_delay:
-                        # Enable and start all machines for immediate simulation
+                        # Enable machines but do NOT automatically start them (Cold Start requirement)
                         for dev in self.devices:
                             if hasattr(dev.machine, 'enabled'):
                                 dev.machine.enabled = True
-                            if hasattr(dev.machine, 'handle_start_command'):
-                                dev.machine.handle_start_command()
                         
                         self.power_state = PLCPowerState.RUNNING
                         self._starting_timer = 0.0
-                        logger.info("PLC now RUNNING — All machines enabled and started")
+                        logger.info("PLC now RUNNING — All machines initialized to IDLE (Ready)")
                 
                 elif self.power_state == PLCPowerState.RUNNING:
                     # Normal cyclic operation

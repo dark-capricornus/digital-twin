@@ -12,9 +12,19 @@
 
 class StateManager {
     constructor() {
-        this.deviceStates = new Map(); // Processed Source of Truth: deviceId → { state, color, lastUpdate, data }
-        this.stateBuffer = new Map();  // Buffered Raw Updates: deviceId → { state, payload }
+        this.deviceStates = new Map();
+        this.stateBuffer = new Map();
         this.listeners = [];
+        this.dictionary = null;
+        this.siteManifest = null;
+    }
+
+    setDictionary(dict) {
+        this.dictionary = dict;
+    }
+
+    setManifest(manifest) {
+        this.siteManifest = manifest;
     }
 
     /**
@@ -22,13 +32,15 @@ class StateManager {
      * [ARCHITECTURE] No direct processing or UI updates here.
      */
     setRawState(rawId, state, payload) {
-        // Alias storage_*/inbound_*/buffer_*/raw_materials → rawmaterials so they share one entry in all views
-        let id = rawId.toLowerCase();
-        if (id.startsWith('storage') || id.startsWith('inbound') || id.startsWith('buffer') || id === 'raw_materials') {
-            id = 'rawmaterials';
+        let id = rawId.toUpperCase();
+
+        // [DYNAMIC] Check for alias/mapping in manifest
+        if (this.siteManifest && this.siteManifest.machines) {
+            const config = this.siteManifest.machines[id];
+            // If the machine config defines a specific ID mapping, use it
+            // (Reserved for future complex mappings)
         }
-        // Merge payloads when multiple source IDs alias to the same target
-        // (e.g. INBOUND_01 + STORAGE_01 both → rawmaterials) so neither side wins/loses fields.
+
         const existing = this.stateBuffer.get(id);
         if (existing) {
             this.stateBuffer.set(id, {
@@ -50,11 +62,10 @@ class StateManager {
 
         const updatedIds = new Set();
         this.stateBuffer.forEach((update, id) => {
-            const color = this.getColorForState(update.state, update.payload);
+            const color = this.getColorForState(id, update.state, update.payload);
             const existing = this.deviceStates.get(id);
 
             if (existing) {
-                // Mutate in-place: avoids { ...50tags, ...50tags } = 100 property copies per device per cycle
                 Object.assign(existing.data, update.payload);
                 existing.state = update.state;
                 existing.color = color;
@@ -76,68 +87,63 @@ class StateManager {
     }
 
     /**
-     * Map a machine state to a hex mesh colour.
-     *
-     * Rules are applied in strict priority order.  Loose substring matches on
-     * 'true' / 'false' have been removed — they caused healthy OFF machines to
-     * flash green/red whenever another telemetry field happened to serialise a
-     * boolean.
-     *
-     * @param {string|boolean|number} state
-     * @param {object|null} fullData  – raw payload, used to check IsRunning / Enabled
-     * @returns {number} hex colour
+     * Map a machine state to a hex mesh colour using the telemetry dictionary.
      */
-    getColorForState(state, fullData = null) {
+    getColorForState(id, state, fullData = null) {
+        if (!this.dictionary || !this.siteManifest) return 0x616161;
 
-        // ── Guard ─────────────────────────────────────────────────────────
-        if (state === undefined || state === null) return 0x2b2b2b; // Solid neutral grey
+        const machineConfig = this.siteManifest.machines[id];
+        if (!machineConfig) return 0x616161;
 
-        const s = String(state).toLowerCase().trim();
+        const typeConfig = this.dictionary.device_types[machineConfig.type];
+        if (!typeConfig || !typeConfig.state_resolver) {
+            // [FALLBACK] Use legacy logic if resolver is missing
+            return this._getLegacyColor(state, fullData);
+        }
 
-        // ── 0. Override: if IsRunning or Enabled is explicitly false in the
-        //       payload, the machine MUST NOT show green — even if State says
-        //       'IDLE' which could otherwise be ambiguous.
-        if (fullData) {
-            const isRunning = fullData['IsRunning'] ?? fullData['is_running'];
-            const enabled = fullData['Enabled'] ?? fullData['enabled'];
+        const resolver = typeConfig.state_resolver;
+        // [USER] Support both string and object-based resolvers
+        const sourceTag = typeof resolver === 'string' ? resolver : resolver.source_tag;
+        const sourceVal = fullData ? fullData[sourceTag] : state;
 
-            // If the machine is explicitly off, clamp to STOPPED colour
-            if (isRunning === false || enabled === false) {
-                // Only apply the override for non-running state strings.
-                // ('Running' + IsRunning=true is the normal running path.)
-                const isRunningState = ['running', 'active', 'heating', 'melting',
-                    'pouring', 'processing'].some(k => s.includes(k));
-                if (!isRunningState) return 0x616161; // Solid Grey (STOPPED)
+        // 1. Exact match in mappings
+        if (typeof resolver !== 'string' && resolver.mappings && resolver.mappings[String(sourceVal)]) {
+            const hex = resolver.mappings[String(sourceVal)].color;
+            return parseInt(hex.replace('#', '0x'), 16);
+        }
+
+        // 2. Boolean fallback if the machine is "Enabled" or "Running"
+        const booleanTag = typeof resolver === 'string' ? null : resolver.boolean_fallback;
+        if (booleanTag && fullData) {
+            const isRunning = fullData[booleanTag];
+            if (isRunning === false || isRunning === 'false' || isRunning === 0) {
+                return 0x616161; // STOPPED
             }
         }
 
-        // ── 1. RUNNING / ACTIVE → #00A651 ───────────────────────────────
-        const runningWords = [
-            'running', 'active', 'heating', 'melting', 'pouring', 'processing', 'enabled'
-        ];
+        return this._getLegacyColor(sourceVal, fullData);
+    }
+
+    _getLegacyColor(state, fullData) {
+        if (state === undefined || state === null) return 0x616161;
+        const s = String(state).toLowerCase().trim();
+
+        if (fullData) {
+            const isRunning = fullData['is_running'] ?? fullData['enabled'] ?? fullData['IsRunning'] ?? fullData['Enabled'];
+            if (isRunning === false || isRunning === 'false' || isRunning === 0) return 0x616161;
+        }
+
+        const runningWords = ['running', 'active', 'heating', 'melting', 'pouring', 'processing', 'enabled', 'stable'];
         if (runningWords.some(k => s.includes(k))) return 0x00A651;
 
-        // ── 2. IDLE / WAITING → #FFC107 ────────────────────────────────────
         const idleWords = ['idle', 'waiting', 'starved', 'blocked', 'ready', 'paused'];
         if (idleWords.some(k => s.includes(k))) return 0xFFC107;
 
-        // ── 3. STOPPED / FAULT / MAINTENANCE ────────────────────────────────
         if (s.includes('maintenance')) return 0x1976D2;
 
-        const stoppedWords = [
-            'stopped', 'stop', 'fault', 'error', 'offline', 'disabled', 'failure', 'off'
-        ];
-        if (stoppedWords.some(k => s.includes(k))) return 0xD32F2F; // FAULT RED
+        const stoppedWords = ['stopped', 'stop', 'fault', 'error', 'offline', 'disabled', 'failure', 'off'];
+        if (stoppedWords.some(k => s.includes(k))) return 0xD32F2F;
 
-        // Final fallback for explicitly stopped (Grey)
-        if (s === 'stopped') return 0x616161;
-
-        // ── 4. Numeric state ──────────────────────────────────────────────
-        if (!isNaN(Number(s)) && s !== '') {
-            return Number(s) > 0 ? 0x00A651 : 0xD32F2F;
-        }
-
-        // ── 5. Unknown / unrecognised → grey ─────────────────────────────
         return 0x616161;
     }
 
@@ -146,19 +152,9 @@ class StateManager {
     }
 
     getDeviceState(rawId) {
-        let key = rawId.toLowerCase();
-        if (key.startsWith('storage') || key.startsWith('inbound') || key.startsWith('buffer') || key === 'raw_materials') {
-            key = 'rawmaterials';
-        }
-        
-        // 1. Exact match
-        if (this.deviceStates.has(key)) return this.deviceStates.get(key);
-        // 2. Fuzzy match (strip non-alphanumeric)
-        const normKey = key.replace(/[^a-z0-9]/g, '');
-        for (const [storedKey, val] of this.deviceStates.entries()) {
-            if (storedKey.replace(/[^a-z0-9]/g, '') === normKey) return val;
-        }
-        return null;
+        if (!rawId) return null;
+        const key = rawId.toUpperCase();
+        return this.deviceStates.get(key) || null;
     }
 
     getAllStates() {
@@ -168,6 +164,38 @@ class StateManager {
     getDeviceCount() {
         return this.deviceStates.size;
     }
+}
+
+/**
+ * [USER] Global helper to resolve state to color with blinking support for mixed zones.
+ * Used by Renderer for 3D chips and Zone indicators.
+ */
+export function colorForState(state, format = 'hex') {
+    if (!state) return format === 'hex' ? 0x616161 : '#616161';
+    let s = state.toString().toUpperCase();
+
+    let hex;
+    if (s === 'MIXED') {
+        // [USER] Blinking Effect: Toggle between Running (Green) and Idle (Amber)
+        // Rate: 1Hz (500ms on, 500ms off)
+        const isAmber = Math.floor(Date.now() / 500) % 2 === 0;
+        hex = isAmber ? '#FFC107' : '#00A651';
+    } else if (s === 'RUNNING' || s === 'NORMAL') {
+        hex = '#00A651';
+    } else if (s === 'IDLE' || s === 'WAITING' || s === 'STANDBY') {
+        hex = '#FFC107';
+    } else if (s === 'FAULT' || s === 'FAULTED' || s === 'ALARM' || s === 'ERROR') {
+        hex = '#D32F2F';
+    } else if (s === 'MAINTENANCE') {
+        hex = '#1976D2';
+    } else {
+        hex = '#616161'; // STOPPED, OFFLINE, etc.
+    }
+
+    if (format === 'hex') {
+        return parseInt(hex.replace('#', '0x'), 16);
+    }
+    return hex;
 }
 
 export default StateManager;

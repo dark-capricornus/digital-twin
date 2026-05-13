@@ -208,123 +208,52 @@ class SimpleMachine(BaseMachine):
             self._emit_event("CNC_CYCLE_COMPLETE", {})
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
-        tags = {
-            f"{self.id}.progress": round(self.progress, 2),
-            f"{self.id}.cycle_status": self.cycle_status,
-            f"{self.id}.stage_timer": round(self.stage_timer, 1),
-            f"{self.id}.alarm_status": self.alarm_status,
-            f"{self.id}.accumulating": self.accumulating,
-        }
+        tags = {}
         
-        # [ARCHITECTURE] Alias tags BOTH with and without prefix for robustness
-        def add_tag(key, val):
-            tags[f"{self.id}.{key}"] = val
-            tags[key] = val
-
-        # Role Tags
         if self.role == "casting":
-            add_tag("Shot_Count", self.shot_count)
-            add_tag("Model_ID", "WHEEL_V1_SPORT")
-            add_tag("Riser_Pressure", round(self.pressure_psi * 0.95, 1))
-            add_tag("Pressure_Setpoint", 60.0)
-            add_tag("Holding_Pressure", 45.0 if self.cycle_status == "HOLDING" else 0.0)
-            add_tag("Holding_Furnace_Temperature", round(getattr(self, 'holding_furnace_temp', 730.0), 1))
-            add_tag("Die_Top_Temperature", round(getattr(self, 'die_top_temp', 450.0), 1))
-            add_tag("Die_Bottom_Temperature", round(getattr(self, 'die_bottom_temp', 420.0), 1))
-            add_tag("Cycle_Time", self.cycle_time)
-            add_tag("Fill_Time", round(self.cycle_time * 0.2, 1))
-            add_tag("Solidification_Time", round(self.cycle_time * 0.5, 1))
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag("LPDC_Run_Status", self.state.value)
-            add_tag("Cycle_Status", self.cycle_status)
-            add_tag("Alarm_Status", self.alarm_status)
-            add_tag("LPDC_Instant_kW", self.power_kw)
-            add_tag("LPDC_Total_kWh", self.energy_kwh)
-            
-            # Consumption logic
-            if hasattr(self, "furnace_level_kg"):
-                add_tag("Furnace_Level_kg", round(self.furnace_level_kg, 1))
-                add_tag("Shot_Weight_kg", self.shot_weight_kg)
-                if self.cycle_status == "FILLING":
-                     # Decrement level during filling based on progress in that stage
-                     # This is a bit simplified but adds visual movement
-                     self.furnace_level_kg -= 0.01 # Simulated consumption rate
+            tags["shot_count"] = self.shot_count
+            tags["model_id"] = "WHEEL_V1_SPORT"
+            tags["riser_pressure"] = round(self.pressure_psi * 0.95, 1)
+            tags["pressure_setpoint"] = 60.0
+            tags["holding_pressure"] = 45.0 if self.cycle_status == "HOLDING" else 0.0
+            tags["holding_furnace_temp"] = round(getattr(self, 'holding_furnace_temp', 730.0), 1)
+            tags["die_top_temp"] = round(getattr(self, 'die_top_temp', 450.0), 1)
+            tags["die_bottom_temp"] = round(getattr(self, 'die_bottom_temp', 420.0), 1)
+            tags["cycle_time"] = self.cycle_time
+            # Cycle profile: FILLING 0-20%, HOLDING 20-70%, COOLING 70-85%, EJECTING 85-95%.
+            # Fill = filling phase; solidification = under pressure (HOLDING + COOLING).
+            tags["fill_time"] = round(self.cycle_time * 0.20, 2)
+            tags["solidification_time"] = round(self.cycle_time * 0.65, 2)
+            tags["cycle_status"] = self.cycle_status
             
         elif self.role == "machining":
-            # Dynamic Spindle Speed simulation
-            if self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING":
-                current_rpm = 3500.0 + random.uniform(-15.0, 15.0)
-            elif self.state.value == MachineState.RUNNING.value:
-                current_rpm = 1200.0 + random.uniform(-5.0, 5.0) # Idle rotation
-            else:
-                current_rpm = 0.0
-
-            add_tag("Spindle_RPM", round(current_rpm, 1))
-            add_tag("Spindle_Speed", round(current_rpm, 1))
-            add_tag("Program_ID", "PRG_8821_OP10")
-            add_tag("Part_Count", self.processed_count)
-            add_tag("Good_Part_Count", self.good_count)
-            add_tag("Reject_Count", self.reject_count)
-            add_tag("Cycle_Time", self.cycle_time)
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag("Spindle_Vibration", round(random.uniform(0.002, 0.008), 4) if (self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING") else 0.0)
-            add_tag("Coolant_Pressure", 85.0 if (self.state.value == MachineState.RUNNING.value and self.cycle_status == "RUNNING") else 0.0)
-            add_tag("Tool_Number", random.randint(1, 12) if self.cycle_status == "RUNNING" else 0)
-            add_tag("CNC_Run_Status", self.state.value)
-            add_tag("Cycle_Status", self.cycle_status)
-            add_tag("Alarm_Status", self.alarm_status)
-            add_tag("CNC_Instant_kW", self.power_kw)
-            add_tag("CNC_Total_kWh", self.energy_kwh)
+            tags["spindle_speed"] = round(3500.0 if self.cycle_status == "RUNNING" else 0.0, 1)
+            tags["program_id"] = "PRG_8821_OP10"
+            tags["part_count"] = self.processed_count
+            tags["good_part_count"] = self.good_count
+            tags["reject_count"] = self.reject_count
+            tags["cycle_time"] = self.cycle_time
+            tags["cycle_status"] = self.cycle_status
             
         elif "paint" in self.role:
-            prefix = "PB1" if "01" in self.id else "PB2"
-            add_tag("Booth_Temperature", round(self.temperature, 1))
-            add_tag("Booth_Humidity", round(self.humidity, 1))
-            add_tag("Air_Flow_Status", "ACTIVE")
-            add_tag("Booth_Cycle_Status", self.cycle_status)
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag(f"{prefix}_Run_Status", self.state.value)
-            add_tag("Paint_Run_Status", self.state.value)
-            add_tag(f"{prefix}_Instant_kW", self.power_kw)
-            add_tag(f"{prefix}_Total_kWh", self.energy_kwh)
-            add_tag("Alarm_Status", self.alarm_status)
+            tags["booth_temp"] = round(self.temperature, 1)
+            tags["booth_humidity"] = round(self.humidity, 1)
+            tags["air_flow_status"] = "ACTIVE"
+            tags["booth_cycle_status"] = self.cycle_status
             
         elif "pretreat" in self.role:
-            add_tag("Conveyor_Speed", self.conveyor_speed)
-            add_tag("Stage_Status", self.cycle_status)
-            add_tag("Dryer_Temperature", 120.0 if self.cycle_status == "DRY" else 45.0)
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag("PT_Run_Status", self.state.value)
-            add_tag("Pretreat_Run_Status", self.state.value)
-            add_tag("PT_Instant_kW", self.power_kw)
-            add_tag("PT_Total_kWh", self.energy_kwh)
-            add_tag("Alarm_Status", self.alarm_status)
+            tags["conveyor_speed"] = self.conveyor_speed
+            tags["stage_status"] = self.cycle_status
+            tags["dryer_temp"] = 120.0 if self.cycle_status == "DRY" else 45.0
             
-        elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower():
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag("capacity", self.capacity)
-            add_tag("Material_Count", self.part_count)
-            add_tag("Pallet_Count", max(1, self.part_count // 4))
-            add_tag("Fill_Level", round((self.part_count / self.capacity) * 100, 1))
-            add_tag("Plant_WIP_Ingots_Available", 5000 - self.part_count)
-            add_tag("Plant_KPI_Ingots_Consumed", 1500 + self.part_count)
-            
-        elif "outbound" in self.role or "outbound" in self.id.lower():
-            add_tag("IsRunning", self.state.value == MachineState.RUNNING.value)
-            add_tag("part_count", self.part_count)
-            add_tag("capacity", self.capacity)
-            add_tag("Pallet_Count", self.part_count)
-            add_tag("Accumulating", self.part_count > 0)
-            add_tag("Shipping_Status", "READY" if self.part_count > 0 else "WAITING")
-            add_tag("Outbound_Status", "READY" if self.part_count > 0 else "WAITING")
-            add_tag("Queue_Depth", len(self.queue_in))
-            add_tag("System_Idle", "YES" if self.cycle_status == "IDLE" else "NO")
-            add_tag("Plant_KPI_Total_Produced", 12500 + self.processed_count)
-            add_tag("Dispatched_Count", self.processed_count)
-            add_tag("Outbound_Instant_kW", self.power_kw)
-            add_tag("Outbound_Total_kWh", self.energy_kwh)
-            add_tag("Alarm_Status", self.alarm_status)
-            
+        elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower() or "outbound" in self.id.lower():
+            tags["part_count"] = self.part_count
+            tags["total_runtime"] = round(self.runtime_total_hrs, 2)
+            if "inbound" in self.id.lower():
+                tags["inbound_count"] = self.processed_count
+            if "outbound" in self.id.lower():
+                tags["outbound_count"] = self.processed_count
+                
         return tags
 
     def _calculate_power(self) -> float:

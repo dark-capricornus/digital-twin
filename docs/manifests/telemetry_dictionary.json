@@ -1,7 +1,9 @@
 {
     "device_types": {
         "FURNACE": {
-            "Status": [
+            "udt": "Furnace_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
                 "Melt_Bath_Temp",
@@ -9,15 +11,49 @@
                 "Furnace_Mode",
                 "Step_Timer",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Start",
                 "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
+            ]
+        },
+        "DEGASSER": {
+            "udt": "Degasser_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
+                "Instant_Power",
+                "Vacuum_Level",
+                "Process_Temp",
+                "Progress",
+                "State",
+                "Is_Running",
+                "Alarm_Status"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "LPDC": {
-            "Status": [
+            "udt": "LPDC_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
                 "Riser_Pressure",
@@ -31,16 +67,49 @@
                 "Model_ID",
                 "Progress",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Pour_Request",
                 "Start",
                 "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
+            ]
+        },
+        "COOLING": {
+            "udt": "Cooling_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
+                "Process_Temp",
+                "Target_Temp",
+                "Progress",
+                "State",
+                "Is_Running",
+                "Alarm_Status"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "CNC": {
-            "Status": [
+            "udt": "CNC_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
                 "Program_ID",
@@ -52,47 +121,26 @@
                 "Spindle_Speed",
                 "Progress",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Trigger",
                 "Start",
                 "Stop"
-            ]
-        },
-        "INSPECTION": {
-            "Status": [
-                "Instant_Power",
-                "Total_Energy_Consumed",
-                "Scan_Status",
-                "Inspected_Count",
-                "OK_Count",
-                "Not_Good_Count",
-                "Progress",
-                "State",
-                "Is_Running"
             ],
-            "Inputs": [
-                "Start",
-                "Stop"
-            ]
-        },
-        "DEGASSER": {
-            "Status": [
-                "Vacuum_Level",
-                "Process_Temp",
-                "Progress",
-                "State",
-                "Is_Running",
-                "Instant_Power"
-            ],
-            "Inputs": [
-                "Start",
-                "Stop"
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "HEAT_TREAT": {
-            "Status": [
+            "udt": "HeatTreat_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
                 "Furnace_Temp",
@@ -101,96 +149,125 @@
                 "Step_Timer",
                 "Progress",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Start",
                 "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
+            ]
+        },
+        "PRETREAT": {
+            "udt": "Pretreat_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
+                "Stage_Status",
+                "Conveyor_Speed",
+                "Dryer_Temp",
+                "Progress",
+                "State",
+                "Is_Running",
+                "Alarm_Status"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "PAINT_BOOTH": {
-            "Status": [
+            "udt": "PaintBooth_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Booth_Cycle_Status",
                 "Booth_Temp",
                 "Booth_Humidity",
                 "Air_Flow_Status",
                 "Progress",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Start",
                 "Stop"
+            ],
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
-        "PRETREAT": {
-            "Status": [
-                "Stage_Status",
-                "Conveyor_Speed",
-                "Dryer_Temp",
+        "INSPECTION": {
+            "udt": "Inspection_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
+                "Instant_Power",
+                "Total_Energy_Consumed",
+                "Scan_Status",
+                "Inspected_Count",
+                "OK_Count",
+                "Not_Good_Count",
                 "Progress",
                 "State",
-                "Is_Running"
+                "Is_Running",
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Start",
                 "Stop"
-            ]
-        },
-        "COOLING": {
-            "Status": [
-                "Process_Temp",
-                "Target_Temp",
-                "Progress",
-                "State",
-                "Is_Running"
             ],
-            "Inputs": [
-                "Start",
-                "Stop"
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "CONVEYOR": {
-            "Status": [
-                "State",
-                "Is_Running",
-                "Part_Count",
+            "udt": "Conveyor_Machine",
+            "state_resolver": "State",
+            "Telemetry": [
                 "Instant_Power",
-                "Total_Runtime"
-            ],
-            "Inputs": [
-                "Start",
-                "Stop"
-            ]
-        },
-        "INBOUND": {
-            "Status": [
+                "Total_Runtime",
+                "Part_Count",
                 "State",
                 "Is_Running",
-                "Inbound_Count",
-                "Buffer_Occupancy"
+                "Alarm_Status"
             ],
             "Inputs": [
                 "Start",
                 "Stop"
-            ]
-        },
-        "OUTBOUND": {
-            "Status": [
-                "State",
-                "Is_Running",
-                "Outbound_Count",
-                "Dispatch_Ready"
             ],
-            "Inputs": [
-                "Start",
-                "Stop"
+            "Asset": [
+                "last_service_date",
+                "next_service_date",
+                "serial_number",
+                "model",
+                "vendor"
             ]
         },
         "PLC_CORE": {
-            "Status": [
+            "state_resolver": "State",
+            "Telemetry": [
                 "State",
-                "ScanTime_ms"
+                "ScanTime"
             ],
             "Inputs": [
                 "Start",
@@ -203,23 +280,28 @@
         "VirtualPLC.Control.Stop"
     ],
     "tag_metadata": {
-        "Melt_Bath_Temp": {
-            "unit": "\u00c2\u00b0C",
-            "min": 0,
-            "max": 1200
-        },
-        "Riser_Pressure": {
-            "unit": "PSI",
-            "min": 0,
-            "max": 100
-        },
-        "Instant_Power": {
-            "unit": "kW"
-        },
-        "Progress": {
-            "unit": "%",
-            "min": 0,
-            "max": 100
-        }
+        "Melt_Bath_Temp":        { "unit": "°C", "min": 0, "max": 1200 },
+        "Zone_Temp":             { "unit": "°C" },
+        "Furnace_Temp":          { "unit": "°C" },
+        "Temp_Setpoint":         { "unit": "°C" },
+        "Process_Temp":          { "unit": "°C" },
+        "Target_Temp":           { "unit": "°C" },
+        "Die_Top_Temp":          { "unit": "°C" },
+        "Die_Bottom_Temp":       { "unit": "°C" },
+        "Booth_Temp":            { "unit": "°C" },
+        "Dryer_Temp":            { "unit": "°C" },
+        "Riser_Pressure":        { "unit": "bar", "min": 0, "max": 10 },
+        "Pressure_Setpoint":     { "unit": "bar" },
+        "Holding_Pressure":      { "unit": "bar" },
+        "Vacuum_Level":          { "unit": "kPa" },
+        "Instant_Power":         { "unit": "kW" },
+        "Total_Energy_Consumed": { "unit": "kWh" },
+        "Progress":              { "unit": "%", "min": 0, "max": 100 },
+        "Booth_Humidity":        { "unit": "%" },
+        "Spindle_Speed":         { "unit": "RPM" },
+        "Conveyor_Speed":        { "unit": "m/min" },
+        "Cycle_Time":            { "unit": "s" },
+        "Step_Timer":            { "unit": "min" },
+        "Total_Runtime":         { "unit": "hrs" }
     }
 }

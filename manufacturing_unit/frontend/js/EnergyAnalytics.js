@@ -38,9 +38,9 @@ class EnergyAnalytics {
         this.history = new Map(); // stores previous tags to compute deltas
         this.tagMapCache = new Map(); // [PERF] Optimized Tag Cache
         
-        // [LOGIC] Zone Configuration for Aggregation Models
-        this.SERIAL_ZONES = new Set(['smelting', 'die_casting', 'shipping']);
-        this.PARALLEL_ZONES = new Set(['machining', 'paint_shop', 'heat_treating', 'logistics']);
+        // [LOGIC] Zone Configuration (Dynamically populated from site_manifest.json)
+        this.SERIAL_ZONES = new Set();
+        this.PARALLEL_ZONES = new Set();
     }
 
     /**
@@ -102,8 +102,8 @@ class EnergyAnalytics {
             const id = deviceId.toUpperCase();
             let normId = id.replace(/[^A-Z0-9]/g, '');
 
-            // [FIX] Aliasing Alignment with StateManager (rawmaterials / shipping)
-            if (normId === 'INBOUND01' || normId === 'STORAGE01') normId = 'RAWMATERIALS';
+            // [FIX] Aliasing Alignment with StateManager (inbound_01 / shipping)
+            if (normId === 'STORAGE01') normId = 'INBOUND01';
             if (normId === 'OUTBOUND01') normId = 'SHIPPING';
 
             let kw=0, kwh=0, prod=0, scrap=0, cycle=0, eff=0;
@@ -175,25 +175,33 @@ class EnergyAnalytics {
             // [AUTHENTICITY] No power baselines. If kW is 0, it's 0.
 
             // [LOGIC] Virtual Accumulation for "Zero Value" PLC counters
-            const v = this.virtualTotals.get(id) || { totalKWh: kwh || 0, production: prod || 0, lastUpdate: Date.now() };
+            const v = this.virtualTotals.get(id) || { 
+                totalKWh: kwh || 0, 
+                production: prod || 0, 
+                runtime: runtime || 0,
+                lastUpdate: Date.now() 
+            };
             const now = Date.now();
             
             if (isRunning) {
-                // 1. Accumulate kWh based on Instant Load (kW) if PLC tag isn't incrementing
-                // This is a valid physical integration (kW -> kWh)
-                const deltaKWh = (kw / 3600) * ((now - v.lastUpdate) / 1000); 
+                const deltaSec = (now - v.lastUpdate) / 1000;
+                
+                // 1. Accumulate kWh based on Instant Load (kW)
+                const deltaKWh = (kw / 3600) * deltaSec; 
                 v.totalKWh += (deltaKWh > 0) ? deltaKWh : 0;
 
-                // 2. [REMOVED] Virtual Production Proxy
-                // If production tag is 0, it stays 0. No more "time-based" phantom counts.
+                // 2. Accumulate Virtual Runtime (Hours)
+                const deltaHrs = deltaSec / 3600;
+                v.runtime += deltaHrs;
+
                 v.lastUpdate = now;
             }
             
-            // Use PLC value if it's non-zero and greater than virtual, else use virtual
+            // Use PLC value if it's non-zero and greater than virtual
             const finalKWh = (kwh > 0 && kwh >= v.totalKWh) ? kwh : v.totalKWh;
+            const finalRuntime = (runtime > 0 && runtime >= v.runtime) ? runtime : v.runtime;
             
             // [AUTHENTICITY] Disable virtual production fallback for machine-level ground truth
-            // If the user wants absolute truth, we should not "invent" parts via the proxy.
             const finalProd = (prod > 0) ? prod : (id.includes('PLANT') ? 0 : v.production);
             
             v.lastUpdateSync = now; // track sync time
@@ -221,7 +229,7 @@ class EnergyAnalytics {
                 temp: temp,
                 oil: oil,
                 motorLoad: load,
-                runtime: runtime
+                runtime: finalRuntime
             };
 
             // Aggregate Plant
@@ -245,32 +253,36 @@ class EnergyAnalytics {
                         if (normId === 'DEGASSER01' || normId === 'DEGASSER02') {
                             z.production += finalProd;
                         }
-                    } else if (zoneId === 'die_casting' && normKeys.has('plantwipcooledparts1')) {
-                        z.production = metrics.data['Plant_WIP_Cooled_Parts_1'] || 0;
-                    } else if (zoneId === 'machining' && normKeys.has('plantwipmachinedparts')) {
-                        z.production = metrics.data['Plant_WIP_Machined_Parts'] || 0;
-                    } else if (zoneId === 'paint_shop' && normKeys.has('plantwippaintedparts')) {
-                        z.production = metrics.data['Plant_KPI_Throughput'] || metrics.data['Plant_WIP_Painted_Parts'] || 0;
-                    } else if (zoneId === 'shipping' || zoneId === 'qc' || zoneId === 'logistics') {
+                    } else if (zoneId === 'die_casting' && normKeys.has('plant_wip_cooled_parts_1')) {
+                        z.production = metrics.data['plant_wip_cooled_parts_1'] || 0;
+                    } else if (zoneId === 'machining' && normKeys.has('plant_wip_machined_parts')) {
+                        z.production = metrics.data['plant_wip_machined_parts'] || 0;
+                    } else if (zoneId === 'heat_treatment' && normKeys.has('plant_wip_heat_treated_parts')) {
+                        z.production = metrics.data['plant_wip_heat_treated_parts'] || 0;
+                    } else if (zoneId === 'quality_control' && normKeys.has('plant_wip_qc_passed')) {
+                        z.production = metrics.data['plant_wip_qc_passed'] || 0;
+                    } else if (zoneId === 'finishing' && normKeys.has('plant_wip_painted_parts')) {
+                        z.production = metrics.data['plant_kpi_throughput'] || metrics.data['plant_wip_painted_parts'] || 0;
+                    } else if (zoneId === 'shipping' || zoneId === 'quality_control' || zoneId === 'raw_materials') {
                         // [AUTHENTICITY] Logistics shows Inbound Raw Material Consumer (Ingots)
-                        if (zoneId === 'logistics') {
-                            if (normKeys.has('plantkpiingotsconsumed')) {
-                                z.production = metrics.data['Plant_KPI_Ingots_Consumed'] || 0;
+                        if (zoneId === 'raw_materials') {
+                            if (normKeys.has('plant_kpi_ingots_consumed')) {
+                                z.production = metrics.data['plant_kpi_ingots_consumed'] || 0;
                             } else {
                                 z.production += finalProd;
                             }
                             // Logistics has no energy data
                             z.instantKW = 0;
                         } else if (zoneId === 'shipping') {
-                            if (normKeys.has('plantkpitotalproduced')) {
-                                z.production = metrics.data['Plant_KPI_Total_Produced'] || 0;
+                            if (normKeys.has('plant_kpi_total_produced')) {
+                                z.production = metrics.data['plant_kpi_total_produced'] || 0;
                             } else {
                                 z.production += finalProd;
                             }
                             // Shipping has no energy data
                             z.instantKW = 0;
-                        } else if (normKeys.has('plantkpitotalproduced')) {
-                            z.production = metrics.data['Plant_KPI_Total_Produced'] || 0;
+                        } else if (normKeys.has('plant_kpi_total_produced')) {
+                            z.production = metrics.data['plant_kpi_total_produced'] || 0;
                         }
                     } else {
                         // Standard Aggregation
@@ -286,21 +298,29 @@ class EnergyAnalytics {
                     // [AUTHENTICITY] In-Process (WIP) Tracking
                     // Strictly items currently INSIDE machines or buffers
                     if (zoneId === 'smelting') {
-                        const molten = metrics.data['Plant_WIP_Molten_Metal'] || 0;
-                        const degassed = metrics.data['Plant_WIP_Degassed_Metal'] || 0;
+                        const molten = metrics.data['plant_wip_molten_metal'] || 0;
+                        const degassed = metrics.data['plant_wip_degassed_metal'] || 0;
                         z.inProcess = Math.max(0, molten - degassed);
                     } else if (zoneId === 'die_casting') {
-                        const cast = metrics.data['Plant_WIP_Cast_Parts'] || 0;
-                        const cooled = metrics.data['Plant_WIP_Cooled_Parts_1'] || 0;
+                        const cast = metrics.data['plant_wip_cast_parts'] || 0;
+                        const cooled = metrics.data['plant_wip_cooled_parts_1'] || 0;
                         z.inProcess = Math.max(0, cast - cooled);
                     } else if (zoneId === 'heat_treating') {
-                        const treated = metrics.data['Plant_WIP_Heat_Treated_Parts'] || 0;
-                        const cooled = metrics.data['Plant_WIP_Cooled_Parts_2'] || 0;
+                        const treated = metrics.data['plant_wip_heat_treated_parts'] || 0;
+                        const cooled = metrics.data['plant_wip_cooled_parts_2'] || 0;
                         z.inProcess = Math.max(0, treated - cooled);
                     } else if (zoneId === 'paint_shop') {
-                        const pretreat = metrics.data['Plant_WIP_Pretreated_Parts'] || 0;
-                        const painted = metrics.data['Plant_WIP_Painted_Parts'] || 0;
+                        const pretreat = metrics.data['plant_wip_pretreated_parts'] || 0;
+                        const painted = metrics.data['plant_wip_painted_parts'] || 0;
                         z.inProcess = Math.max(0, pretreat - painted);
+                    } else if (zoneId === 'machining') {
+                        const machined = metrics.data['plant_wip_machined_parts'] || 0;
+                        const treated = metrics.data['plant_wip_heat_treated_parts'] || 0;
+                        z.inProcess = Math.max(0, machined - treated);
+                    } else if (zoneId === 'qc') {
+                        const passed = metrics.data['plant_wip_passed_parts'] || 0;
+                        const qc = metrics.data['plant_wip_qc_passed'] || 0;
+                        z.inProcess = Math.max(0, passed - qc);
                     } else {
                         // Placeholder/Proxy for zones with less granular tags
                         if (isRunning) z.inProcess++; 
@@ -312,9 +332,36 @@ class EnergyAnalytics {
 
             // [AUTHENTICITY] Global Plant KPI Overrides
             if (id === 'PLANT') {
-                if (normKeys.has('plantkpitotalproduced')) this.data.plant.production = metrics.data['Plant_KPI_Total_Produced'];
-                if (normKeys.has('plantkpithroughput')) this.data.plant.throughput = metrics.data['Plant_KPI_Throughput'];
-                if (normKeys.has('plantkpiyield')) this.data.plant.quality = metrics.data['Plant_KPI_Yield'];
+                const d = metrics.data;
+                if (d['plant_kpi_total_produced'] !== undefined) this.data.plant.production = d['plant_kpi_total_produced'];
+                if (d['plant_kpi_throughput'] !== undefined) this.data.plant.throughput = d['plant_kpi_throughput'];
+                if (d['plant_kpi_yield'] !== undefined) this.data.plant.quality = d['plant_kpi_yield'];
+                if (d['plant_kpi_total_scrap'] !== undefined) this.data.plant.scrap = d['plant_kpi_total_scrap'];
+                if (d['plant_kpi_batches'] !== undefined) this.data.plant.batches = d['plant_kpi_batches'];
+                if (d['plant_kpi_ingots_consumed'] !== undefined) this.data.plant.ingotsConsumed = d['plant_kpi_ingots_consumed'];
+                
+                // Recalculate rates from ground truth
+                if (this.data.plant.production > 0 || this.data.plant.scrap > 0) {
+                    const total = (this.data.plant.production || 0) + (this.data.plant.scrap || 0);
+                    this.data.plant.scrapRate = (this.data.plant.scrap / total) * 100;
+                }
+                
+                // Store raw WIPs for dashboard display
+                this.data.plant.wips = {
+                    ingots: d['plant_wip_ingots_available'],
+                    molten: d['plant_wip_molten_metal'],
+                    degassed: d['plant_wip_degassed_metal'],
+                    cast: d['plant_wip_cast_parts'],
+                    cooled1: d['plant_wip_cooled_parts_1'],
+                    cooled2: d['plant_wip_cooled_parts_2'],
+                    treated: d['plant_wip_heat_treated_parts'],
+                    pretreated: d['plant_wip_pretreated_parts'],
+                    machined: d['plant_wip_machined_parts'],
+                    painted: d['plant_wip_painted_parts'],
+                    passed: d['plant_wip_passed_parts'],
+                    qc: d['plant_wip_qc_passed'],
+                    scrap: d['plant_wip_scrap_parts']
+                };
             }
         });
 

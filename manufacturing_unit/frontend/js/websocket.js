@@ -80,24 +80,30 @@ class WebSocketHandler {
         }
     }
 
+    setManifest(manifest) {
+        this.siteManifest = manifest;
+    }
+
     _extractDeviceId(topic, payload) {
         if (!topic) return null;
 
-        // 1. Try common Sparkplug B format: spBv1.0/group/.../unit/DEVICE_ID
+        // 1. Precise Match: Topic contains a known sim_id or plc_path from manifest
+        if (this.siteManifest && this.siteManifest.machines) {
+            const topicUpper = topic.toUpperCase();
+            for (const [id, config] of Object.entries(this.siteManifest.machines)) {
+                if (topicUpper.includes(id) || 
+                    (config.sim_id && topicUpper.includes(config.sim_id)) ||
+                    (config.plc_path && topicUpper.includes(config.plc_path.toUpperCase()))) {
+                    return id;
+                }
+            }
+        }
+
+        // 2. Sparkplug B format fallback: spBv1.0/group/.../unit/DEVICE_ID
         const parts = topic.split('/');
         if (parts.length >= 5) {
             const id = parts[parts.length - 1].trim().toUpperCase();
             if (this._isValidMachineId(id)) return id;
-        }
-
-        // 2. Try OPC Path format: VirtualPLC.Devices.DEVICE_ID.Status
-        // Look for known machine prefixes with numbers
-        const machinePattern = /(FURNACE|DEGASSER|LPDC|CNC|HEAT|INSPECTION|PAINT|COOLING|XRAY|QC|PRETREAT|OUTBOUND|RAWMATERIALS|SHIPPING)[_]*(\d+)/i;
-        const match = topic.match(machinePattern);
-        if (match) {
-            const prefix = match[1].toUpperCase();
-            const num = match[2].padStart(2, '0');
-            return `${prefix}_${num}`;
         }
 
         // 3. Fallback: check payload for device_id/id fields
@@ -109,23 +115,16 @@ class WebSocketHandler {
         // 4. Special Case: Plant-wide data
         if (topic.includes('Plant') || topic.includes('FACTORY')) return 'PLANT';
 
-        // 5. Direct Prefix check for name-only matches
-        const machineIds = ['FURNACE', 'DEGASSER', 'LPDC', 'CNC', 'HEAT', 'INSPECTION', 'PAINT', 'COOLING', 'XRAY', 'QC', 'PRETREAT', 'OUTBOUND', 'RAWMATERIALS', 'SHIPPING'];
-        const upperTopic = topic.toUpperCase();
-        for (const m of machineIds) {
-            if (upperTopic.includes(m)) {
-                const subMatch = upperTopic.match(new RegExp(`${m}[_]*(\\d+)`));
-                if (subMatch) return `${m}_${subMatch[1].padStart(2, '0')}`;
-                return m; // Return base name if no number found (e.g. RAWMATERIALS)
-            }
-        }
-
         return null;
     }
 
     _isValidMachineId(id) {
         if (!id) return false;
-        const machineIds = ['FURNACE', 'DEGASSER', 'LPDC', 'CNC', 'HEAT', 'INSPECTION', 'PAINT', 'COOLING', 'XRAY', 'QC', 'PRETREAT', 'OUTBOUND', 'RAWMATERIALS', 'SHIPPING'];
+        if (this.siteManifest && this.siteManifest.machines) {
+            return !!this.siteManifest.machines[id.toUpperCase()];
+        }
+        // Legacy fallback
+        const machineIds = ['FURNACE', 'DEGASSER', 'LPDC', 'CNC', 'HEAT', 'INSPECTION', 'PAINT', 'COOLING', 'XRAY', 'QC', 'PRETREAT', 'OUTBOUND', 'SHIPPING'];
         return machineIds.some(m => id.toUpperCase().includes(m));
     }
 

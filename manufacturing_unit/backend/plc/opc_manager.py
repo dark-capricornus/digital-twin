@@ -9,97 +9,27 @@ from asyncua.server.user_managers import UserManager
 logger = logging.getLogger("OPCManager")
 
 # Status tag names that should be String (state-machine / mode strings).
+# Names mirror the SCADA UDT (docs/scada_udt_definitions.json).
 _STATUS_STRING_TAGS = {
     "State", "Process_Step", "Stage_Status", "Booth_Cycle_Status", "Air_Flow_Status",
-    "Furnace_Mode", "Cycle_Status", "Scan_Status", "Program_ID", "Model_ID", "Zone_Temp",
-    "Run_Status"
+    "Furnace_Mode", "Cycle_Status", "Scan_Status", "Program_ID", "Model_ID",
+    "Alarm_Status"
 }
 # Status tag names that should be Int32 (counters / discrete counts).
 _STATUS_INT_TAGS = {
     "Processed_Count", "Reject_Count", "Part_Count", "Capacity", "StateCode", "FaultCode",
-    "Shot_Count", "Good_Part_Count", "Inspected_Count", "OK_Count", "Not_Good_Count"
-}
-
-# Mapping from Simulator Raw Names (underscores) to Report Clean Names (spaces/labels)
-TAG_NAME_MAP = {
-    "Furnace_Instant_kW":    "Instant_Power",
-    "Furnace_Total_kWh":      "Total_Energy_Consumed",
-    "LPDC_Instant_kW":       "Instant_Power",
-    "LPDC_Total_kWh":        "Total_Energy_Consumed",
-    "CNC_Instant_kW":        "Instant_Power",
-    "CNC_Total_kWh":         "Total_Energy_Consumed",
-    "XRay_Instant_kW":       "Instant_Power",
-    "XRay_Total_kWh":        "Total_Energy_Consumed",
-    "HT_Instant_kW":         "Instant_Power",
-    "HT_Total_kWh":          "Total_Energy_Consumed",
-    "Degasser_Instant_kW":   "Instant_Power",
-    "PowerKW":               "Instant_Power",
-    "RuntimeTotalHrs":       "Total_Runtime",
-    
-    "Melt_Bath_Temperature":  "Melt_Bath_Temp",
-    "Zone_Temperatures":      "Zone_Temp",
-    "Furnace_Temperature":    "Furnace_Temp",
-    "Temperature_Setpoint":   "Temp_Setpoint",
-    "Die_Top_Temperature":    "Die_Top_Temp",
-    "Die_Bottom_Temperature": "Die_Bottom_Temp",
-    "Dryer_Temperature":      "Dryer_Temp",
-    "Booth_Temperature":      "Booth_Temp",
-    "Temperature":            "Process_Temp",
-    "TargetTemp":             "Target_Temp",
-    "Temp":                   "Process_Temp",
-    "temperature":            "Process_Temp",
-    "Riser_Pressure":         "Riser_Pressure",
-    "Pressure_Setpoint":      "Pressure_Setpoint",
-    "Holding_Pressure":       "Holding_Pressure",
-    "VacuumLevel":            "Vacuum_Level",
-    "PressurePSI":            "Pressure",
-    "ProcessedCount":         "Processed_Count",
-    "RejectCount":            "Reject_Count",
-    "Vibration_mm_s":         "Vibration",
-    "Motor_Load_Pct":         "Motor_Load",
-    "Oil_Level_Pct":          "Oil_Level",
-    "Air_Supply_PSI":         "Air_Supply",
-    "Internal_Temp":          "Internal_Temperature",
-    "PowerKW":                "Instant_Power",
-    "EnergyKWH":              "Total_Energy_Consumed",
-    "Temperature":            "Temperature",
-    "TargetTemp":             "Target_Temp",
-    
-    "Part_Count":             "Part_Count",
-    "Good_Part_Count":        "Good_Part_Count",
-    "Reject_Count":           "Reject_Count",
-    "Inspected_Count":        "Inspected_Count",
-    "OK_Count":               "OK_Count",
-    "NG_Count":               "Not_Good_Count",
-    "PartCount":              "Part_Count",
-    
-    "Cycle_Time":             "Cycle_Time",
-    "Cycle_Status":           "Cycle_Status",
-    "Scan_Status":            "Scan_Status",
-    "Furnace_Mode":           "Furnace_Mode",
-    "Process_Step":           "Process_Step",
-    "ProcessStep":            "Process_Step",
-    "Step_Timer":             "Step_Timer",
-    "Booth_Cycle_Status":     "Booth_Cycle_Status",
-    "Air_Flow_Status":        "Air_Flow_Status",
-    "Stage_Status":           "Stage_Status",
-    "Conveyor_Speed":         "Conveyor_Speed",
-    "Booth_Humidity":         "Booth_Humidity",
-    "Program_ID":             "Program_ID",
-    "Model_ID":               "Model_ID",
-    "IsRunning":              "Is_Running",
-    
-    "PourRequest":            "Pour_Request",
-    "Start":                  "Start",
-    "Stop":                   "Stop"
+    "Shot_Count", "Good_Part_Count", "Inspected_Count", "OK_Count", "Not_Good_Count",
+    "Inbound_Count", "Outbound_Count"
 }
 
 def _infer_status_type(tag: str):
-    if tag in _STATUS_STRING_TAGS:
+    tag_lower = tag.lower()
+    # Case-insensitive check
+    if any(tag_lower == s.lower() for s in _STATUS_STRING_TAGS):
         return ua.VariantType.String
-    if tag in _STATUS_INT_TAGS:
+    if any(tag_lower == s.lower() for s in _STATUS_INT_TAGS):
         return ua.VariantType.Int32
-    if tag.startswith("Is"):
+    if tag_lower.startswith("is") or tag_lower.startswith("is_"):
         return ua.VariantType.Boolean
     return ua.VariantType.Double
 
@@ -188,36 +118,48 @@ class OPCServerManager:
             self.plant_nodes[browse_name] = node
             self.plant_node_types[browse_name] = v_type
 
-        # 5. Devices
-        devs_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Devices", self.idx), ua.QualifiedName("Devices", self.idx))
+        # 5. Production Floor (Machines)
+        floor_node = await plc_node.add_object(ua.NodeId("VirtualPLC.Devices", self.idx), ua.QualifiedName("Devices", self.idx))
         
         for dev_id in self.manifest.get_exposed_machines():
             dev_config = self.manifest.get_machine_config(dev_id)
             dev_type = dev_config.get("type")
             type_config = self.manifest.get_device_type_config(dev_type)
             
-            d_node = await devs_node.add_object(ua.NodeId(f"VirtualPLC.Devices.{dev_id}", self.idx), ua.QualifiedName(dev_id, self.idx))
-            cat_nodes = {}
-            for cat in ["Inputs", "Outputs", "Status"]:
-                cat_nodes[cat] = await d_node.add_object(ua.NodeId(f"VirtualPLC.Devices.{dev_id}.{cat}", self.idx), ua.QualifiedName(cat, self.idx))
+            # Machine Node
+            d_node = await floor_node.add_object(ua.NodeId(f"VirtualPLC.Devices.{dev_id}", self.idx), ua.QualifiedName(dev_id, self.idx))
             
+            # Subfolders: Status and Inputs
+            status_node = await d_node.add_object(ua.NodeId(f"VirtualPLC.Devices.{dev_id}.Status", self.idx), ua.QualifiedName("Status", self.idx))
+            inputs_node = await d_node.add_object(ua.NodeId(f"VirtualPLC.Devices.{dev_id}.Inputs", self.idx), ua.QualifiedName("Inputs", self.idx))
+
+            # Add telemetry tags from dictionary. Only iterate list-valued groups —
+            # metadata fields like `udt` and `state_resolver` are strings and the
+            # `Asset` / `summary` keys are display-only.
             for cat, tags in type_config.items():
+                if cat in ("summary", "Asset") or not isinstance(tags, list):
+                    continue
+
+                target_parent = inputs_node if cat == "Inputs" else status_node
+                parent_path = "Inputs" if cat == "Inputs" else "Status"
+                
                 for tag in tags:
-                    tag_nodeid = f"VirtualPLC.Devices.{dev_id}.{cat}.{tag}"
-                    # Default values and types
+                    tag_nodeid = f"VirtualPLC.Devices.{dev_id}.{parent_path}.{tag}"
+                    
+                    # Determine type and initial value
                     if cat == "Inputs":
                         val = False
                         v_type = ua.VariantType.Boolean
-                    elif cat == "Status":
+                    else:
                         v_type = _infer_status_type(tag)
                         val = _default_for(v_type)
-                    else:
-                        val = 0.0
-                        v_type = ua.VariantType.Double
                     
-                    node = await cat_nodes[cat].add_variable(ua.NodeId(tag_nodeid, self.idx), ua.QualifiedName(tag, self.idx), val, v_type)
+                    node = await target_parent.add_variable(ua.NodeId(tag_nodeid, self.idx), ua.QualifiedName(tag, self.idx), val, v_type)
+                    
+                    # Inputs are always writable
                     if cat == "Inputs":
                         await node.set_writable(True)
+                        
                     self.nodes[f"{dev_id}.{tag}"] = node
                     self.node_types[f"{dev_id}.{tag}"] = v_type
 
@@ -240,14 +182,10 @@ class OPCServerManager:
         tasks.append(self._write_node(self.plc_nodes["scan_time"], scan_time, ua.VariantType.Double, timestamp))
         
         for key, val in data.items():
-            # key is "Device.RawTag" (e.g. "Furnace_01.Furnace_Instant_kW")
-            dev_id, raw_tag = key.split(".", 1)
-            clean_tag = TAG_NAME_MAP.get(raw_tag, raw_tag)
-            lookup_key = f"{dev_id}.{clean_tag}"
-            
-            if lookup_key in self.nodes:
-                v_type = self.node_types[lookup_key]
-                tasks.append(self._write_node(self.nodes[lookup_key], val, v_type, timestamp))
+            # key is "Device.Tag" (e.g. "Furnace_01.power_kw")
+            if key in self.nodes:
+                v_type = self.node_types[key]
+                tasks.append(self._write_node(self.nodes[key], val, v_type, timestamp))
 
         for key, val in plant_data.items():
             if key in self.plant_nodes:

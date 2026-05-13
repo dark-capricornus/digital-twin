@@ -41,7 +41,7 @@ MQTT_TOPIC = "#"
 # --- Global State ---
 MAIN_LOOP = None
 manager = ConnectionManager()
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -89,9 +89,12 @@ class AssetLoggingMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AssetLoggingMiddleware)
 
 # --- MQTT Handlers ---
-def on_connect(client, userdata, flags, rc):
-    logger.info(f"Connected to MQTT Broker (rc={rc}). Subscribing to {MQTT_TOPIC}...")
-    client.subscribe(MQTT_TOPIC)
+def on_connect(client, userdata, flags, rc, properties=None):
+    if rc == 0:
+        logger.info(f"Connected to MQTT Broker. Subscribing to {MQTT_TOPIC}...")
+        client.subscribe(MQTT_TOPIC)
+    else:
+        logger.error(f"Failed to connect to MQTT Broker: {rc}")
 
 def on_message(client, userdata, msg):
     topic = msg.topic
@@ -128,6 +131,21 @@ async def websocket_endpoint(websocket: WebSocket):
                 if msg.get("type") == "write":
                     logger.info(f"Relaying write command to MQTT: {msg}")
                     mqtt_client.publish("factory/commands", json.dumps(msg))
+                elif msg.get("type") == "command":
+                    # Transform frontend 'command' format to gateway 'write' format
+                    payload = msg.get("payload", {})
+                    command = payload.get("command")
+                    device_id = payload.get("device_id")
+                    value = payload.get("value", True)
+                    
+                    if command and device_id:
+                        relay_msg = {
+                            "type": "write",
+                            "tag": f"{device_id}.{command}",
+                            "value": value
+                        }
+                        logger.info(f"Relaying UI command to MQTT: {relay_msg}")
+                        mqtt_client.publish("factory/commands", json.dumps(relay_msg))
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:
@@ -157,6 +175,27 @@ async def serve_tags_json():
     if os.path.exists(tags_path):
         return FileResponse(tags_path, media_type="application/json")
     return {"error": "tags.json not found"}, 404
+
+@app.get("/site_manifest.json")
+async def serve_site_manifest():
+    manifest_path = os.path.join(_docs_dir, "manifests", "site_manifest.json")
+    if os.path.exists(manifest_path):
+        return FileResponse(manifest_path, media_type="application/json")
+    return {"error": "site_manifest.json not found"}, 404
+
+@app.get("/telemetry_dictionary.json")
+async def serve_telemetry_dictionary():
+    dict_path = os.path.join(_docs_dir, "manifests", "telemetry_dictionary.json")
+    if os.path.exists(dict_path):
+        return FileResponse(dict_path, media_type="application/json")
+    return {"error": "telemetry_dictionary.json not found"}, 404
+
+@app.get("/assets.json")
+async def serve_assets():
+    assets_path = os.path.join(_docs_dir, "manifests", "assets.json")
+    if os.path.exists(assets_path):
+        return FileResponse(assets_path, media_type="application/json")
+    return {"error": "assets.json not found"}, 404
 
 # Mount the rest of the frontend
 app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

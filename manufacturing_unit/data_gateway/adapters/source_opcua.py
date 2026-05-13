@@ -34,12 +34,13 @@ class OPCUASourceAdapter(ISource, IAdapter):
                 
                 for browse_name, _ in plant_map.items():
                     category = "KPI" if "KPI" in browse_name else "WIP"
-                    tag_name = f"VirtualPLC.Plant.{category}.{browse_name.split('_', 1)[-1]}"
-                    node_path = [f"{self.idx}:VirtualPLC", f"{self.idx}:Plant", f"{self.idx}:{category}", f"{self.idx}:{browse_name}"]
+                    tag_browse_name = browse_name.split('_', 1)[-1]
+                    node_path = [f"{self.idx}:VirtualPLC", f"{self.idx}:Plant", f"{self.idx}:{category}", f"{self.idx}:{tag_browse_name}"]
                     try:
                         node = await self.client.nodes.objects.get_child(node_path)
                         self.plant_nodes[browse_name] = node
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Plant node pre-fetch fail for {browse_name}: {e}")
                         continue
             except Exception as e:
                 logger.error(f"OPC UA Connection Failed: {e}")
@@ -67,25 +68,34 @@ class OPCUASourceAdapter(ISource, IAdapter):
                 dev_data = {}
                 dev_config = manifest.get_machine_config(dev_id)
                 dev_type = dev_config.get("type")
+                
+                if dev_type == "PLC_CORE":
+                    continue # Handled by plant_data section or separately
+
                 type_config = manifest.get_device_type_config(dev_type)
                 
-                # Targeted reading of categories
-                for cat, tags in type_config.items():
-                    for tag in tags:
+                # Targeted reading of categories. The OPC server (opc_manager.py)
+                # exposes machine tags under VirtualPLC.Devices.<DEV>.<subfolder>.<tag>,
+                # where subfolder is "Status" for telemetry and "Inputs" for inputs.
+                category_subfolder = {"Telemetry": "Status", "Inputs": "Inputs"}
+                for cat, subfolder in category_subfolder.items():
+                    if cat not in type_config:
+                        continue
+
+                    for tag in type_config[cat]:
                         node_path = [
                             f"{self.idx}:VirtualPLC",
                             f"{self.idx}:Devices",
                             f"{self.idx}:{dev_id}",
-                            f"{self.idx}:{cat}",
+                            f"{self.idx}:{subfolder}",
                             f"{self.idx}:{tag}"
                         ]
                         try:
-                            # Use get_child with path for efficiency
                             node = await self.client.nodes.objects.get_child(node_path)
                             val = await node.read_value()
                             dev_data[tag] = val
-                        except Exception:
-                            # Tag might not exist in this version of the PLC
+                        except Exception as e:
+                            logger.debug(f"OPC read miss {dev_id}.{subfolder}.{tag}: {e}")
                             continue
                 
                 if dev_data:
@@ -93,8 +103,7 @@ class OPCUASourceAdapter(ISource, IAdapter):
                 
             # 2. Read Plant KPIs
             plant_data = {}
-            for browse_name, frontend_key in self.plant_nodes.items():
-                node = self.plant_nodes.get(browse_name)
+            for browse_name, node in self.plant_nodes.items():
                 try:
                     val = await node.read_value()
                     # Resolve frontend key from manifest if possible
@@ -149,8 +158,8 @@ class OPCUASourceAdapter(ISource, IAdapter):
     async def write(self, tag: str, value: Any) -> bool:
         """
         Writes a value back to a specific tag on the OPC UA server.
-        Expects tag in format: "DeviceID.TagName" (e.g. "DEGASSER_01.Start")
-        or "PLC.Start"
+        Expects tag in format: "DeviceID.TagName" (e.g. "DEGASSER_01.start")
+        or "PLC.start"
         """
         if not self._connected:
             await self._async_connect()
@@ -170,16 +179,18 @@ class OPCUASourceAdapter(ISource, IAdapter):
                  # Support both PLC.Start and VirtualPLC.Start
                  # We assume these are in the 'Control' folder
                  clean_tag = tag_name.split('.')[-1] # Handle VirtualPLC.Control.Start
-                 node_path = [f"{self.idx}:VirtualPLC", f"{self.idx}:Control", f"{self.idx}:{clean_tag}"]
+                 # Tag report usually uses PascalCase for control: Start/Stop
+                 tag_final = clean_tag.capitalize()
+                 node_path = [f"{self.idx}:VirtualPLC", f"{self.idx}:Control", f"{self.idx}:{tag_final}"]
             else:
-                 # Device commands are always in 'Inputs' folder
-                 category = "Inputs"
+                 # Device commands are under the Inputs subfolder in Devices
+                 # We assume the tag_name passed (e.g. 'Start') exists in the Inputs folder
                  node_path = [
                     f"{self.idx}:VirtualPLC",
                     f"{self.idx}:Devices",
                     f"{self.idx}:{dev_id}",
-                    f"{self.idx}:{category}",
-                    f"{self.idx}:{tag_name}"
+                    f"{self.idx}:Inputs",
+                    f"{self.idx}:{tag_name.capitalize() if tag_name.lower() in ['start', 'stop'] else tag_name}"
                 ]
 
             logger.info(f"Writing to OPC UA node: {tag} -> {node_path}")

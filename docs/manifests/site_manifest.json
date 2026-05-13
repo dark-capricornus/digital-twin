@@ -5,37 +5,49 @@
         "description": "Unified manifest for the industrial digital twin."
     },
     "zones": {
-        "logistics": {
-            "label": "Logistics & Raw Materials",
+        "raw_materials": {
+            "label": "Raw Materials",
             "departments": ["raw_materials"]
         },
         "smelting": {
-            "label": "Smelting & Degassing",
+            "label": "Smelting",
             "departments": ["smelting", "degassing"]
         },
-        "casting": {
+        "die_casting": {
             "label": "Die Casting",
             "departments": ["casting"]
         },
-        "finishing": {
-            "label": "Machining & Finishing",
-            "departments": ["machining", "inspection", "treatment", "painting"]
+        "quality_control": {
+            "label": "Quality Control",
+            "departments": ["inspection"]
         },
-        "storage": {
-            "label": "Storage & Dispatch",
+        "heat_treatment": {
+            "label": "Heat Treatment",
+            "departments": ["treatment"]
+        },
+        "machining": {
+            "label": "Machining",
+            "departments": ["machining"]
+        },
+        "finishing": {
+            "label": "Finishing",
+            "departments": ["painting"]
+        },
+        "shipping": {
+            "label": "Shipping",
             "departments": ["warehouse"]
         }
     },
     "departments": {
-        "raw_materials": { "label": "Raw Materials", "machines": ["INBOUND_01"] },
+        "raw_materials": { "label": "Raw Materials", "machines": ["INBOUND_01", "INBOUND_02"] },
         "smelting": { "label": "Smelting", "machines": ["FURNACE_01"] },
         "degassing": { "label": "Degassing", "machines": ["DEGASSER_01", "DEGASSER_02"] },
-        "casting": { "label": "Low Pressure Die Casting", "machines": ["LPDC_01", "LPDC_02", "LPDC_03", "COOLING_01", "COOLING_02"] },
-        "machining": { "label": "CNC Machining", "machines": ["CNC_01", "CNC_02"] },
-        "inspection": { "label": "X-Ray Inspection", "machines": ["INSPECTION_01"] },
-        "treatment": { "label": "Heat Treatment", "machines": ["HEAT_01", "HEAT_02", "PRETREAT_01"] },
-        "painting": { "label": "Painting", "machines": ["PAINT_01", "PAINT_02"] },
-        "warehouse": { "label": "Warehouse", "machines": ["OUTBOUND_01"] }
+        "casting": { "label": "Die Casting", "machines": ["LPDC_01", "LPDC_02", "LPDC_03", "COOLING_01"] },
+        "machining": { "label": "Machining", "machines": ["CNC_01", "CNC_02"] },
+        "inspection": { "label": "Quality Control", "machines": ["INSPECTION_01"] },
+        "treatment": { "label": "Heat Treatment", "machines": ["HEAT_01"] },
+        "painting": { "label": "Finishing Department", "machines": ["PAINT_01", "PAINT_02", "PRETREAT_01"] },
+        "warehouse": { "label": "Shipping", "machines": ["OUTBOUND_01", "OUTBOUND_02"] }
     },
     "machines": {
         "FURNACE_01": { "type": "FURNACE", "sim_id": "FURNACE_01", "plc_path": "VirtualPLC.Devices.FURNACE_01" },
@@ -45,47 +57,47 @@
         "LPDC_02": { "type": "LPDC", "sim_id": "LPDC_02", "plc_path": "VirtualPLC.Devices.LPDC_02" },
         "LPDC_03": { "type": "LPDC", "sim_id": "LPDC_03", "plc_path": "VirtualPLC.Devices.LPDC_03" },
         "HEAT_01": { "type": "HEAT_TREAT", "sim_id": "HEAT_01", "plc_path": "VirtualPLC.Devices.HEAT_01" },
-        "HEAT_02": { "type": "HEAT_TREAT", "sim_id": "HEAT_02", "plc_path": "VirtualPLC.Devices.HEAT_02" },
         "CNC_01": { "type": "CNC", "sim_id": "CNC_01", "plc_path": "VirtualPLC.Devices.CNC_01" },
         "CNC_02": { "type": "CNC", "sim_id": "CNC_02", "plc_path": "VirtualPLC.Devices.CNC_02" },
         "INSPECTION_01": { "type": "INSPECTION", "sim_id": "INSPECTION_01", "plc_path": "VirtualPLC.Devices.INSPECTION_01" },
         "PAINT_01": { "type": "PAINT_BOOTH", "sim_id": "PAINT_01", "plc_path": "VirtualPLC.Devices.PAINT_01" },
         "PAINT_02": { "type": "PAINT_BOOTH", "sim_id": "PAINT_02", "plc_path": "VirtualPLC.Devices.PAINT_02" },
         "INBOUND_01": { "type": "CONVEYOR", "sim_id": "INBOUND_01", "plc_path": "VirtualPLC.Devices.INBOUND_01" },
+        "INBOUND_02": { "type": "CONVEYOR", "sim_id": "INBOUND_02", "plc_path": "VirtualPLC.Devices.INBOUND_02" },
 
         "COOLING_01": { "type": "COOLING", "sim_id": "COOLING_01", "plc_path": "VirtualPLC.Devices.COOLING_01" },
-        "COOLING_02": { "type": "COOLING", "sim_id": "COOLING_02", "plc_path": "VirtualPLC.Devices.COOLING_02" },
         "PRETREAT_01": { "type": "PRETREAT", "sim_id": "PRETREAT_01", "plc_path": "VirtualPLC.Devices.PRETREAT_01" },
         "VIRTUAL_PLC": { "type": "PLC_CORE", "sim_id": "PLC_01", "plc_path": "VirtualPLC" },
-        "OUTBOUND_01": { "type": "CONVEYOR", "sim_id": "OUTBOUND_01", "plc_path": "VirtualPLC.Devices.OUTBOUND_01" }
+        "OUTBOUND_01": { "type": "CONVEYOR", "sim_id": "OUTBOUND_01", "plc_path": "VirtualPLC.Devices.OUTBOUND_01" },
+        "OUTBOUND_02": { "type": "CONVEYOR", "sim_id": "OUTBOUND_02", "plc_path": "VirtualPLC.Devices.OUTBOUND_02" }
     },
     "plant_telemetry": {
         "WIP": {
-            "WIP_ingots_kg": "Plant_WIP_Ingots_Available",
-            "WIP_molten_metal_kg": "Plant_WIP_Molten_Metal",
-            "WIP_degassed_metal_kg": "Plant_WIP_Degassed_Metal",
-            "WIP_cast_parts": "Plant_WIP_Cast_Parts",
-            "WIP_cooled_parts_1": "Plant_WIP_Cooled_Parts_1",
-            "WIP_cooled_parts_2": "Plant_WIP_Cooled_Parts_2",
-            "WIP_heat_treated_parts": "Plant_WIP_Heat_Treated_Parts",
-            "WIP_pretreated_parts": "Plant_WIP_Pretreated_Parts",
-            "WIP_machined_parts": "Plant_WIP_Machined_Parts",
-            "WIP_painted_parts": "Plant_WIP_Painted_Parts",
-            "WIP_xray_passed": "Plant_WIP_Passed_Parts",
-            "WIP_qc_passed": "Plant_WIP_QC_Passed",
-            "WIP_scrap_parts": "Plant_WIP_Scrap_Parts"
+            "WIP_ingots_kg": "plant_wip_ingots_available",
+            "WIP_molten_metal_kg": "plant_wip_molten_metal",
+            "WIP_degassed_metal_kg": "plant_wip_degassed_metal",
+            "WIP_cast_parts": "plant_wip_cast_parts",
+            "WIP_cooled_parts_1": "plant_wip_cooled_parts_1",
+            "WIP_cooled_parts_2": "plant_wip_cooled_parts_2",
+            "WIP_heat_treated_parts": "plant_wip_heat_treated_parts",
+            "WIP_pretreated_parts": "plant_wip_pretreated_parts",
+            "WIP_machined_parts": "plant_wip_machined_parts",
+            "WIP_painted_parts": "plant_wip_painted_parts",
+            "WIP_xray_passed": "plant_wip_passed_parts",
+            "WIP_qc_passed": "plant_wip_qc_passed",
+            "WIP_scrap_parts": "plant_wip_scrap_parts"
         },
         "KPI": {
-            "KPI_total_ingots_consumed": "Plant_KPI_Ingots_Consumed",
-            "KPI_total_wheels_produced": "Plant_KPI_Total_Produced",
-            "KPI_total_scrap": "Plant_KPI_Total_Scrap",
-            "KPI_batches_completed": "Plant_KPI_Batches",
-            "KPI_throughput_wheels_hr": "Plant_KPI_Throughput",
-            "KPI_yield_percent": "Plant_KPI_Yield"
+            "KPI_total_ingots_consumed": "plant_kpi_ingots_consumed",
+            "KPI_total_wheels_produced": "plant_kpi_total_produced",
+            "KPI_total_scrap": "plant_kpi_total_scrap",
+            "KPI_batches_completed": "plant_kpi_batches",
+            "KPI_throughput_wheels_hr": "plant_kpi_throughput",
+            "KPI_yield_percent": "plant_kpi_yield"
         },
         "PLC": {
-            "PLC_state": "PLC_State",
-            "PLC_scan_time_ms": "PLC_ScanTime"
+            "PLC_state": "plc_state",
+            "PLC_scan_time_ms": "plc_scantime"
         }
     }
 }

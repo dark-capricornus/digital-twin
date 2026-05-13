@@ -221,30 +221,29 @@ class BaseMachine(ABC):
         
         CRITICAL: Called EVERY scan, regardless of state.
         """
+        # Map state enum to human-readable string for run_status
+        state_map = {
+            MachineState.STOPPED: "STOPPED",
+            MachineState.IDLE: "IDLE",
+            MachineState.RUNNING: "RUNNING",
+            MachineState.FAULTED: "FAULTED"
+        }
+        
         base_tags = {
-            f"{self.id}.state": self.state.value,
-            f"{self.id}.state_code": self.state.value,
-            f"{self.id}.is_running": self.state.value == MachineState.RUNNING.value,
-            f"{self.id}.IsRunning": self.state.value == MachineState.RUNNING.value,
-            "IsRunning": self.state.value == MachineState.RUNNING.value,
-            f"{self.id}.enabled": self.enabled,
-            f"{self.id}.fault_code": self.fault_code,
-            f"{self.id}.processed_count": self.processed_count,
+            f"{self.id}.run_status": state_map.get(self.state, "UNKNOWN"),
+            f"{self.id}.is_running": self.state == MachineState.RUNNING,
             f"{self.id}.power_kw": round(self.power_kw, 2),
             f"{self.id}.energy_kwh": round(self.energy_kwh, 4),
-            f"{self.id}.runtime_total_hrs": round(self.runtime_total_hrs, 4),
-            
-            # Simulated Industrial Tags
-            f"{self.id}.vibration": round(self.vibration, 3),
-            f"{self.id}.motor_load": round(self.motor_load, 1),
-            f"{self.id}.oil_level": round(self.oil_level, 2),
-            f"{self.id}.air_pressure": round(self.air_pressure, 1),
-            f"{self.id}.internal_temp": round(self.internal_temp, 1),
+            f"{self.id}.alarm_status": "NONE" if self.fault_code == 0 else f"FAULT_{self.fault_code}",
+            f"{self.id}.progress": round(getattr(self, 'progress', 0.0), 2), # Ensure progress is available
         }
         
         # Add device-specific tags
         device_tags = self._get_device_specific_tags()
-        base_tags.update(device_tags)
+        # Ensure device tags are also prefixed with machine ID if not already
+        for k, v in device_tags.items():
+            key = k if k.startswith(f"{self.id}.") else f"{self.id}.{k}"
+            base_tags[key] = v
         
         return base_tags
     

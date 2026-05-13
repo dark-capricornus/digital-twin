@@ -19,7 +19,7 @@ class MQTTSink(ISink, IAdapter):
         self.port = port
         self.topic = topic
         self.command_topic = command_topic
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.command_callback = None
         self._loop = None
     
@@ -41,9 +41,12 @@ class MQTTSink(ISink, IAdapter):
         except Exception as e:
             logger.error(f"MQTT Connection Failed: {e}")
 
-    def _on_connect(self, client, userdata, flags, rc):
-        logger.info(f"Connected to MQTT Broker. Subscribing to {self.command_topic}...")
-        client.subscribe(self.command_topic)
+    def _on_connect(self, client, userdata, flags, rc, properties=None):
+        if rc == 0:
+            logger.info(f"Connected to MQTT Broker. Subscribing to {self.command_topic}...")
+            client.subscribe(self.command_topic)
+        else:
+            logger.error(f"Failed to connect to MQTT: {rc}")
 
     def _on_message(self, client, userdata, msg):
         if self.command_callback and self._loop:

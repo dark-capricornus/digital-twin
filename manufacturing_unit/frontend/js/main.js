@@ -10,8 +10,6 @@ import UIUpdater from './uiUpdater.js';
 import EnergyAnalytics from './EnergyAnalytics.js';
 import SidebarController from './sidebarController.js';
 import LoadingScreen from './loader.js';
-import { MACHINE_GROUPS, DEPARTMENT_LABELS, PRIMARY_TAGS } from './config/PlantConfig.js';
-import { SIDEBAR_SCHEMAS } from './config/SidebarSchemas.js';
 import { formatTagLabel, getUnit } from './config/TagFormatting.js';
 
 class DigitalTwinApp {
@@ -37,12 +35,12 @@ class DigitalTwinApp {
         };
         this.lastChipMode = 'status';
 
-        this.sidebarSchemas = SIDEBAR_SCHEMAS;
+        this.sidebarSchemas = {};
         
-        // [USER] Machine-specific Primary Tags for high-density Summary View
-        this.primaryTags = PRIMARY_TAGS;
-        this.machineGroups = MACHINE_GROUPS;
-        this.departmentLabels = DEPARTMENT_LABELS;
+        // [DYNAMIC] These are now populated from manifests
+        this.primaryTags = {};
+        this.machineGroups = {};
+        this.departmentLabels = {};
 
         // Gemba Audit State
         this.auditLogs = [];
@@ -70,11 +68,65 @@ class DigitalTwinApp {
     }
 
     updateStatus(status) {
+        // WebSocket connection status — feeds the navbar only when disconnected;
+        // when connected, PLC state from the live payload takes over via
+        // _updateNavbarPlcState() in the UI cycle.
         console.log(`[App] Connection status: ${status}`);
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.textContent = status.toUpperCase();
-            statusEl.className = `status-badge ${status}`;
+        const prev = this._wsStatus;
+        this._wsStatus = status;
+        if (status !== 'connected') {
+            this._setNavbarStatus(status === 'connecting' ? 'starting' : 'offline',
+                                   status.toUpperCase());
+        }
+        // Any connection-state transition can change every machine's effective
+        // state (offline ↔ live). The rAF label loop only repaints on buffer
+        // updates, so push a refresh manually.
+        if (prev !== status) {
+            this.renderer?.refreshAllLabels?.();
+            this.renderer?.refreshAllZoneLabels?.();
+        }
+    }
+
+    _setNavbarStatus(klass, text) {
+        const dot = document.querySelector('.navbar-status-dot');
+        const label = document.querySelector('.navbar-status-text');
+        if (dot) {
+            // Reset to base class then apply state modifier.
+            dot.className = 'navbar-status-dot' + (klass ? ' ' + klass : '');
+        }
+        if (label && label.textContent !== text) label.textContent = text;
+    }
+
+    /**
+     * Reflect live PLC state on the navbar. Called from the UI cycle.
+     * Maps PLC_State (STOPPED / STARTING / RUNNING / STOPPING / FAULTED)
+     * to the navbar dot color + text.
+     */
+    _updateNavbarPlcState() {
+        if (this._wsStatus && this._wsStatus !== 'connected') return; // disconnect wins
+        const plant = this.stateManager?.getDeviceState('PLANT')?.data || {};
+        const raw = (plant.PLC_State ?? plant.plc_state ?? '').toString().toUpperCase();
+        const cls = {
+            RUNNING:  '',           // green (default)
+            STARTING: 'starting',
+            STOPPING: 'stopping',
+            STOPPED:  'stopped',
+            OFF:      'stopped',
+            FAULTED:  'faulted',
+        }[raw];
+        // WS is up but no PLC payload has arrived yet → MQTT/data gateway is
+        // probably not publishing. Show "NO DATA" rather than "OFFLINE" so the
+        // user can tell this apart from a WS disconnect.
+        const text = raw || (this._wsStatus === 'connected' ? 'NO DATA' : 'OFFLINE');
+        this._setNavbarStatus(cls ?? 'offline', text);
+
+        // When PLC state transitions, every machine's effective state changes
+        // (the _getMachineState override collapses everything to STOPPED when
+        // the PLC isn't RUNNING). Force a label repaint so the 3D icons follow.
+        if (this._lastPlcState !== raw) {
+            this._lastPlcState = raw;
+            this.renderer?.refreshAllLabels?.();
+            this.renderer?.refreshAllZoneLabels?.();
         }
     }
 
@@ -226,19 +278,21 @@ class DigitalTwinApp {
      */
     getDeviceType(deviceId) {
         if (!deviceId) return null;
-        let id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
-        
-        // [FIX] Explicit matching for RAWMATERIALS variants from scene/assets
-        if (id.includes('RAWMATERIALS') || id.includes('INBOUND') || id.includes('RAW')) {
-            return 'RAWMATERIALS';
+
+        // [SYNC] Check manifest first for precise type mapping
+        if (this.siteManifest && this.siteManifest.machines && this.siteManifest.machines[deviceId]) {
+            return this.siteManifest.machines[deviceId].type;
         }
 
+        let id = deviceId.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        if (id === 'PLANT') return 'PLANT';
+        
         // Explicit PAINT booth matching (PAINT_01, PAINT01, etc.)
         if (/PAINT.?01|PB1/i.test(id)) return 'PAINT_01';
         if (/PAINT.?02|PB2/i.test(id)) return 'PAINT_02';
 
-        // Prefix-based matching
-        const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'PAINT'];
+        // Prefix-based matching fallback
+        const prefixes = ['FURNACE', 'LPDC', 'CNC', 'INSPECTION', 'HEAT', 'PRETREAT', 'COOLING', 'DEGASSER', 'OUTBOUND', 'INBOUND', 'PAINT', 'CONVEYOR', 'BUFFER'];
         for (const p of prefixes) {
             if (id.includes(p)) return p;
         }
@@ -258,6 +312,10 @@ class DigitalTwinApp {
      * Derive unit suffix for a tag based on tagUnits map.
      */
     _getUnit(tag) {
+        // [FIX] Prioritize manifest-driven units from the dictionary
+        if (this.sidebarDictionary?.tag_metadata?.[tag]?.unit) {
+            return this.sidebarDictionary.tag_metadata[tag].unit;
+        }
         return getUnit(tag);
     }
 
@@ -316,16 +374,33 @@ class DigitalTwinApp {
      * This ensures left sidebar, right sidebar, and zone view all show the same value.
      */
     _getMachineState(id) {
+        // 0a. WebSocket disconnect → everything is OFFLINE regardless of cached
+        //     payloads. Without this, a prior "RUNNING" payload keeps icons
+        //     green after the socket drops.
+        if (this._wsStatus && this._wsStatus !== 'connected') {
+            return 'OFFLINE';
+        }
+        // 0b. PLC-wide override: if the PLC isn't RUNNING, no machine can be
+        //     running, regardless of the last per-machine payload. This keeps
+        //     the 3D icons / mesh colors honest after a PLC stop.
+        const plcState = (this.stateManager?.getDeviceState('PLANT')?.data?.PLC_State || '')
+            .toString().toUpperCase();
+        if (plcState && plcState !== 'RUNNING') {
+            return plcState === 'FAULTED' ? 'FAULTED' : 'STOPPED';
+        }
+
         const raw = this.stateManager?.getDeviceState(id)?.data || {};
-        
-        // 1. Prioritize standard PLC status tags for ground truth
+
+        // 1. Exact State string is the most specific signal (covers IDLE/RUNNING/
+        //    FAULTED/STOPPED). Must beat the Is_Running boolean — otherwise an
+        //    IDLE machine (Is_Running=false) would be reported as STOPPED.
+        const state = raw['State'] ?? raw['state'];
+        if (state) return String(state).toUpperCase();
+
+        // 2. Boolean fallback when no State string is present.
         const isRunning = raw['IsRunning'] ?? raw['Is_Running'] ?? raw['is_running'];
         if (isRunning === true) return 'RUNNING';
         if (isRunning === false) return 'STOPPED';
-
-        // 2. Direct tag match (exact key)
-        let state = raw['State'] || '';
-        if (state) return String(state).toUpperCase();
 
         // 3. StateCode Fallback (PackML)
         const code = raw['StateCode'];
@@ -341,16 +416,7 @@ class DigitalTwinApp {
         if (!this.assetData) return null;
         const key = id.toUpperCase();
 
-        // 1. [BRANDING] Standardization for Raw Materials
-        if (key.includes('INBOUND') || key === 'RAWMATERIALS') {
-            const base = this.assetData['RAWMATERIALS'] || this.assetData['INBOUND_01'] || {};
-            return {
-                ...base,
-                name: 'Raw Materials',
-                id: 'RAWMATERIALS' // Standardize internal ID for mapping
-            };
-        }
-
+        // [REMOVED] Standardization for Raw Materials - now handled by manifest-driven logic
         if (this.assetData[key]) return this.assetData[key];
         const normId = key.replace(/[^A-Z0-9]/g, '');
         for (const [ak, av] of Object.entries(this.assetData)) {
@@ -457,6 +523,91 @@ class DigitalTwinApp {
                 return {};
             });
 
+            updateLoading('Loading sidebar configurator...');
+            const dictPromise = fetch('telemetry_dictionary.json').then(r => {
+                if (!r.ok) throw new Error(`telemetry_dictionary.json: ${r.status} ${r.statusText}`);
+                return r.json();
+            }).then(json => {
+                this.sidebarDictionary = json;
+                if (this.stateManager) this.stateManager.setDictionary(json);
+                // [SYNC] Transition legacy schema reference to manifest-driven structure
+                if (json && json.device_types) {
+                    this.sidebarSchemas = json.device_types;
+                    
+                    // [DYNAMIC] Populate primary tags for UI summary chips
+                    this.primaryTags = {};
+                    for (const [type, config] of Object.entries(json.device_types)) {
+                        if (config.summary) {
+                            this.primaryTags[type] = config.summary;
+                        }
+                    }
+                }
+                return json;
+            }).catch(e => {
+                console.warn('[App] Telemetry dictionary load failed:', e);
+                return null;
+            });
+
+            updateLoading('Syncing site topology...');
+            const manifestPromise = fetch('site_manifest.json').then(r => {
+                if (!r.ok) throw new Error(`site_manifest.json: ${r.status} ${r.statusText}`);
+                return r.json();
+            }).then(json => {
+                this.siteManifest = json;
+                if (this.stateManager) this.stateManager.setManifest(json);
+                if (this.websocket) this.websocket.setManifest(json);
+                
+                // [DYNAMIC] Build Machine Groups and Department Labels from Manifest
+                this.machineGroups = {};
+                this.departmentLabels = {};
+                this.machineToDept = {}; // Map: machineId -> departmentLabel
+                
+                // 1. Map Departments
+                if (json.departments) {
+                    for (const [deptId, dept] of Object.entries(json.departments)) {
+                        if (dept.machines) {
+                            dept.machines.forEach(mid => {
+                                this.machineToDept[mid] = dept.label;
+                            });
+                        }
+                    }
+                }
+
+                // 2. Map Zones
+                if (json.zones) {
+                    for (const [zoneId, zone] of Object.entries(json.zones)) {
+                        this.departmentLabels[zoneId] = zone.label;
+                        this.machineGroups[zoneId] = [];
+                        
+                        // Collect all machines in all departments of this zone
+                        if (zone.departments) {
+                            for (const deptId of zone.departments) {
+                                const dept = json.departments?.[deptId];
+                                if (dept && dept.machines) {
+                                    this.machineGroups[zoneId].push(...dept.machines);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // [DYNAMIC] Inject Aggregation Metadata into Analytics Engine
+                if (this.analytics && json.zones) {
+                    for (const [zoneId, zone] of Object.entries(json.zones)) {
+                        if (zone.aggregation === 'serial') {
+                            this.analytics.SERIAL_ZONES.add(zoneId);
+                        } else if (zone.aggregation === 'parallel') {
+                            this.analytics.PARALLEL_ZONES.add(zoneId);
+                        }
+                    }
+                }
+
+                return json;
+            }).catch(e => {
+                console.warn('[App] Site manifest load failed:', e);
+                return null;
+            });
+
             if (this.renderer) {
                 updateLoading('Loading Plant Model (GLB)...');
                 
@@ -466,7 +617,7 @@ class DigitalTwinApp {
                     updateLoading(`Loading Model: ${percent}%`, percent);
                 });
 
-                await Promise.all([modelPromise, assetPromise, tagPromise]);
+                await Promise.all([modelPromise, assetPromise, tagPromise, dictPromise, manifestPromise]);
 
                 if (this.renderer.renderer.compileAsync) {
                     updateLoading('Pre-compiling shaders...');
@@ -487,6 +638,7 @@ class DigitalTwinApp {
             // Initialize V1.2 Unified Sidebar (initial view = plant)
             this.sidebar.init(this.machineGroups, this.departmentLabels, {
                 assetData: this.assetData,
+                machineToDept: this.machineToDept,
                 onAssetSelect: (id) => {
                     this.setContext('machine', id);
                 },
@@ -704,13 +856,7 @@ class DigitalTwinApp {
     }
 
     setContext(type, id = null) {
-        // [FIX] Normalize storage/inbound/buffer mesh IDs to RAWMATERIALS
-        if (id) {
-            const normId = id.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (normId.startsWith('storage') || normId.startsWith('inbound') || normId.startsWith('buffer') || normId === 'rawmaterials' || normId === 'rawmaterial') {
-                id = 'RAWMATERIALS';
-            }
-        }
+        // [REMOVED] Hardcoded Raw Materials normalization
 
         console.log(`[App] Transition: ${this.activeContext.type}->${type}${id ? ':' + id : ''}`);
 
@@ -842,21 +988,49 @@ class DigitalTwinApp {
      * [USER] Aggregate zone state based on its member machines
      */
     _getZoneState(zoneId) {
-        if (!this.machineGroups || !this.machineGroups[zoneId]) return 'RUNNING';
-        const machines = this.machineGroups[zoneId];
-        
-        let hasFault = false;
-        let hasWarning = false;
-        
-        for (const mid of machines) {
-            const mState = this._getMachineState(mid);
-            if (mState === 'FAULT') hasFault = true;
-            if (mState === 'WARNING') hasWarning = true;
+        // Honor WS / PLC overrides — same priority order as _getMachineState.
+        if (this._wsStatus && this._wsStatus !== 'connected') return 'OFFLINE';
+        const plcState = (this.stateManager?.getDeviceState('PLANT')?.data?.PLC_State || '')
+            .toString().toUpperCase();
+        if (plcState && plcState !== 'RUNNING') {
+            return plcState === 'FAULTED' ? 'FAULTED' : 'STOPPED';
         }
+
+        if (!this.machineGroups || !this.machineGroups[zoneId]) return 'OFFLINE';
+        const machines = this.machineGroups[zoneId];
+        if (machines.length === 0) return 'OFFLINE';
+
+        // Roll up actual machine states.
+        let counts = { RUNNING: 0, IDLE: 0, FAULTED: 0, STOPPED: 0, OFFLINE: 0 };
+        for (const mid of machines) {
+            const s = (this._getMachineState(mid) || 'OFFLINE').toUpperCase();
+            if (s === 'FAULT' || s === 'FAULTED' || s === 'ALARM' || s === 'ERROR') counts.FAULTED++;
+            else if (s === 'RUNNING' || s === 'NORMAL') counts.RUNNING++;
+            else if (s === 'IDLE' || s === 'WAITING' || s === 'STANDBY') counts.IDLE++;
+            else if (s === 'STOPPED' || s === 'OFF' || s === 'DISABLED') counts.STOPPED++;
+            else counts.OFFLINE++;
+        }
+
+        // [USER] Collective logic:
+        // 1. If ANY machine is in fault state, the whole zone is FAULTED (Red)
+        if (counts.FAULTED > 0) return 'FAULTED';
+
+        const total = machines.length;
         
-        if (hasFault) return 'FAULT';
-        if (hasWarning) return 'WARNING';
-        return 'RUNNING';
+        // 2. If ALL machines are running, the zone is RUNNING (Green)
+        if (counts.RUNNING === total) return 'RUNNING';
+
+        // 3. If ALL machines are idle, the zone is IDLE (Amber)
+        if (counts.IDLE === total) return 'IDLE';
+
+        // 4. If there's a mix of states (some running, some idle/stopped/offline), return MIXED (Blink)
+        if (counts.RUNNING > 0) return 'MIXED';
+
+        // 5. Fallback for non-running zones
+        if (counts.IDLE > 0) return 'IDLE';
+        if (counts.STOPPED > 0) return 'STOPPED';
+        
+        return 'OFFLINE';
     }
 
     handleHeaderBack() {
@@ -1193,7 +1367,7 @@ class DigitalTwinApp {
 
     renderZonePanel(zoneId, data, container) {
         const d = data || { instantKW: 0, production: 0, efficiency: 94.2, scrapRate: 2.1 };
-        const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
+        const isSmelting = zoneId === 'smelting' || zoneId === 'raw_materials';
         const unit = isSmelting ? 'kg' : 'units';
 
         let html = `
@@ -1229,7 +1403,7 @@ class DigitalTwinApp {
             const m = this.analytics.data.machines[mid.toUpperCase()] || this.analytics.data.machines[mid] || this._findMachineData(mid);
             if (!m) return;
             const asset = this._findAsset(mid);
-            const displayName = (asset && asset.name) ? asset.name : mid;
+            const displayName = mid; // Revert to ID as per user request
             const prod = Math.round(m.production || 0).toLocaleString();
             const machState = this._getMachineState(mid);
             const machStateLower = machState.toLowerCase();
@@ -1257,7 +1431,7 @@ class DigitalTwinApp {
 
     renderZoneKPIs(zoneId, data, container) {
         const d = data || { inProcess: 0 };
-        const isSmelting = zoneId === 'smelting' || zoneId === 'melting' || zoneId === 'logistics';
+        const isSmelting = zoneId === 'smelting' || zoneId === 'raw_materials';
         const unit = isSmelting ? 'kg' : 'units';
 
         container.innerHTML = `
@@ -1647,17 +1821,19 @@ class DigitalTwinApp {
 
     renderPlantOverview(container) {
         let html = `
-            <div class="sidebar-section-header">PLANT OVERVIEW</div>
+            <div class="sidebar-section-header">DASHBOARD OVERVIEW</div>
             <div style="display: flex; flex-direction: column; gap: 16px; padding: 0 4px;">
         `;
 
         const groups = [
-            { id: 'melting', label: 'MELTING & HOLDING', icon: 'heat', tags: ['Furnace_Instant_kW', 'Melt_Bath_Temperature'] },
+            { id: 'raw_materials', label: 'RAW MATERIALS & LOGISTICS', icon: 'local_shipping', tags: ['Conveyor_Speed', 'Inbound_Weight'] },
+            { id: 'smelting', label: 'MELTING & HOLDING', icon: 'heat', tags: ['Furnace_Instant_kW', 'Melt_Bath_Temperature'] },
             { id: 'die_casting', label: 'DIE CASTING (LPDC)', icon: 'precision_manufacturing', tags: ['LPDC_Instant_kW', 'Shot_Count'] },
             { id: 'machining', label: 'CNC MACHINING', icon: 'settings_slow_motion', tags: ['CNC_Instant_kW', 'Part_Count'] },
-            { id: 'heat_treating', label: 'HEAT TREATMENT', icon: 'temp_preferences_custom', tags: ['HT_Instant_kW', 'Furnace_Temperature'] },
-            { id: 'qc', label: 'QUALITY CONTROL (X-RAY)', icon: 'biotech', tags: ['XRay_Instant_kW', 'Inspected_Count'] },
-            { id: 'paint_shop', label: 'PAINT SHOP', icon: 'format_paint', tags: ['PB1_Instant_kW', 'PB1_Production_Count'] }
+            { id: 'heat_treatment', label: 'HEAT TREATMENT', icon: 'temp_preferences_custom', tags: ['HT_Instant_kW', 'Furnace_Temperature'] },
+            { id: 'quality_control', label: 'QUALITY CONTROL (X-RAY)', icon: 'biotech', tags: ['XRay_Instant_kW', 'Inspected_Count'] },
+            { id: 'finishing', label: 'FINISHING DEPARTMENT', icon: 'format_paint', tags: ['PB1_Instant_kW', 'PB1_Production_Count'] },
+            { id: 'shipping', label: 'STORAGE & DISPATCH', icon: 'inventory_2', tags: ['Outbound_Count', 'Warehouse_Capacity'] }
         ];
 
         groups.forEach(group => {
@@ -2053,7 +2229,7 @@ class DigitalTwinApp {
     startGembaWalk() {
         if (this.primaryMode !== 'gemba') return;
         this.gembaWaypoints = [
-            { dept: null, ids: ['RAWMATERIALS'], label: 'Raw Materials' },
+            { dept: null, ids: ['INBOUND_01'], label: 'Raw Materials' },
             { dept: null, ids: ['FURNACE_01'], label: 'Furnace 01' },
             { dept: null, ids: ['DEGASSER_01', 'DEGASSER_02'], label: 'Degassers' },
             { dept: null, ids: ['LPDC_01', 'LPDC_02', 'LPDC_03'], label: 'Die Castings' },
@@ -2312,7 +2488,7 @@ class DigitalTwinApp {
         if (data[key.toUpperCase()] !== undefined) return data[key.toUpperCase()];
         if (data[key.toLowerCase()] !== undefined) return data[key.toLowerCase()];
 
-        // 3. [VIRTUAL MAPPING] Fallback for devices without direct simulation (e.g. RAWMATERIALS)
+        // 3. [VIRTUAL MAPPING] Fallback for devices without direct simulation (e.g. INBOUND_01)
         if (lowerTarget.includes('wip') || lowerTarget.includes('ingot') || lowerTarget.includes('kpi') || lowerTarget.includes('material')) {
             // Check plant data fallback
             const plantVal = plantData[key] || plantData[key.toUpperCase()] || plantData[key.toLowerCase()];
@@ -2356,7 +2532,19 @@ class DigitalTwinApp {
         // Normalized match: strip all formatting and compare
         for (const [k, v] of Object.entries(data)) {
             const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (normK === lowerTarget || normK.includes(lowerTarget) || lowerTarget.includes(normK)) return v;
+            
+            // Check for direct normalized match
+            if (normK === lowerTarget) return v;
+            
+            // Check for prefix-stripped match (e.g. "furnace01powerkw" -> "powerkw")
+            const parts = k.split('.');
+            if (parts.length > 1) {
+                const tagOnly = parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (tagOnly === lowerTarget) return v;
+            }
+
+            // Fallback to inclusion
+            if (normK.includes(lowerTarget) || lowerTarget.includes(normK)) return v;
         }
 
         // 7. Last Ditch: check Plant data for ANY tag that might be there

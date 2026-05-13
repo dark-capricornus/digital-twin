@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { colorForState } from './stateManager.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { MANUAL_MAP, ASSOCIATED_MESH_NAMES, ANIMATION_GROUPS, CUSTOM_ZOOMS } from './config/RendererMappings.js';
@@ -83,6 +84,7 @@ class Renderer {
         this.frameCounter = 0;
         this.interpolatedValues = new Map();
         this.pendingLabelIds = new Set();
+        this.lastZoneRefresh = 0; // [USER] Throttle for high-level status blinking
 
         this.init();
         this.setupInteraction();
@@ -665,7 +667,7 @@ class Renderer {
         else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;
 
         let hl = this.highlightRegistry.get(hlKey) || this.highlightRegistry.get(normId);
-        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('logistics');
+        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('raw_materials');
         if (!hl) {
             // [FALLBACK] No GLB-baked highlight — synthesize a wireframe box
             // from the device bounds and cache it. Fixes raw-materials hover
@@ -1031,10 +1033,10 @@ class Renderer {
         const GLB_ZONE_TO_APP = {
             'cnc': 'machining',
             'die_casting': 'die_casting',
-            'finishing': 'paint_shop',
-            'heat': 'heat_treating',
-            'inspection': 'qc',
-            'raw_materials': 'logistics',
+            'finishing': 'finishing',
+            'heat': 'heat_treatment',
+            'inspection': 'quality_control',
+            'raw_materials': 'raw_materials',
             'smelting': 'smelting',
             'outbound': 'shipping'
         };
@@ -1440,7 +1442,7 @@ class Renderer {
         else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;
 
         let hl = this.highlightRegistry.get(hlKey) || this.highlightRegistry.get(normId);
-        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('logistics');
+        if (!hl && isLogisticsGroup) hl = this.highlightRegistry.get('raw_materials');
         return hl || null;
     }
 
@@ -1710,13 +1712,9 @@ class Renderer {
         if (id === 'RAWMATERIALS') mesh = this.nodeRegistry.get('storage_01006') || mesh;
         if (!mesh) return;
 
-        // [FIX] Asset Info Lookup for Icon Mapping
-        const assetInfo = (this.app && this.app._findAsset) ? this.app._findAsset(id) : null;
-        if (assetInfo) {
-            console.log(`[Renderer] Matched Asset: ${id} -> Icon: ${assetInfo.icon}`);
-        } else {
-            console.warn(`[Renderer] No Asset data for ID: ${id}`);
-        }
+        // Priority 1: Use metadata from assets.json if available
+        const assetInfo = this.app.assetData ? this.app.assetData[id] : null;
+        const displayName = id; // Always show ID as per user request!
 
         let labelItem = this.labelRegistry.get(id);
         if (!labelItem) {
@@ -1730,7 +1728,7 @@ class Renderer {
                 <div class="stacked-icon-circle">
                     <span class="material-symbols-outlined">settings</span>
                 </div>
-                <div class="stacked-name-pill">${id}</div>
+                <div class="stacked-name-pill">${displayName}</div>
             `;
             // Icon and name pill share one handler — both drill into the
             // machine view with the persistent selection-box highlight.
@@ -1766,14 +1764,15 @@ class Renderer {
             const iconName = (assetInfo && assetInfo.icon) ? assetInfo.icon : 'settings';
             if (statusDot.textContent !== iconName) statusDot.textContent = iconName;
 
-            const resolvedState = (this.app ? this.app._getMachineState(id) : 'UNKNOWN').toString().toUpperCase();
-            const isRunning = resolvedState === 'RUNNING' || resolvedState === 'NORMAL' || resolvedState === 'ONLINE';
-            const iconColor = isRunning ? '#00E676' : '#D32F2F';
+            const resolvedState = (this.app ? this.app._getMachineState(id) : 'OFFLINE').toString().toUpperCase();
+            const iconColor = colorForState(resolvedState, 'css');
 
             if (statusDot.style.color !== iconColor) statusDot.style.color = iconColor;
         }
 
-        if (idLabel && idLabel.textContent !== id) idLabel.textContent = id;
+        if (idLabel) {
+            if (idLabel.textContent !== displayName) idLabel.textContent = displayName;
+        }
     }
 
     /**
@@ -1798,16 +1797,6 @@ class Renderer {
         // [SYNC] Pull canonical department labels from main app so the WebGL
         // zone names match the sidebar UI labels exactly.
         const appLabels = (this.app && this.app.departmentLabels) || {};
-        const zoneNames = {
-            'logistics': (appLabels['logistics'] || 'Raw Materials').toUpperCase(),
-            'smelting': (appLabels['smelting'] || 'Smelting').toUpperCase(),
-            'die_casting': (appLabels['die_casting'] || 'Die Casting').toUpperCase(),
-            'qc': (appLabels['qc'] || 'Quality Control').toUpperCase(),
-            'heat_treating': (appLabels['heat_treating'] || 'Heat Treatment').toUpperCase(),
-            'machining': (appLabels['machining'] || 'Machining').toUpperCase(),
-            'paint_shop': (appLabels['paint_shop'] || 'Finishing').toUpperCase(),
-            'shipping': (appLabels['shipping'] || 'Shipping').toUpperCase()
-        };
 
         // Clear existing zone icons and names
         this.zoneLabelRegistry.forEach(obj => this.scene.remove(obj));
@@ -1817,6 +1806,7 @@ class Renderer {
         this.zoneRegistry.clear();
 
         for (const [zoneId, machines] of Object.entries(machineGroups)) {
+            const name = (appLabels[zoneId] || zoneId).toUpperCase();
             const zoneBox = new THREE.Box3();
             let hasNodes = false;
 
@@ -1840,7 +1830,7 @@ class Renderer {
             // [LOGISTICS] For raw materials, anchor the chip to the storage
             // mesh stack itself — the zone box also covers the forklift sweep
             // path, which pulls the centroid off-center.
-            if (zoneId === 'logistics') {
+            if (zoneId === 'raw_materials') {
                 const storageBox = new THREE.Box3();
                 this.nodeRegistry.forEach((node, name) => {
                     if (name.startsWith('storage') || name.startsWith('inbound') || name.startsWith('buffer')) {
@@ -1864,12 +1854,9 @@ class Renderer {
             iconDiv.style.pointerEvents = 'auto';
             iconDiv.style.cursor = 'pointer';
 
-            const zoneState = this.app ? this.app._getZoneState(zoneId) : 'RUNNING';
-            const isOnline = zoneState === 'RUNNING' || zoneState === 'NORMAL' || zoneState === 'ONLINE';
+            const zoneState = this.app ? this.app._getZoneState(zoneId) : 'OFFLINE';
             const icon = zoneIconMap[zoneId] || 'settings';
-            const name = zoneNames[zoneId] || zoneId.toUpperCase();
-
-            const statusColor = isOnline ? '#00E676' : '#D32F2F';
+            const statusColor = colorForState(zoneState, 'css');
             iconDiv.innerHTML = `
                 <div class="stacked-icon-circle">
                     <span class="material-symbols-outlined" style="color: ${statusColor}">${icon}</span>
@@ -1891,7 +1878,7 @@ class Renderer {
             const iconLabel = new CSS2DObject(iconDiv);
             // Raw materials chip sits one step higher than other zone chips so
             // it reads cleanly above the storage stack.
-            const yOffset = zoneId === 'logistics' ? 2.4 : 1.2;
+            const yOffset = zoneId === 'raw_materials' ? 2.4 : 1.2;
             iconLabel.position.set(centerVec.x, zoneBox.max.y + yOffset, centerVec.z);
             iconLabel.userData = { type: 'zone', id: zoneId }; // Tag for visibility logic
             this.scene.add(iconLabel);
@@ -1963,6 +1950,14 @@ class Renderer {
             this.handleHover();
             this._updateCoordinateTracker();
 
+            // [PERF] Zone Status Blinking / Refresh
+            // Moving this from uiUpdater (2Hz) to the main loop (throttled 10Hz)
+            // ensures the Amber/Green blinking for mixed zones is precise and smooth.
+            if (performance.now() - this.lastZoneRefresh > 100) {
+                this.refreshAllZoneLabels();
+                this.lastZoneRefresh = performance.now();
+            }
+
             // [HOVER-HIGHLIGHT] Pulse the active highlight mesh so it breathes.
             // Drives the cloned per-mesh material's opacity and emissiveIntensity
             // around the authored base value.
@@ -2023,6 +2018,31 @@ class Renderer {
         for (const [id, data] of this.persistentValues.entries()) {
             this.updateDeviceLabel(id, data);
         }
+    }
+
+    /**
+     * Recolour zone-level icon chips (SMELTING, HEAT TREATMENT, RAW MATERIALS, …)
+     * based on the current rolled-up zone state. Called whenever WS/PLC state
+     * flips — zone labels are created once in _createZoneIcons and otherwise
+     * never repaint.
+     */
+    refreshAllZoneLabels() {
+        if (!this.zoneLabelRegistry || this.zoneLabelRegistry.size === 0) return;
+        this.zoneLabelRegistry.forEach((obj, zoneId) => {
+            const el = obj.element;
+            if (!el) return;
+            const iconSpan = el.querySelector('.stacked-icon-circle .material-symbols-outlined');
+            if (!iconSpan) return;
+
+            const state = this.app ? this.app._getZoneState(zoneId) : 'OFFLINE';
+            const css = colorForState(state, 'css');
+
+            // [USER] For MIXED states, we force the style update every cycle to 
+            // ensure the 1Hz blink (defined in colorForState) is reflected in the DOM.
+            if (state === 'MIXED' || iconSpan.style.color !== css) {
+                iconSpan.style.color = css;
+            }
+        });
     }
 }
 

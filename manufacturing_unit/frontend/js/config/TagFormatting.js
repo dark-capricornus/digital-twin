@@ -1,22 +1,22 @@
 export function formatTagLabel(tag) {
     if (!tag) return '';
     const labelMap = {
-        'Plant_WIP_Molten_Metal': 'Molten Metal Produced',
-        'Plant_WIP_Degassed_Metal': 'Molten Metal Degassed',
-        'Plant_WIP_Ingots_Available': 'Ingots Available',
-        'Plant_KPI_Ingots_Consumed': 'Ingots Consumed',
-        'Plant_WIP_Cast_Parts': 'Casting Output',
-        'Plant_WIP_Cooled_Parts_1': 'Cooled Parts (DC)',
-        'Plant_WIP_Machined_Parts': 'Processed Total',
-        'Plant_WIP_Cooled_Parts_2': 'Heat Treat Output',
-        'Plant_WIP_Painted_Parts': 'Painted Total',
-        'Plant_KPI_Total_Produced': 'Total Wheels Produced',
-        'Plant_KPI_Throughput': 'Plant Throughput',
-        'Plant_KPI_Yield': 'First Pass Yield',
-        'IsRunning': 'Operational',
+        'plant_wip_molten_metal': 'Molten Metal Produced',
+        'plant_wip_degassed_metal': 'Molten Metal Degassed',
+        'plant_wip_ingots_available': 'Ingots Available',
+        'plant_kpi_ingots_consumed': 'Ingots Consumed',
+        'plant_wip_cast_parts': 'Casting Output',
+        'plant_wip_cooled_parts_1': 'Cooled Parts (DC)',
+        'plant_wip_machined_parts': 'Processed Total',
+        'plant_wip_cooled_parts_2': 'Heat Treat Output',
+        'plant_wip_painted_parts': 'Painted Total',
+        'plant_kpi_total_produced': 'Total Wheels Produced',
+        'plant_kpi_throughput': 'Plant Throughput',
+        'plant_kpi_yield': 'First Pass Yield',
+        'is_running': 'Operational',
         'capacity': 'Storage Capacity',
-        'PLC_State': 'PLC Power State',
-        'PLC_ScanTime': 'PLC Scan Time'
+        'plc_state': 'PLC Power State',
+        'plc_scantime': 'PLC Scan Time'
     };
     if (labelMap[tag]) return labelMap[tag];
     return tag.replace(/_/g, ' ');
@@ -29,7 +29,7 @@ export function getUnit(tag) {
     if (upperTag.includes('KWH')) return 'kWh';
     if (upperTag.includes('KW')) return 'kW';
     if (upperTag.includes('MOLTEN') || upperTag.includes('METAL') || upperTag.includes('KG')) return 'kg';
-    if (upperTag.includes('TEMPERATURE') || upperTag.includes('TEMP')) return '°C';
+    if (upperTag.includes('TEMPERATURE') || upperTag.includes('TEMP')) return '\u00B0C';
     if (upperTag.includes('PRESSURE') || upperTag.includes('PSI') || upperTag.includes('BAR')) return 'bar';
     if (upperTag.includes('RPM')) return 'RPM';
     if (upperTag.includes('SPEED')) return 'm/min';

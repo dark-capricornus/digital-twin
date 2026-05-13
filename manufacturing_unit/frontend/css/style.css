@@ -138,6 +138,25 @@ body {
     border-radius: 50%;
     background: var(--success);
     box-shadow: 0 0 8px #00E67680;
+    transition: background 200ms ease, box-shadow 200ms ease;
+}
+
+.navbar-status-dot.offline,
+.navbar-status-dot.disconnected {
+    background: #888888;
+    box-shadow: none;
+}
+
+.navbar-status-dot.stopped,
+.navbar-status-dot.faulted {
+    background: #D32F2F;
+    box-shadow: 0 0 8px #D32F2F80;
+}
+
+.navbar-status-dot.starting,
+.navbar-status-dot.stopping {
+    background: #F59E0B;
+    box-shadow: 0 0 8px #F59E0B80;
 }
 
 .navbar-status-text {
@@ -457,28 +476,35 @@ body {
 }
 
 .sb-uptime-row {
-    font-family: var(--sb-font);
-    margin-top: 8px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #222;
+    margin-top: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #222222;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: end;
+}
+
+.sb-status-group {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    font-size: 10px;
+    gap: 4px;
+}
+
+.sb-status-label {
+    font-size: 8px;
     font-weight: 800;
     color: var(--sb-label);
-    letter-spacing: 0.18em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
 }
 
-.sb-uptime-val {
-    font-family: var(--sb-font);
-    color: var(--success);
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    text-transform: none;
+.sb-status-val {
+    font-size: 11px;
+    font-weight: 800;
+    color: #FFFFFF;
+    white-space: nowrap;
 }
 
 .sb-metrics-label {

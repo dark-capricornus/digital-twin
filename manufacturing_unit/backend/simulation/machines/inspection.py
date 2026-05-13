@@ -75,25 +75,12 @@ class InspectionMachine(BaseMachine):
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         return {
-            f"{self.id}.scan_status": self.scan_status,
-            f"{self.id}.inspected_count": self.processed_count,
-            f"{self.id}.ok_count": self.processed_count - self.reject_count,
-            f"{self.id}.ng_count": self.reject_count,
-            f"{self.id}.inspection_cycle_time": self.cycle_time,
-            f"{self.id}.progress": float(int(float(self.progress) * 100) / 100.0),
-            
-            # Explicit aliasing for XRay schema
-            f"{self.id}.Scan_Status": self.scan_status,
-            f"{self.id}.Inspected_Count": self.processed_count,
-            f"{self.id}.OK_Count": self.processed_count - self.reject_count,
-            f"{self.id}.NG_Count": self.reject_count,
-            f"{self.id}.Inspection_Cycle_Time": self.cycle_time,
-            f"{self.id}.Beam_Current_mA": 12.5 if self.scan_status == "SCANNING" else 0.0,
-            f"{self.id}.Beam_Voltage_kV": 160.0 if self.scan_status == "SCANNING" else 0.0,
-            f"{self.id}.Alarm_Status": "Clear" if self.state.value != MachineState.FAULTED.value else "Fault",
-            f"{self.id}.XRay_Run_Status": self.state.value,
-            f"{self.id}.XRay_Instant_kW": self.power_kw,
-            f"{self.id}.XRay_Total_kWh": self.energy_kwh
+            "scan_status": self.scan_status,
+            "cycle_time": self.cycle_time,
+            "inspected_count": self.processed_count,
+            "ok_count": self.processed_count - self.reject_count,
+            "not_good_count": self.reject_count,
+            "progress": round(self.progress, 2),
         }
 
     def _calculate_power(self) -> float:

@@ -40,6 +40,13 @@ class UIUpdater {
             const hierarchy = this.app.analytics.update(this.stateManager.deviceStates, this.app.machineGroups);
             const plant = hierarchy.plant;
 
+            // Status indicators run unconditionally — the navbar and the 3D
+            // zone chips must keep reflecting WS/PLC state even when there are
+            // no buffered updates (e.g. WS is up but no MQTT payload arrived).
+            if (typeof this.app._updateNavbarPlcState === 'function') {
+                this.app._updateNavbarPlcState();
+            }
+            
             // Early exit: skip DOM work if nothing changed and not in energy mode.
             if (updatedIds.size === 0 && !this.app.forceRefresh && this.app.primaryMode !== 'energy') {
                 return;
@@ -114,19 +121,19 @@ class UIUpdater {
 
             // 4. [USER] Generic Tag-based Metric updates (Department cards)
             // Scans for any metric-${mid}-TAG elements and updates them from the analytics engine
-            const tags = ['Instant_kW', 'Total_kWh', 'Production_Count', 'Shot_Count', 'Part_Count', 'Inspected_Count', 'Temperature'];
+            const tags = ['instant_power', 'total_energy_consumed', 'production_count', 'shot_count', 'part_count', 'inspected_count', 'temperature'];
             tags.forEach(tagRef => {
                 // Handle different possible tag name variations
-                const possibleTags = [tagRef, `${mid}_${tagRef}`, `PB1_${tagRef}`, `PB2_${tagRef}`, `PT_${tagRef}`, `LPDC_${tagRef}`, `CNC_${tagRef}`, `XRay_${tagRef}`, `Furnace_${tagRef}`, `HT_${tagRef}`, `Cooling_${tagRef}`];
+                const possibleTags = [tagRef, `${mid}_${tagRef}`, `pb1_${tagRef}`, `pb2_${tagRef}`, `pt_${tagRef}`, `lpdc_${tagRef}`, `cnc_${tagRef}`, `xray_${tagRef}`, `furnace_${tagRef}`, `ht_${tagRef}`, `cooling_${tagRef}`];
                 possibleTags.forEach(tag => {
                     const el = this._getDomElement(`metric-${mid}-${tag}`);
                     if (el) {
                         const tl = tag.toLowerCase();
-                        const val = tl.includes('kwh') ? m.totalKWh :
-                                   tl.includes('kw') ? m.instantKW :
+                        const val = tl.includes('energy') ? m.totalKWh :
+                                   tl.includes('power') ? m.instantKW :
                                    (tl.includes('temp') ? m.data?.[tag] : m.production);
                         const valNode = el.querySelector('.val-text') || el;
-                        const formatted = typeof val === 'number' ? (tl.includes('kw') || tl.includes('kwh') ? val.toFixed(2) : Math.round(val).toLocaleString()) : (val || '0.0');
+                        const formatted = typeof val === 'number' ? (tl.includes('power') || tl.includes('energy') ? val.toFixed(2) : Math.round(val).toLocaleString()) : (val || '0.0');
                         if (valNode.textContent !== formatted) valNode.textContent = formatted;
                     }
                 });
@@ -424,98 +431,171 @@ class UIUpdater {
         const deviceState = this.stateManager.getDeviceState(assetId);
         const raw = deviceState?.data || {};
         const machineData = this.app._findMachineData(assetId);
+        const machineConfig = this.app.siteManifest?.machines?.[assetId];
+        const deviceType = machineConfig ? machineConfig.type : this.app.getDeviceType(assetId);
+        
+        // Dictionary-driven grouping (from telemetry_dictionary.json)
+        const dict = this.app.sidebarDictionary?.device_types?.[deviceType];
 
-        // Dynamic Tag Discovery from metadata
-        const assetTags = this._discoverTags(assetId);
+        const segments = [];
 
-        // Seven logical sections from PDF
-        const metrics = [];
-        const energy = [];
-        const production = [];
-        const status = [];
-        const alarms = [];
-        const maintenance = [];
-        const assetInfo = [];
+        // [PDF-ALIGNED] Bucket telemetry tags into the 4 sections from tag_report.pdf:
+        //   Machine Metrics, Energy Consumption, Production Data, Status & Run Info.
+        // The dictionary's `Telemetry` group is flat — classify by tag name pattern.
+        const isEnergyTag = (t) => /(^|_)(power_kw|energy_kwh|instant_power|total_energy)/i.test(t);
+        // Tags filtered out of the sidebar sections:
+        //   - Header-bound (RUN + OPERATION): run_status, is_running, state,
+        //     cycle_status, stage_status, scan_status, booth_cycle_status,
+        //     furnace_mode, process_step, mode.
+        //   - Already covered by Asset Info (assets.json): model_id.
+        const isStatusTag = (t) => /^(run_status|is_running|state|cycle_status|stage_status|scan_status|booth_cycle_status|furnace_mode|process_step|mode|model_id)$/i.test(t);
+        const isProductionTag = (t) => /(^|_)(count|cycle_time|fill_time|solidification_time|shot_count|part_count|progress|processed|inspected|good_part|reject|degassed_metal|capacity|accumulating|queue_in|queue_out)/i.test(t) && !/_status$|_mode$/i.test(t);
+        const isAlarmTag = (t) => /^(alarm_status|fault)$/i.test(t);
 
-        assetTags.forEach(tagName => {
-            const item = this._buildStructuredItem(tagName, raw, machineData);
-            const lower = tagName.toLowerCase();
+        if (dict) {
+            const buckets = { metrics: [], energy: [], production: [] };
+            const seen = new Set();
 
-            // Machine Metrics (Temp, Pressure, Speed, Load, Vibration, Level)
-            if (lower.includes('temp') || lower.includes('pressure') || lower.includes('speed') || 
-                lower.includes('load') || lower.includes('vibration') || lower.includes('level') ||
-                lower.includes('bar') || lower.includes('psi') || lower.includes('rpm') || lower.includes('flow') ||
-                lower.includes('current') || lower.includes('position')) {
-                metrics.push(item);
-            } 
-            // Energy
-            else if (lower.includes('kw') || lower.includes('kwh') || lower.includes('energy') || lower.includes('power')) {
-                energy.push(item);
-            } 
-            // Production
-            else if (lower.includes('count') || lower.includes('part') || lower.includes('cycle') || 
-                     lower.includes('progress') || lower.includes('queue') || lower.includes('shot') || 
-                     lower.includes('fill') || lower.includes('solidification') || lower.includes('reject') ||
-                     lower.includes('processed')) {
-                production.push(item);
-            } 
-            // Status & Run Info
-            else if (lower.includes('state') || lower.includes('mode') || lower.includes('running') || 
-                     lower.includes('status') || lower.includes('model_id') || lower.includes('timer') ||
-                     lower.includes('ready') || lower.includes('connected')) {
-                status.push(item);
-            } 
-            // Alarms
-            else if (lower.includes('alarm') || lower.includes('fault') || lower.includes('error') || lower.includes('warning')) {
-                alarms.push(item);
-            }
-            // Maintenance
-            else if (lower.includes('maintenance') || lower.includes('recalibration') || lower.includes('flush') ||
-                     lower.includes('service') || lower.includes('check')) {
-                maintenance.push(item);
-            }
+            Object.entries(dict).forEach(([groupName, tags]) => {
+                if (!Array.isArray(tags)) return;
+                const lowerGroup = groupName.toLowerCase();
+                if (['inputs', 'asset', 'alarms', 'maintenance'].includes(lowerGroup)) return;
+
+                tags.forEach(t => {
+                    if (seen.has(t)) return;
+                    seen.add(t);
+                    if (isAlarmTag(t)) return;
+                    // Status/Run tags are surfaced in the header (RUN / UPTIME / OPERATION),
+                    // not as their own section.
+                    if (isStatusTag(t)) return;
+                    if (isEnergyTag(t)) buckets.energy.push(t);
+                    else if (isProductionTag(t)) buckets.production.push(t);
+                    else buckets.metrics.push(t);
+                });
+            });
+
+            const sectionDefs = [
+                { key: 'metrics',    title: 'MACHINE METRICS',    accent: '#06B6D4', layout: 'list'  },
+                { key: 'energy',     title: 'ENERGY CONSUMPTION', accent: '#F97316', layout: 'split' },
+                { key: 'production', title: 'PRODUCTION DATA',    accent: '#22C55E', layout: 'list'  },
+            ];
+
+            sectionDefs.forEach(def => {
+                const tagList = buckets[def.key];
+                if (!tagList.length) return;
+                const items = tagList.map(t => this._buildStructuredItem(t, raw, machineData));
+                segments.push({
+                    id: def.key,
+                    title: def.title,
+                    accent: def.accent,
+                    layout: def.layout,
+                    items: (def.layout === 'split') ? this._padSplit(items) : items
+                });
+            });
+        }
+
+        // [USER] Alarms & Maintenance are global sections but filtered for the active asset
+        const assetAlarms = this._buildAlarms(assetId, raw, hierarchy).filter(a => a.title === assetId || a.title === 'ALL CLEAR');
+        segments.push({
+            id: 'alarms',
+            title: 'ALARMS',
+            accent: '#EF4444',
+            layout: 'list',
+            items: assetAlarms
         });
 
-        // Supplement Asset Info from hardcoded metadata if empty
-        if (assetInfo.length === 0) {
-            const asset = this.app._findAsset(assetId);
-            if (asset) {
-                assetInfo.push({ label: 'LAST SERVICE', value: asset.last_service_date || '2023-11-04' });
-                assetInfo.push({ label: 'NEXT SERVICE', value: asset.next_service_date || '2024-01-14' });
-            }
-        }
+        const assetMaintenance = this._buildMaintenance(assetId);
+        segments.push({
+            id: 'maintenance',
+            title: 'MAINTENANCE',
+            accent: '#F59E0B',
+            layout: 'list',
+            items: assetMaintenance
+        });
 
-        // Supplement Maintenance if empty
-        if (maintenance.length === 0) {
-             maintenance.push({ label: 'STATUS', value: 'OK', status: 'GREEN' });
-             maintenance.push({ label: 'NEXT CHECK', value: 'IN 2 WEEKS' });
-        }
+        // [USER] Asset Info (Static metadata from assets.json) - LAST
+        const assetInfo = this._buildAssetInfo(assetId);
+        segments.push({
+            id: 'asset',
+            title: 'ASSET INFO',
+            accent: '#94A3B8',
+            layout: 'list',
+            items: assetInfo
+        });
 
-        // Ensure exactly 2 items for split layouts (Energy, Production)
-        const padSplit = (arr) => {
-            if (arr.length === 0) return [{label: '---', value: '---'}, {label: '---', value: '---'}];
-            if (arr.length === 1) return [arr[0], {label: '---', value: '---'}];
-            // Split layout only uses first two
-            return [arr[0], arr[1]];
-        };
+        // [HEADER] Pull run + operation status straight from the WS payload so the
+        // header slots below the machine name carry the live values.
+        const runStatusRaw =
+            this.app.getValue(raw, 'run_status') ??
+            this.app.getValue(raw, 'state') ??
+            machineData?.state ??
+            (machineData?.isRunning ? 'RUNNING' : 'OFFLINE');
+
+        // Operation = "what is it doing right now" — type-specific resolver if the
+        // dictionary names one, else first hit among the common cycle/mode tags.
+        const opCandidates = [
+            'cycle_status', 'stage_status', 'scan_status', 'booth_cycle_status',
+            'furnace_mode', 'process_step', 'mode'
+        ];
+        // Operation = "what is it doing right now" — distinct from runStatus.
+        // The dictionary's state_resolver typically points to State/run_status
+        // (already used for the RUN slot), so prefer the cycle/mode candidates
+        // and fall back to state_resolver only if none of them carry a value.
+        let opStatus;
+        for (const k of opCandidates) {
+            const v = this.app.getValue(raw, k);
+            if (v != null && v !== '') { opStatus = v; break; }
+        }
+        if (opStatus == null && dict?.state_resolver &&
+            !/^(state|run_status)$/i.test(dict.state_resolver)) {
+            opStatus = this.app.getValue(raw, dict.state_resolver);
+        }
+        if (opStatus == null) opStatus = 'NORMAL';
 
         return {
-            // Header uptime = how long this machine has been running, not the
-            // process step timer. Backend ships `Runtime_Total_Hrs` (hours);
-            // header label is "MINUTES" so convert. Step_Timer is the
-            // recipe-step countdown (e.g. 6.2 s) and was previously surfaced
-            // as "6.2 MINUTES" — wrong source AND wrong unit.
-            uptime: raw['Runtime_Total_Hrs'] != null
-                ? Math.round(raw['Runtime_Total_Hrs'] * 60)
-                : (raw['Uptime'] != null ? Math.round(raw['Uptime']) : (raw['Total_Runtime'] != null ? Math.round(raw['Total_Runtime']) : 0)),
-            metrics,
-            energy: padSplit(energy),
-            production: padSplit(production),
-            status,
-            alarms,
-            maintenance,
-            assetInfo
+            uptime: machineData?.runtime != null ? Math.round(machineData.runtime * 60) : 0,
+            runStatus: String(runStatusRaw),
+            opStatus: String(opStatus).toUpperCase(),
+            segments
         };
+    }
+
+    _buildAssetInfo(assetId) {
+        const metadata = (this.app.assetData && this.app.assetData[assetId]) ? this.app.assetData[assetId] : null;
+        if (!metadata) return [{ label: 'METADATA', value: 'NOT FOUND', unit: '' }];
+
+        return [
+            { label: 'LAST SERVICE', value: metadata.last_service_date || '---', unit: '' },
+            { label: 'NEXT SERVICE', value: metadata.next_service_date || '---', unit: '' },
+            { label: 'SERIAL NO', value: metadata.serial_number || '---', unit: '' },
+            { label: 'MODEL', value: metadata.model || '---', unit: '' },
+            { label: 'VENDOR', value: metadata.vendor || '---', unit: '' },
+            { label: 'INSTALL DATE', value: metadata.install_date || '---', unit: '' },
+            { label: 'PURCHASE DATE', value: metadata.purchase_date || '---', unit: '' }
+        ];
+    }
+
+    _getSegmentStyle(groupName) {
+        const lower = groupName.toLowerCase();
+        if (lower === 'metrics' || lower === 'status') return { title: 'MACHINE METRICS', accent: '#06B6D4', layout: 'list' };
+        if (lower === 'energy') return { title: 'ENERGY CONSUMPTION', accent: '#F97316', layout: 'split' };
+        if (lower === 'production') return { title: 'PRODUCTION DATA', accent: '#22C55E', layout: 'split' };
+        if (lower === 'inventory') return { title: 'INVENTORY METRICS', accent: '#A855F7', layout: 'list' };
+        if (lower === 'plant_wip') return { title: 'WIP INVENTORY', accent: '#EC4899', layout: 'list' };
+        if (lower === 'maintenance') return { title: 'MAINTENANCE', accent: '#F59E0B', layout: 'list' };
+        if (lower === 'asset') return { title: 'ASSET INFO', accent: '#94A3B8', layout: 'list' };
+        
+        return { 
+            title: groupName.replace(/_/g, ' ').toUpperCase(), 
+            accent: '#94A3B8', 
+            layout: 'list' 
+        };
+    }
+
+    _padSplit(arr) {
+        if (arr.length === 0) return [{label: '---', value: '---'}, {label: '---', value: '---'}];
+        if (arr.length === 1) return [arr[0], {label: '---', value: '---'}];
+        return [arr[0], arr[1]];
     }
 
     _discoverTags(assetId) {
@@ -526,9 +606,7 @@ class UIUpdater {
 
         // RAWMATERIALS has no dedicated folder in tags.json — it's an aggregate of
         // INBOUND_01. Pull tags and dedupe.
-        const targetNames = (normAssetId === 'rawmaterials')
-            ? ['inbound01']
-            : [normAssetId];
+        const targetNames = [normAssetId];
 
         const findFolderRecursive = (folder, target) => {
             if (!folder || !folder.name) return null;
@@ -677,10 +755,8 @@ class UIUpdater {
             if (tl.includes('kw') && !tl.includes('kwh')) val = machineData.instantKW ?? val;
             else if (tl.includes('kwh')) val = machineData.totalKWh ?? val;
         }
-        if ((val === undefined || val === null) && tag.startsWith('Plant_')) {
-            const plantData = this.stateManager.getDeviceState('PLANT')?.data || {};
-            val = this.app.getValue(plantData, tag);
-        }
+        // Fallback removed as Plant_ tags are now mapped to specific machine states
+        return val;
         return val;
     }
 
@@ -780,22 +856,18 @@ class UIUpdater {
 
             if (hasAlarm) {
                 items.push({
-                    icon: 'error',
-                    iconColor: 'var(--danger)',
-                    title: id,
-                    desc: `State: ${state}${alarmTag ? ' | Alarm active' : ''}`,
-                    time: new Date().toTimeString().slice(0, 8),
+                    label: id,
+                    value: state,
+                    status: 'RED'
                 });
             }
         }
 
         if (items.length === 0) {
             items.push({
-                icon: 'check_circle',
-                iconColor: 'var(--success)',
-                title: 'ALL CLEAR',
-                desc: 'No active alarms across plant.',
-                time: new Date().toTimeString().slice(0, 8),
+                label: 'STATUS',
+                value: 'ALL CLEAR',
+                status: 'GREEN'
             });
         }
 
@@ -814,11 +886,9 @@ class UIUpdater {
                 const health = Math.round(hState.health);
                 if (health < 85 || rul < 1000) {
                     items.push({
-                        icon: 'build',
-                        iconColor: health < 75 ? 'var(--danger)' : 'var(--warning)',
-                        title: id,
-                        desc: `Health: ${health}% | RUL: ${rul.toLocaleString()}h`,
-                        time: health < 75 ? 'URGENT' : 'SCHEDULED',
+                        label: id,
+                        value: `${health}% Health`,
+                        status: health < 75 ? 'RED' : 'AMBER'
                     });
                 }
             }
@@ -826,11 +896,9 @@ class UIUpdater {
 
         if (items.length === 0) {
             items.push({
-                icon: 'check_circle',
-                iconColor: 'var(--success)',
-                title: 'ALL SYSTEMS NOMINAL',
-                desc: 'No maintenance tasks pending.',
-                time: '',
+                label: 'STATUS',
+                value: 'NOMINAL',
+                status: 'GREEN'
             });
         }
 

@@ -80,20 +80,10 @@
             "DeviceName": {
               "dataType": "String",
               "value": "COOLING_01"
-            }
+                }
           }
         },
-        {
-          "name": "COOLING_02",
-          "tagType": "UdtInstance",
-          "typeId": "Machine_Library/Cooling_Machine",
-          "parameters": {
-            "DeviceName": {
-              "dataType": "String",
-              "value": "COOLING_02"
-            }
-          }
-        },
+
         {
           "name": "CNC_01",
           "tagType": "UdtInstance",
@@ -127,17 +117,7 @@
             }
           }
         },
-        {
-          "name": "HEAT_02",
-          "tagType": "UdtInstance",
-          "typeId": "Machine_Library/HeatTreat_Machine",
-          "parameters": {
-            "DeviceName": {
-              "dataType": "String",
-              "value": "HEAT_02"
-            }
-          }
-        },
+
         {
           "name": "PRETREAT_01",
           "tagType": "UdtInstance",
@@ -201,6 +181,17 @@
             "DeviceName": {
               "dataType": "String",
               "value": "OUTBOUND_01"
+            }
+          }
+        },
+        {
+          "name": "OUTBOUND_02",
+          "tagType": "UdtInstance",
+          "typeId": "Machine_Library/Conveyor_Machine",
+          "parameters": {
+            "DeviceName": {
+              "dataType": "String",
+              "value": "OUTBOUND_02"
             }
           }
         }

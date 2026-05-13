@@ -1,6 +1,7 @@
 {
     "assets": {
         "INBOUND_01": {
+            "name": "INBOUND_01",
             "serial_number": "INB-001",
             "model": "Generic Dock",
             "vendor": "LogiSystems",
@@ -8,11 +9,12 @@
             "purchase_date": "2022-11-15",
             "last_service_date": "2026-02-10",
             "next_service_date": "2026-08-10",
-            "department": "Logistics",
+            "department": "Raw Materials",
             "icon": "inventory_2"
         },
 
         "FURNACE_01": {
+            "name": "FURNACE_01",
             "serial_number": "FURN-2024-X10",
             "model": "Thermax 5000",
             "vendor": "HeatTech Industrial",
@@ -20,10 +22,11 @@
             "purchase_date": "2023-12-05",
             "last_service_date": "2026-03-01",
             "next_service_date": "2026-06-01",
-            "department": "Smelting Department",
+            "department": "Smelting",
             "icon": "local_fire_department"
         },
         "DEGASSER_01": {
+            "name": "DEGASSER_01",
             "serial_number": "DEG-001",
             "model": "GasPurge 100",
             "vendor": "MeltFlow",
@@ -31,10 +34,11 @@
             "purchase_date": "2024-01-02",
             "last_service_date": "2026-02-20",
             "next_service_date": "2026-08-20",
-            "department": "Smelting Department",
+            "department": "Smelting",
             "icon": "air"
         },
         "DEGASSER_02": {
+            "name": "DEGASSER_02",
             "serial_number": "DEG-001",
             "model": "GasPurge 100",
             "vendor": "MeltFlow",
@@ -42,11 +46,11 @@
             "purchase_date": "2024-01-05",
             "last_service_date": "2026-02-25",
             "next_service_date": "2026-08-25",
-            "department": "Smelting Department",
+            "department": "Smelting",
             "icon": "air"
         },
         "COOLING_01": {
-            "name": "COOLING TANK - LPDC",
+            "name": "COOLING_01",
             "serial_number": "COOL-001",
             "model": "CryoTank 200",
             "vendor": "CoolFlow",
@@ -54,10 +58,11 @@
             "purchase_date": "2024-01-10",
             "last_service_date": "2026-03-05",
             "next_service_date": "2026-09-05",
-            "department": "Die Casting Department",
+            "department": "Die Casting",
             "icon": "ac_unit"
         },
         "LPDC_01": {
+            "name": "LPDC_01",
             "serial_number": "LPDC-V5-092",
             "model": "CastingPro LPDC-20",
             "vendor": "FoundryWorks",
@@ -65,10 +70,11 @@
             "purchase_date": "2023-10-15",
             "last_service_date": "2026-03-10",
             "next_service_date": "2026-06-10",
-            "department": "Die Casting Department",
+            "department": "Die Casting",
             "icon": "factory"
         },
         "LPDC_02": {
+            "name": "LPDC_02",
             "serial_number": "LPDC-V5-201",
             "model": "CastingPro LPDC-20",
             "vendor": "FoundryWorks",
@@ -76,10 +82,11 @@
             "purchase_date": "2023-10-16",
             "last_service_date": "2026-03-12",
             "next_service_date": "2026-06-12",
-            "department": "Die Casting Department",
+            "department": "Die Casting",
             "icon": "factory"
         },
         "LPDC_03": {
+            "name": "LPDC_03",
             "serial_number": "LPDC-V5-326",
             "model": "CastingPro LPDC-20",
             "vendor": "FoundryWorks",
@@ -87,10 +94,11 @@
             "purchase_date": "2023-10-18",
             "last_service_date": "2026-03-15",
             "next_service_date": "2026-06-15",
-            "department": "Die Casting Department",
+            "department": "Die Casting",
             "icon": "factory"
         },
         "HEAT_01": {
+            "name": "HEAT_01",
             "serial_number": "HT-33-001",
             "model": "NitroQuench 200",
             "vendor": "Metallurgy Systems",
@@ -98,33 +106,13 @@
             "purchase_date": "2023-11-01",
             "last_service_date": "2026-02-28",
             "next_service_date": "2026-05-28",
-            "department": "Heat Treating Department",
+            "department": "Heat Treatment",
             "icon": "thermostat"
         },
-        "HEAT_02": {
-            "serial_number": "HT-33-002",
-            "model": "NitroQuench 200",
-            "vendor": "Metallurgy Systems",
-            "install_date": "2023-12-05",
-            "purchase_date": "2023-11-02",
-            "last_service_date": "2026-03-02",
-            "next_service_date": "2026-06-02",
-            "department": "Heat Treating Department",
-            "icon": "thermostat"
-        },
-        "COOLING_02": {
-            "name": "COOLING TANK - HEAT TREATMENT",
-            "serial_number": "COOL-002",
-            "model": "CryoTank 200",
-            "vendor": "CoolFlow",
-            "install_date": "2024-02-15",
-            "purchase_date": "2024-01-12",
-            "last_service_date": "2026-03-08",
-            "next_service_date": "2026-09-08",
-            "department": "Heat Treating Department",
-            "icon": "ac_unit"
-        },
+
+
         "CNC_01": {
+            "name": "CNC_01",
             "serial_number": "CNC-400-0045",
             "model": "UltraMill Precision 4",
             "vendor": "Precision Dynamics",
@@ -132,10 +120,11 @@
             "purchase_date": "2024-02-01",
             "last_service_date": "2026-03-20",
             "next_service_date": "2026-06-20",
-            "department": "Machining Department",
+            "department": "Machining",
             "icon": "settings"
         },
         "CNC_02": {
+            "name": "CNC_02",
             "serial_number": "CNC-400-0045",
             "model": "UltraMill Precision 4",
             "vendor": "Precision Dynamics",
@@ -143,10 +132,11 @@
             "purchase_date": "2024-02-05",
             "last_service_date": "2026-03-22",
             "next_service_date": "2026-06-22",
-            "department": "Machining Department",
+            "department": "Machining",
             "icon": "settings"
         },
         "INSPECTION_01": {
+            "name": "INSPECTION_01",
             "serial_number": "XR-88-293",
             "model": "VisionX Ray IV",
             "vendor": "OpticalSense",
@@ -154,10 +144,11 @@
             "purchase_date": "2024-04-10",
             "last_service_date": "2026-03-18",
             "next_service_date": "2026-09-18",
-            "department": "Machining Department",
+            "department": "Quality Control",
             "icon": "visibility"
         },
         "PRETREAT_01": {
+            "name": "PRETREAT_01",
             "serial_number": "PRE-001",
             "model": "WashSystem 50",
             "vendor": "SurfaceTech",
@@ -169,6 +160,7 @@
             "icon": "water_drop"
         },
         "PAINT_01": {
+            "name": "PAINT_01",
             "serial_number": "PNT-001",
             "model": "SprayMaster 300",
             "vendor": "ColorCorp",
@@ -180,7 +172,7 @@
             "icon": "format_paint"
         },
         "PAINT_02": {
-            "name": "Paint booth_02 - ceramic coat",
+            "name": "PAINT_02",
             "serial_number": "PNT-002",
             "model": "SprayMaster 300",
             "vendor": "ColorCorp",
@@ -191,18 +183,9 @@
             "department": "Finishing Department",
             "icon": "format_paint"
         },
-        "PACK_01": {
-            "serial_number": "PKL-001",
-            "model": "WrapFast 100",
-            "vendor": "LogiSystems",
-            "install_date": "2023-01-01",
-            "purchase_date": "2022-12-01",
-            "last_service_date": "2026-02-05",
-            "next_service_date": "2026-08-05",
-            "department": "Logistics",
-            "icon": "archive"
-        },
+
         "OUTBOUND_01": {
+            "name": "OUTBOUND_01",
             "serial_number": "OUT-001",
             "model": "Generic Dock",
             "vendor": "LogiSystems",
@@ -210,10 +193,11 @@
             "purchase_date": "2022-11-20",
             "last_service_date": "2026-01-20",
             "next_service_date": "2026-07-20",
-            "department": "Logistics",
+            "department": "Shipping",
             "icon": "local_shipping"
         },
         "OUTBOUND_02": {
+            "name": "OUTBOUND_02",
             "serial_number": "OUT-002",
             "model": "Generic Dock 2",
             "vendor": "LogiSystems",
@@ -221,20 +205,9 @@
             "purchase_date": "2022-11-25",
             "last_service_date": "2026-01-25",
             "next_service_date": "2026-07-25",
-            "department": "Logistics",
+            "department": "Shipping",
             "icon": "local_shipping"
-        },
-        "RAWMATERIALS": {
-            "name": "Raw Materials Storage",
-            "serial_number": "RMS-001",
-            "model": "Consolidated Storage",
-            "vendor": "Internal",
-            "install_date": "2023-01-01",
-            "purchase_date": "2022-11-10",
-            "last_service_date": "2026-02-01",
-            "next_service_date": "2026-08-01",
-            "department": "Logistics",
-            "icon": "inventory_2"
         }
+
     }
 }

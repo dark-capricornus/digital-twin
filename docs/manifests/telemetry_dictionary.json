@@ -6,10 +6,13 @@
             "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
-                "Melt_Bath_Temp",
-                "Zone_Temp",
+                "Roof_Temp",
+                "Wall_Temp",
+                "Bath_Temp",
                 "Furnace_Mode",
-                "Step_Timer",
+                "Melt_Timer",
+                "Hold_Timer",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -34,6 +37,7 @@
                 "Vacuum_Level",
                 "Process_Temp",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -62,10 +66,13 @@
                 "Die_Top_Temp",
                 "Die_Bottom_Temp",
                 "Cycle_Time",
+                "Fill_Time",
+                "Solidification_Time",
                 "Cycle_Status",
                 "Shot_Count",
                 "Model_ID",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -90,6 +97,8 @@
                 "Process_Temp",
                 "Target_Temp",
                 "Progress",
+                "Input_Buffer",
+                "Cooling_Mode",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -116,10 +125,12 @@
                 "Cycle_Time",
                 "Cycle_Status",
                 "Part_Count",
+                "Total_Parts_Machined",
                 "Good_Part_Count",
                 "Reject_Count",
                 "Spindle_Speed",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -143,11 +154,12 @@
             "Telemetry": [
                 "Instant_Power",
                 "Total_Energy_Consumed",
-                "Furnace_Temp",
-                "Temp_Setpoint",
+                "Furnace_Temperature",
+                "Temperature_Setpoint",
                 "Process_Step",
                 "Step_Timer",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -170,8 +182,9 @@
             "Telemetry": [
                 "Stage_Status",
                 "Conveyor_Speed",
-                "Dryer_Temp",
+                "Dryer_Temperature",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -197,6 +210,7 @@
                 "Booth_Humidity",
                 "Air_Flow_Status",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -220,10 +234,13 @@
                 "Instant_Power",
                 "Total_Energy_Consumed",
                 "Scan_Status",
+                "Inspection_Cycle",
+                "Inspection_Cycle_Time",
                 "Inspected_Count",
                 "OK_Count",
                 "Not_Good_Count",
                 "Progress",
+                "Input_Buffer",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -240,13 +257,18 @@
                 "vendor"
             ]
         },
-        "CONVEYOR": {
-            "udt": "Conveyor_Machine",
+        "INBOUND_BUFFER": {
+            "udt": "Inbound_Unit",
             "state_resolver": "State",
             "Telemetry": [
                 "Instant_Power",
                 "Total_Runtime",
                 "Part_Count",
+                "Capacity",
+                "Utilization",
+                "Inventory_Status",
+                "TTE",
+                "Consumption_Rate",
                 "State",
                 "Is_Running",
                 "Alarm_Status"
@@ -261,6 +283,28 @@
                 "serial_number",
                 "model",
                 "vendor"
+            ]
+        },
+        "OUTBOUND_BUFFER": {
+            "udt": "Outbound_Unit",
+            "state_resolver": "State",
+            "Telemetry": [
+                "Instant_Power",
+                "Total_Runtime",
+                "Part_Count",
+                "Capacity",
+                "Utilization",
+                "Storage_Pressure",
+                "TTF",
+                "Production_Rate",
+                "Ready_For_Shipping",
+                "State",
+                "Is_Running",
+                "Alarm_Status"
+            ],
+            "Inputs": [
+                "Start",
+                "Stop"
             ]
         },
         "PLC_CORE": {
@@ -280,17 +324,18 @@
         "VirtualPLC.Control.Stop"
     ],
     "tag_metadata": {
-        "Melt_Bath_Temp":        { "unit": "°C", "min": 0, "max": 1200 },
-        "Zone_Temp":             { "unit": "°C" },
-        "Furnace_Temp":          { "unit": "°C" },
-        "Temp_Setpoint":         { "unit": "°C" },
+        "Roof_Temp":             { "unit": "°C", "min": 0, "max": 1200 },
+        "Wall_Temp":             { "unit": "°C", "min": 0, "max": 1200 },
+        "Bath_Temp":             { "unit": "°C", "min": 0, "max": 1200 },
+        "Furnace_Temperature":   { "unit": "\u00B0C" },
+        "Temperature_Setpoint":  { "unit": "\u00B0C" },
         "Process_Temp":          { "unit": "°C" },
         "Target_Temp":           { "unit": "°C" },
         "Die_Top_Temp":          { "unit": "°C" },
         "Die_Bottom_Temp":       { "unit": "°C" },
         "Booth_Temp":            { "unit": "°C" },
         "Dryer_Temp":            { "unit": "°C" },
-        "Riser_Pressure":        { "unit": "bar", "min": 0, "max": 10 },
+        "Riser_Pressure":        { "unit": "psi" },
         "Pressure_Setpoint":     { "unit": "bar" },
         "Holding_Pressure":      { "unit": "bar" },
         "Vacuum_Level":          { "unit": "kPa" },
@@ -301,7 +346,16 @@
         "Spindle_Speed":         { "unit": "RPM" },
         "Conveyor_Speed":        { "unit": "m/min" },
         "Cycle_Time":            { "unit": "s" },
-        "Step_Timer":            { "unit": "min" },
-        "Total_Runtime":         { "unit": "hrs" }
+        "Fill_Time":             { "unit": "s" },
+        "Solidification_Time":   { "unit": "s" },
+        "Melt_Timer":            { "unit": "min" },
+        "Hold_Timer":            { "unit": "min" },
+        "Total_Runtime":         { "unit": "hrs" },
+        "Inspection_Cycle_Time": { "unit": "s" },
+        "Input_Buffer":          { "unit": "parts" },
+        "TTE":                   { "unit": "min" },
+        "TTF":                   { "unit": "min" },
+        "Consumption_Rate":      { "unit": "ppm" },
+        "Production_Rate":       { "unit": "ppm" }
     }
 }

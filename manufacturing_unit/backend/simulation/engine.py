@@ -103,7 +103,12 @@ class SimulationEngine:
         """
         all_tags = {}
         for m in self.machines:
-            all_tags.update(m.get_tags())
+            tags = m.get_tags()
+            all_tags.update(tags)
+            
+            # Inject input buffer count from orchestrator
+            if self.orchestrator:
+                all_tags[f"{m.id}.Input_Buffer"] = self.orchestrator.get_input_buffer_for_machine(m.id)
             
         # Include Orchestrator WIP in tags
         if self.orchestrator:

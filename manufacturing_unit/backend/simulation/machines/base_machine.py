@@ -230,6 +230,7 @@ class BaseMachine(ABC):
         }
         
         base_tags = {
+            f"{self.id}.state": self.state.value,
             f"{self.id}.run_status": state_map.get(self.state, "UNKNOWN"),
             f"{self.id}.is_running": self.state == MachineState.RUNNING,
             f"{self.id}.power_kw": round(self.power_kw, 2),

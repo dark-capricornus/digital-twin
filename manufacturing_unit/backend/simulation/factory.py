@@ -18,7 +18,7 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     engine = SimulationEngine(time_step=0.2, plc_ref=plc_ref)  # FIXED 200ms timestep
 
     # 1. Inbound (Generator - logically just a machine that always has input)
-    inbound = SimpleMachine("INBOUND_01", "Inbound Dock", cycle_time=2.0)
+    inbound = SimpleMachine("INBOUND_01", "Inbound Dock", cycle_time=2.0, role="inbound_buffer")
     # Pre-fill inbound queue
     for i in range(100):
         inbound.queue_in.append(f"RawMaterial-{i}")
@@ -74,8 +74,8 @@ def build_factory(plc_ref=None) -> SimulationEngine:
     # 14. Packing (Removed)
 
     # 15. Outbound
-    outbound = SimpleMachine("OUTBOUND_01", "Shipping Dock", cycle_time=2.0)
-    outbound2 = SimpleMachine("OUTBOUND_02", "Shipping Dock 2", cycle_time=2.0)
+    outbound = SimpleMachine("OUTBOUND_01", "Shipping Dock", cycle_time=2.0, role="outbound_buffer")
+    outbound2 = SimpleMachine("OUTBOUND_02", "Shipping Dock 2", cycle_time=2.0, role="outbound_buffer")
     
     # 16. Storage
     

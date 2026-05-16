@@ -156,7 +156,7 @@
             "purchase_date": "2024-03-05",
             "last_service_date": "2026-03-25",
             "next_service_date": "2026-09-25",
-            "department": "Finishing Department",
+            "department": "Finishing",
             "icon": "water_drop"
         },
         "PAINT_01": {
@@ -168,7 +168,7 @@
             "purchase_date": "2024-03-15",
             "last_service_date": "2026-03-28",
             "next_service_date": "2026-06-28",
-            "department": "Finishing Department",
+            "department": "Finishing",
             "icon": "format_paint"
         },
         "PAINT_02": {
@@ -180,7 +180,7 @@
             "purchase_date": "2024-03-18",
             "last_service_date": "2026-03-30",
             "next_service_date": "2026-06-30",
-            "department": "Finishing Department",
+            "department": "Finishing",
             "icon": "format_paint"
         },
 

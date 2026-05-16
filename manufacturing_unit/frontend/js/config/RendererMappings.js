@@ -1,3 +1,4 @@
+
 export const MANUAL_MAP = {
     'cnc_01': 'cnc_01',
     'cnc_02': 'cnc_02',
@@ -35,10 +36,10 @@ export const MANUAL_MAP = {
     'outbound01': 'outbound_01',
     'outbound_02': 'outbound_02',
     'outbound02': 'outbound_02',
-    'pretreat_01': 'pretreatment',
-    'pretreat01': 'pretreatment',
-    'pretreatment_01': 'pretreatment',
-    'pretreat': 'pretreat',
+    'pretreat_01': 'preteatment',
+    'pretreat01': 'preteatment',
+    'pretreatment_01': 'preteatment',
+    'pretreat': 'preteatment',
     'inspection_01': 'inspection',
     'inspection01': 'inspection',
     'furnace_01': 'furnace',
@@ -52,6 +53,7 @@ export const ASSOCIATED_MESH_NAMES = {
     'degasser_01': ['aluminium_container.001', 'aluminium_container.005', 'ladel_01', 'degasser_01_ladel_01'],
     'degasser_02': ['aluminium_container.003', 'ladel_02', 'degasser_02_ladel_02'],
     'heat_01': ['heat', 'heat_02.001', 'heat_02.002', 'heat_treatment_conveyor', 'cooling_lift','cooling_conveyor'],
+    'pretreat_01': ['preteatment'],
 };
 
 export const ANIMATION_GROUPS = {
@@ -88,7 +90,5 @@ export const CUSTOM_ZOOMS = {
     'degasser_01': 5.9777,
     'degasser_02': 5.9777,
     'lpdc_02': 5.801,
-    'lpdc_03': 5.801,
-    'pretreat_01': 9.424,
-    'pretreat': 9.424
+    'lpdc_03': 5.801
 };

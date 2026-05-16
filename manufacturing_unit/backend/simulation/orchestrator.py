@@ -88,171 +88,145 @@ class ProductionOrchestrator:
     def tick(self, dt: float, current_time: float):
         self.last_sim_time = current_time
         self._collect_outputs()
-        self._process_low_material_flow()
+        self._process_sequential_flow()
         self._update_kpis(current_time)
         self._check_batch_lifecycle()
 
     def _collect_outputs(self):
-        # 1. Furnace
+        # 1. Furnace -> Molten Metal
         if self._collect_items(self.m_furnace):
              self.wip["molten_metal_kg"] += 10
 
-        # 2. Degasser
+        # 2. Degassers -> Degassed Metal
         if self._collect_items(self.m_degasser) or self._collect_items(self.m_degasser2):
             self.wip["degassed_metal_kg"] += 10
             
-        # 3. LPDC
+        # 3. LPDC -> Cast Parts
         if self._collect_items(self.m_lpdc) or self._collect_items(self.m_lpdc2) or self._collect_items(self.m_lpdc3):
             self.wip["cast_parts"] += 1
             
-        # 4. Cooling 1
-        if self._collect_items(self.m_cooling1):
-            self.wip["cooled_parts_1"] += 1
-
-        # 5. Heat Treat
-        if self._collect_items(self.m_heat) or self._collect_items(self.m_heat2):
-            self.wip["heat_treated_parts"] += 1
-            
-        # 6. Cooling 2
-        if self._collect_items(self.m_cooling2):
-            self.wip["cooled_parts_2"] += 1
-
-        # 7. CNC
-        if self._collect_items(self.m_cnc) or self._collect_items(self.m_cnc2):
-            self.wip["machined_parts"] += 1
-
-        # 8. Pretreat
-        if self._collect_items(self.m_pretreat):
-            self.wip["pretreated_parts"] += 1
-            
-        # 9. Paint Booths (1 \u0026 2)
-        if self._collect_items(self.m_paint1) or self._collect_items(self.m_paint2):
-            self.wip["painted_parts"] += 1
-            
-        # 10. Inspection
+        # 4. Inspection -> Inspected Parts (QC Passed)
         items = self._pop_all_items(self.m_inspect)
         if items:
             for _ in items:
                 import random
-                if random.random() < 0.03:
+                if random.random() < 0.02:
                     self.wip["scrap_parts"] += 1
                     self.kpis["total_scrap"] += 1
                 else:
-                    self.wip["xray_passed"] += 1
+                    self.wip["qc_passed"] += 1 
 
-        if self.m_inspect is not None:
-            reject_queue = getattr(self.m_inspect, 'queue_reject', None)
-            if reject_queue:
-                rejects_count = len(reject_queue)
-                self.wip["scrap_parts"] += rejects_count
-                self.kpis["total_scrap"] += rejects_count
-                reject_queue.clear()
+        # 5. Heat Treat -> HT Parts
+        if self._collect_items(self.m_heat) or self._collect_items(self.m_heat2):
+            self.wip["heat_treated_parts"] += 1
+            
+        # 6. CNC -> Machined Parts
+        if self._collect_items(self.m_cnc) or self._collect_items(self.m_cnc2):
+            self.wip["machined_parts"] += 1
 
-        # 11. QC (Packing) - Removed, parts go straight to Outbound
+        # 7. Pretreat -> Pretreated Parts
+        if self._collect_items(self.m_pretreat):
+            self.wip["pretreated_parts"] += 1
+            
+        # 8. Paint 01 -> Painted 01
+        if self._collect_items(self.m_paint1):
+            self.wip["painted_parts"] += 1
+            
+        # 9. Paint 02 -> Painted 02 (XRay Passed)
+        if self._collect_items(self.m_paint2):
+            self.wip["xray_passed"] += 1
                     
+        # 10. Cooling 01
+        if self._collect_items(self.m_cooling1):
+            self.wip["cooled_parts_1"] += 1
+            
+        # 11. Cooling 02
+        if self._collect_items(self.m_cooling2):
+            self.wip["cooled_parts_2"] += 1
+
         # 12. Outbound
         self._collect_items(self.m_outbound)
 
-    def _process_low_material_flow(self):
-        BUFFER_LIMIT_KG = 50 
-        
-        # 1. Furnace
-        if self.wip["ingots_kg"] >= 10 and self.wip["degassed_metal_kg"] < BUFFER_LIMIT_KG:
-            target_furnace = None
-            if self._is_idle(self.m_furnace): target_furnace = self.m_furnace
-            
-            if target_furnace:
+    def _process_sequential_flow(self):
+        # [USER] Flow: Raw (Inbound) -> Furnace -> Degassers -> LPDCs -> Inspection -> Heat Treatment -> Machining -> Pretreatment -> Paint 01 -> Paint 02 -> Outbound
+
+        # 1. Furnace (Input: Inbound)
+        if self.wip["ingots_kg"] >= 10:
+            if self._is_idle(self.m_furnace) and not self._is_faulted(self.m_furnace):
                 self.wip["ingots_kg"] -= 10
                 self.kpis["total_ingots_consumed"] += 10
-                self._start_machine(target_furnace, "IngotBatch")
+                self._start_machine(self.m_furnace, "IngotBatch")
             
-        # 2. Degasser
+        # 2. Degasser (Input: Furnace Output)
         if self.wip["molten_metal_kg"] >= 10:
-            target_degasser = None
-            if self._is_idle(self.m_degasser): target_degasser = self.m_degasser
-            elif self._is_idle(self.m_degasser2): target_degasser = self.m_degasser2
-            
-            if target_degasser:
+            target = self._get_idle_non_faulted([self.m_degasser, self.m_degasser2])
+            if target:
                 self.wip["molten_metal_kg"] -= 10
-                self._start_machine(target_degasser, "MoltenBatch")
+                self._start_machine(target, "MoltenBatch")
             
-        # 3. LPDC
+        # 3. LPDC (Input: Degasser Output)
         if self.wip["degassed_metal_kg"] >= 10:
-            target_lpdc = None
-            if self._is_idle(self.m_lpdc): target_lpdc = self.m_lpdc
-            elif self._is_idle(self.m_lpdc2): target_lpdc = self.m_lpdc2
-            elif self._is_idle(self.m_lpdc3): target_lpdc = self.m_lpdc3
-
-            if target_lpdc:
+            target = self._get_idle_non_faulted([self.m_lpdc, self.m_lpdc2, self.m_lpdc3])
+            if target:
                 self.wip["degassed_metal_kg"] -= 10
-                self._start_machine(target_lpdc, "DegassedMetal")
+                self._start_machine(target, "DegassedMetal")
             
-        # 4. Cooling 1
-        if self.wip["cast_parts"] >= 1 and self._is_idle(self.m_cooling1):
-            self.wip["cast_parts"] -= 1
-            self._start_machine(self.m_cooling1, "CastPart")
+        # 4. Cooling 01 (Input: LPDC Output)
+        if self.wip["cast_parts"] >= 1:
+            if self._is_idle(self.m_cooling1) and not self._is_faulted(self.m_cooling1):
+                self.wip["cast_parts"] -= 1
+                self._start_machine(self.m_cooling1, "CastPart")
 
-        # 5. Heat Treat
+        # 5. Inspection (Input: Cooling 01 Output)
         if self.wip["cooled_parts_1"] >= 1:
-            target_heat = None
-            if self._is_idle(self.m_heat): target_heat = self.m_heat
-            elif self._is_idle(self.m_heat2): target_heat = self.m_heat2
-            
-            if target_heat:
+            if self._is_idle(self.m_inspect) and not self._is_faulted(self.m_inspect):
                 self.wip["cooled_parts_1"] -= 1
-                self._start_machine(target_heat, "CooledPart1")
-            
-        # 6. Cooling 2
-        if self.wip["heat_treated_parts"] >= 1 and self._is_idle(self.m_cooling2):
-            self.wip["heat_treated_parts"] -= 1
-            self._start_machine(self.m_cooling2, "HTPart")
+                self._start_machine(self.m_inspect, "CooledPart1")
 
-        # 7. CNC
+        # 6. Heat Treat (Input: Inspection Output)
+        if self.wip["qc_passed"] >= 1:
+            target = self._get_idle_non_faulted([self.m_heat, self.m_heat2])
+            if target:
+                self.wip["qc_passed"] -= 1
+                self._start_machine(target, "InspectedPart")
+
+        # 7. Cooling 02 (Input: Heat Treat Output)
+        if self.wip["heat_treated_parts"] >= 1:
+            if self._is_idle(self.m_cooling2) and not self._is_faulted(self.m_cooling2):
+                self.wip["heat_treated_parts"] -= 1
+                self._start_machine(self.m_cooling2, "HTPart")
+            
+        # 8. Machining (Input: Cooling 02 Output)
         if self.wip["cooled_parts_2"] >= 1:
-            target_cnc = None
-            if self._is_idle(self.m_cnc): target_cnc = self.m_cnc
-            elif self._is_idle(self.m_cnc2): target_cnc = self.m_cnc2
-
-            if target_cnc:
+            target = self._get_idle_non_faulted([self.m_cnc, self.m_cnc2])
+            if target:
                 self.wip["cooled_parts_2"] -= 1
-                self._start_machine(target_cnc, "CooledPart2")
+                self._start_machine(target, "CooledPart2")
         
-        # trigger existing items in queue if they get stuck
-        for m in [self.m_cnc, self.m_cnc2]:
-            if m and len(m.queue_in) > 0 and m.current_item is None:
-                m.set_command("trigger", True)
-            
-        # 8. Pretreat
-        if self.wip["machined_parts"] >= 1 and self._is_idle(self.m_pretreat):
-            self.wip["machined_parts"] -= 1
-            self._start_machine(self.m_pretreat, "MachinedPart")
+        # 9. Pretreatment (Input: Machining Output)
+        if self.wip["machined_parts"] >= 1:
+            if self._is_idle(self.m_pretreat) and not self._is_faulted(self.m_pretreat):
+                self.wip["machined_parts"] -= 1
+                self._start_machine(self.m_pretreat, "MachinedPart")
 
-        # 9. Paint Booths (Load Balancing)
+        # 10. Paint 01 (Input: Pretreatment Output)
         if self.wip["pretreated_parts"] >= 1:
-            target_paint = None
-            if self._is_idle(self.m_paint1): target_paint = self.m_paint1
-            elif self._is_idle(self.m_paint2): target_paint = self.m_paint2
-            
-            if target_paint:
+            if self._is_idle(self.m_paint1) and not self._is_faulted(self.m_paint1):
                 self.wip["pretreated_parts"] -= 1
-                self._start_machine(target_paint, "PretreatedPart")
+                self._start_machine(self.m_paint1, "PretreatedPart")
+
+        # 11. Paint 02 (Input: Paint 01 Output)
+        if self.wip["painted_parts"] >= 1:
+            if self._is_idle(self.m_paint2) and not self._is_faulted(self.m_paint2):
+                self.wip["painted_parts"] -= 1
+                self._start_machine(self.m_paint2, "PaintedPart1")
             
-        # 10. Inspection
-        if self.wip["painted_parts"] >= 1 and self._is_idle(self.m_inspect):
-            self.wip["painted_parts"] -= 1
-            self._start_machine(self.m_inspect, "PaintedPart")
-            
-        # 11. QC/Packing (Removed, passed directly to Outbound)
-            
-        # 12. Outbound
+        # 12. Outbound (Input: Paint 02 Output)
         if self.wip["xray_passed"] >= 1:
-            target_outbound = None
-            if self._is_idle(self.m_outbound): target_outbound = self.m_outbound
-            
-            if target_outbound:
+            if self._is_idle(self.m_outbound) and not self._is_faulted(self.m_outbound):
                 self.wip["xray_passed"] -= 1
                 self.kpis["total_wheels_produced"] += 1
-                self._start_machine(target_outbound, "Wheel")
+                self._start_machine(self.m_outbound, "Wheel")
 
     def _check_batch_lifecycle(self):
         if self.wip["ingots_kg"] <= 0:
@@ -275,6 +249,17 @@ class ProductionOrchestrator:
         if not machine: return False
         return machine.current_item is None and len(machine.queue_in) == 0
 
+    def _is_faulted(self, machine) -> bool:
+        if not machine: return False
+        from .machines.base_machine import MachineState
+        return getattr(machine, 'state', None) == MachineState.FAULTED
+
+    def _get_idle_non_faulted(self, machine_list: List[Machine]) -> Optional[Machine]:
+        for m in machine_list:
+            if m and self._is_idle(m) and not self._is_faulted(m):
+                return m
+        return None
+
     def _collect_items(self, machine) -> int:
         if not machine: return 0
         count = len(machine.queue_out)
@@ -291,6 +276,11 @@ class ProductionOrchestrator:
     def _start_machine(self, machine, item):
         if not machine: return
         machine.queue_in.append(item)
+        
+        # Explicitly transition machine to RUNNING state
+        if hasattr(machine, 'handle_start_command'):
+            machine.handle_start_command()
+            
         if hasattr(machine, 'role'):
             if machine.role == 'casting':
                 machine.set_command('pour_request', True)
@@ -302,3 +292,28 @@ class ProductionOrchestrator:
         
     def get_kpis(self) -> Dict[str, Any]:
         return self.kpis.copy()
+
+    def get_input_buffer_for_machine(self, machine_id: str) -> int:
+        """Helper to map machine IDs to their current WIP input buffer"""
+        mapping = {
+            "FURNACE_01": "ingots_kg",
+            "DEGASSER_01": "molten_metal_kg",
+            "DEGASSER_02": "molten_metal_kg",
+            "LPDC_01": "degassed_metal_kg",
+            "LPDC_02": "degassed_metal_kg",
+            "LPDC_03": "degassed_metal_kg",
+            "COOLING_01": "cast_parts",
+            "INSPECTION_01": "cooled_parts_1",
+            "HEAT_01": "qc_passed",
+            "HEAT_02": "qc_passed",
+            "COOLING_02": "heat_treated_parts",
+            "CNC_01": "cooled_parts_2",
+            "CNC_02": "cooled_parts_2",
+            "PRETREAT_01": "machined_parts",
+            "PAINT_01": "pretreated_parts",
+            "PAINT_02": "painted_parts",
+            "OUTBOUND_01": "xray_passed",
+            "OUTBOUND_02": "xray_passed"
+        }
+        key = mapping.get(machine_id)
+        return self.wip.get(key, 0) if key else 0

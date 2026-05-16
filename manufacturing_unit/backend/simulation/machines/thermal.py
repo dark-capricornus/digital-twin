@@ -97,13 +97,13 @@ class ThermalMachine(BaseMachine):
             # Heating Logic
             if current_temp < self.target_temp - 5.0:
                  self.heater_power = 100.0
-                 self.mode = "HEATING" if "heat" in self.id.lower() else "MELT"
+                 self.mode = "MELT"
             elif current_temp > self.target_temp + 5.0:
                  self.heater_power = 0.0
-                 self.mode = "SOAKING" if "heat" in self.id.lower() else "HOLD"
+                 self.mode = "HOLD"
             else:
                  self.heater_power = 50.0 # Maintain
-                 self.mode = "SOAKING" if "heat" in self.id.lower() else "HOLD"
+                 self.mode = "HOLD"
                  
         # 2. Process Material
         tolerance = 15.0
@@ -135,12 +135,24 @@ class ThermalMachine(BaseMachine):
         self.progress += (dt / self.cycle_time) * 100.0
         self.step_timer += dt
         
-        # Random Tapping if furnace almost done
-        if "furnace" in self.id and self.progress > 95.0:
-             self.mode = "TAPPING"
+        # Specialized Logic for Heat Treat
+        if "heat" in self.id.lower():
+            if self.progress < 20: self.mode = "HEATING"
+            elif self.progress < 50: self.mode = "SOAKING"
+            elif self.progress < 60: self.mode = "TRANSFER"
+            elif self.progress < 80: self.mode = "QUENCH"
+            else: self.mode = "AGING"
+            
+            # Aging/Quench temp variation
+            if self.mode == "QUENCH":
+                self.physics.T_current -= dt * 25.0 # Fast cooling
+            elif self.mode == "AGING":
+                self.target_temp = 180.0
         
         # Finish
         if self.progress >= 100.0:
+            if "heat" in self.id.lower():
+                 self.target_temp = 540.0 # Reset for next batch
             self.queue_out.append(self.current_item)
             self.current_item = None
             self.processed_count += 1
@@ -162,20 +174,22 @@ class ThermalMachine(BaseMachine):
             tags["process_temp"] = temp
             tags["target_temp"] = self.target_temp
             tags["progress"] = round(self.progress, 2)
-            tags["run_status"] = self.mode
+            tags["cooling_mode"] = self.mode
             
         elif "furnace" in self.id.lower():
-            tags["melt_bath_temp"] = round(self.zone_temps["bath"], 1)
-            tags["zone_temp"] = temp
-            tags["furnace_mode"] = self.mode
-            tags["step_timer"] = round(self.step_timer, 1)
+            tags["Roof_Temp"] = round(self.zone_temps["roof"], 1)
+            tags["Wall_Temp"] = round(self.zone_temps["wall"], 1)
+            tags["Bath_Temp"] = round(self.zone_temps["bath"], 1)
+            tags["Furnace_Mode"] = self.mode
+            tags["Melt_Timer"] = round(self.step_timer, 1) if self.mode == "MELT" else 0.0
+            tags["Hold_Timer"] = round(self.step_timer, 1) if self.mode == "HOLD" else 0.0
             
         elif "heat" in self.id.lower():
-            tags["furnace_temp"] = temp
-            tags["temp_setpoint"] = self.target_temp
-            tags["process_step"] = self.mode
-            tags["step_timer"] = round(self.step_timer, 1)
-            tags["progress"] = round(self.progress, 2)
+            tags["Furnace_Temperature"] = temp
+            tags["Temperature_Setpoint"] = self.target_temp
+            tags["Process_Step"] = self.mode
+            tags["Step_Timer"] = round(self.step_timer, 1)
+            tags["Progress"] = round(self.progress, 2)
             
         return tags
 

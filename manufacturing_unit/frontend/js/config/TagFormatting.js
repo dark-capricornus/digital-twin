@@ -16,9 +16,20 @@ export function formatTagLabel(tag) {
         'is_running': 'Operational',
         'capacity': 'Storage Capacity',
         'plc_state': 'PLC Power State',
-        'plc_scantime': 'PLC Scan Time'
+        'plc_scantime': 'PLC Scan Time',
+        'Program_ID': 'Cycle/Program',
+        'Total_Parts_Machined': 'Total Parts Machined',
+        'Stage_Status': 'Operation',
+        'Booth_Cycle_Status': 'Operation',
+        'Part_Count': 'Inventory Level',
+        'Capacity': 'Storage Capacity',
+        'Utilization': 'Capacity Used',
+        'Input_Buffer': 'Accumulated Input'
     };
     if (labelMap[tag]) return labelMap[tag];
+    // Specific check for dynamic machine buffer tags
+    if (tag.endsWith('_Input_Buffer')) return 'Accumulated Input';
+
     return tag.replace(/_/g, ' ');
 }
 
@@ -26,6 +37,7 @@ export function getUnit(tag) {
     if (!tag) return '';
     const upperTag = tag.toUpperCase();
 
+    if (upperTag.includes('BUFFER')) return 'parts';
     if (upperTag.includes('KWH')) return 'kWh';
     if (upperTag.includes('KW')) return 'kW';
     if (upperTag.includes('MOLTEN') || upperTag.includes('METAL') || upperTag.includes('KG')) return 'kg';
@@ -47,16 +59,17 @@ export function normalizeLabel(tag) {
     if (!tag) return '';
     let s = String(tag).replace(/_/g, ' ').trim();
 
-    const machinePrefixes = ['LPDC', 'CNC', 'Furnace', 'HT', 'Heat', 'Cooling',
+    const machinePrefixes = ['LPDC', 'CNC', 'HT', 'Cooling',
         'PB1', 'PB2', 'PT', 'Pretreat', 'XRay', 'Paint', 'Painting',
         'Degasser', 'Degassing', 'Inbound', 'Outbound', 'Storage',
-        'Inspection', 'Buffer'];
+        'Buffer', 'Furnace'];
     for (const p of machinePrefixes) {
-        const re = new RegExp(`^${p}\\s+`, 'i');
+        const re = new RegExp(`^${p}\\s+\\d*\\s*`, 'i');
         if (re.test(s)) { s = s.replace(re, ''); break; }
     }
 
     const replacements = [
+        [/\bInput\s*Buffer\b/i, 'Accumulated Input'],
         [/\bTotal\s*kWh\b/i, 'Total Consumed'],
         [/\bInstant\s*kW\b/i, 'Instant Power'],
         [/\bRuntime\s*Total\s*Hrs?\b/i, 'Total Runtime'],
@@ -69,17 +82,19 @@ export function normalizeLabel(tag) {
         [/\bZone\s*Temperature\b/i, 'Zone Temp'],
         [/\bWall\s*Temperature\b/i, 'Wall Temp'],
         [/\bRoof\s*Temperature\b/i, 'Roof Temp'],
+        [/\bBath\s*Temperature\b/i, 'Bath Temp'],
+        [/\bMelt\s*Timer\b/i, 'Melt Timer'],
+        [/\bHold\s*Timer\b/i, 'Hold Timer'],
         [/\bTarget\s*Temperature\b/i, 'Target Temp'],
         [/\bMax\s*Furnace\s*Temperature\b/i, 'Max Furnace Temp'],
         [/\bHolding\s*Furnace\s*Temperature\b/i, 'Holding Furnace Temp'],
         [/\bDie\s*Top\s*Temperature\b/i, 'Die Top Temp'],
         [/\bDie\s*Bottom\s*Temperature\b/i, 'Die Bottom Temp'],
-        [/\bBooth\s*Temperature\b/i, 'Booth Temp'],
-        [/\bDryer\s*Temperature\b/i, 'Dryer Temp'],
-        [/\bFurnace\s*Temperature\b/i, 'Furnace Temp'],
-        [/\bInternal\s*Temperature\b/i, 'Internal Temp'],
-        [/\bTemp\s*Setpoint\b/i, 'Temp Setpoint'],
         [/\bTemperature\b/i, 'Temp'],
+        [/\bInternal\s*Temp\b/i, 'Internal Temperature'],
+        [/\bFurnace\s*Temp\b/i, 'Furnace Temperature'],
+        [/\bDryer\s*Temp\b/i, 'Dryer Temperature'],
+        [/\bTemp\s*Setpoint\b/i, 'Temperature Setpoint'],
         [/\s*Pct\b/i, ''],
     ];
     for (const [re, rep] of replacements) s = s.replace(re, rep);

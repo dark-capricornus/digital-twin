@@ -65,6 +65,19 @@ class SimulationAdapter:
         "spindle_speed":         "Spindle_Speed",
         "model_id":              "Model_ID",
         "program_id":            "Program_ID",
+        "cooling_mode":          "Cooling_Mode",
+        "inbound_count":         "Inbound_Count",
+        "outbound_count":        "Outbound_Count",
+        "capacity":              "Capacity",
+        "utilization":           "Utilization",
+        "status":                "Status",
+        "inventory_status":      "Inventory_Status",
+        "storage_pressure":      "Storage_Pressure",
+        "tte":                   "TTE",
+        "ttf":                   "TTF",
+        "consumption_rate":      "Consumption_Rate",
+        "production_rate":       "Production_Rate",
+        "ready_for_shipping":    "Ready_For_Shipping",
     }
 
     def __init__(self, machine_obj: Any, device_id: str):
@@ -88,7 +101,10 @@ class SimulationAdapter:
         else:
             clean_state = str(state_code).upper()
 
-        mapped_tags["State"] = clean_state
+        # 1. Standard PLC Tags
+        mapped_tags["StateCode"] = state_code if isinstance(state_code, int) else 0
+        mapped_tags["State"] = state_code if isinstance(state_code, int) else 0 # Backward compatibility for Int expectations
+        mapped_tags["Status"] = clean_state
         mapped_tags["Is_Running"] = (clean_state == "RUNNING")
 
         # 2. Map remaining sim tags via TAG_MAP, skipping ones handled above.

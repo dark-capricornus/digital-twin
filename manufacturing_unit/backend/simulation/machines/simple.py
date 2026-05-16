@@ -51,6 +51,13 @@ class SimpleMachine(BaseMachine):
         # Accumulation State
         self.accumulating = False
         
+        # Logistics Analytics
+        self.flow_history: List[float] = [] # Track throughput over time
+        self.consumption_rate = 0.0
+        self.production_rate = 0.0
+        self.tte = 0.0
+        self.ttf = 0.0
+        
         # Casting specific
         if role == "casting":
             self.furnace_level_kg = 1200.0
@@ -144,20 +151,21 @@ class SimpleMachine(BaseMachine):
                 self.pressure_psi = 0.0
                 
         elif self.role == "machining":
-            if self.progress < 15: self.cycle_status = "STARTING"
-            elif self.progress < 85: self.cycle_status = "RUNNING"
-            elif self.progress < 95: self.cycle_status = "TOOL_CHANGE"
+            # [USER] Operations: RUNNING -> IDLE -> TOOL_CHANGE -> COMPLETE
+            if self.progress < 10: self.cycle_status = "IDLE"
+            elif self.progress < 75: self.cycle_status = "RUNNING"
+            elif self.progress < 90: self.cycle_status = "TOOL_CHANGE"
             else: self.cycle_status = "COMPLETE"
 
         elif "paint" in self.role:
-            # Cycle between SPRAYING -> IDLE -> CLEANING
+            # [USER] Operations: SPRAYING -> IDLE -> CLEANING
             if self.progress < 70: 
                  self.cycle_status = "SPRAYING"
                  self.alarm_status = "NORMAL"
-            elif self.progress < 90: 
-                 self.cycle_status = "CLEANING"
-            else: 
+            elif self.progress < 85: 
                  self.cycle_status = "IDLE"
+            else: 
+                 self.cycle_status = "CLEANING"
             
             # Simulate Environment
             self.temperature = 22.0 + random.uniform(-0.5, 0.5)
@@ -170,12 +178,37 @@ class SimpleMachine(BaseMachine):
                  else: # Paint 02
                       self.alarm_status = random.choice(["Low Lacquer Pressure", "Air Fault", "Exhaust Fault"])
 
-        elif "pretreat" in self.role:
-            self.conveyor_speed = 1.2 # m/min
+        elif self.role == "pretreat":
+            # [USER] Operations: DEGREASE -> RINSE -> PHOSPHATE -> DRY
             if self.progress < 25: self.cycle_status = "DEGREASE"
             elif self.progress < 50: self.cycle_status = "RINSE"
             elif self.progress < 75: self.cycle_status = "PHOSPHATE"
             else: self.cycle_status = "DRY"
+
+        elif self.role == "inspection":
+            if self.progress < 80: self.cycle_status = "SCANNING"
+            elif self.progress < 95: self.cycle_status = "COMPLETE"
+            else: self.cycle_status = "IDLE"
+
+        elif self.role == "heat_treat":
+            if self.progress < 30: self.cycle_status = "HEATING"
+            elif self.progress < 60: self.cycle_status = "SOAKING"
+            elif self.progress < 70: self.cycle_status = "TRANSFER"
+            elif self.progress < 80: self.cycle_status = "QUENCH"
+            else: self.cycle_status = "AGING"
+            
+            # Temp simulation
+            setpoint = 540.0
+            if self.cycle_status == "HEATING":
+                self.furnace_temp = 100.0 + (self.progress / 30.0) * (setpoint - 100.0)
+            elif self.cycle_status == "SOAKING":
+                self.furnace_temp = setpoint + random.uniform(-1, 1)
+            elif self.cycle_status == "QUENCH":
+                self.furnace_temp = setpoint - (self.progress - 70.0) * 10.0 # Rapid drop
+            else: # AGING or TRANSFER
+                self.furnace_temp = 180.0 if self.cycle_status == "AGING" else setpoint
+            
+            self.temp_setpoint = setpoint if self.cycle_status != "AGING" else 180.0
 
         # 3. Finish
         if self.progress >= 100.0:
@@ -198,10 +231,21 @@ class SimpleMachine(BaseMachine):
         self.accumulating = len(self.queue_out) > 5
             
         # Update Buffers
-        if self.role == "buffer":
-            self.part_count = len(self.queue_out)
+        if self.role in ["buffer", "inbound_buffer", "outbound_buffer"]:
+            # Logic handled in _get_device_specific_tags to ensure total stock visibility
+            pass
             
-        # Events
+            # Simple Flow Calculation (Moving Average)
+            self.flow_history.append(dt)
+            if len(self.flow_history) > 100: self.flow_history.pop(0)
+            
+            # Use simulation events to drive rates
+            if self.role == "inbound_buffer":
+                # Simulated drain based on furnace demand (approx 0.5 parts/min)
+                self.consumption_rate = 0.5 + random.uniform(-0.05, 0.05)
+            else:
+                # Simulated fill based on machine output (approx 0.4 parts/min)
+                self.production_rate = 0.4 + random.uniform(-0.04, 0.04)
         if self.role == "casting":
             self._emit_event("LPDC_CYCLE_COMPLETE", {})
         elif self.role == "machining":
@@ -211,48 +255,103 @@ class SimpleMachine(BaseMachine):
         tags = {}
         
         if self.role == "casting":
-            tags["shot_count"] = self.shot_count
-            tags["model_id"] = "WHEEL_V1_SPORT"
-            tags["riser_pressure"] = round(self.pressure_psi * 0.95, 1)
-            tags["pressure_setpoint"] = 60.0
-            tags["holding_pressure"] = 45.0 if self.cycle_status == "HOLDING" else 0.0
-            tags["holding_furnace_temp"] = round(getattr(self, 'holding_furnace_temp', 730.0), 1)
-            tags["die_top_temp"] = round(getattr(self, 'die_top_temp', 450.0), 1)
-            tags["die_bottom_temp"] = round(getattr(self, 'die_bottom_temp', 420.0), 1)
-            tags["cycle_time"] = self.cycle_time
+            tags["Shot_Count"] = self.shot_count
+            tags["Model_ID"] = "WHEEL_V1_SPORT"
+            tags["Riser_Pressure"] = round(self.pressure_psi * 0.95, 1)
+            tags["Pressure_Setpoint"] = 60.0
+            tags["Holding_Pressure"] = 45.0 if self.cycle_status == "HOLDING" else 0.0
+            tags["Holding_Furnace_Temp"] = round(getattr(self, 'holding_furnace_temp', 730.0), 1)
+            tags["Die_Top_Temp"] = round(getattr(self, 'die_top_temp', 450.0), 1)
+            tags["Die_Bottom_Temp"] = round(getattr(self, 'die_bottom_temp', 420.0), 1)
+            tags["Cycle_Time"] = self.cycle_time
             # Cycle profile: FILLING 0-20%, HOLDING 20-70%, COOLING 70-85%, EJECTING 85-95%.
             # Fill = filling phase; solidification = under pressure (HOLDING + COOLING).
-            tags["fill_time"] = round(self.cycle_time * 0.20, 2)
-            tags["solidification_time"] = round(self.cycle_time * 0.65, 2)
-            tags["cycle_status"] = self.cycle_status
+            tags["Fill_Time"] = round(self.cycle_time * 0.20, 2)
+            tags["Solidification_Time"] = round(self.cycle_time * 0.65, 2)
+            tags["Cycle_Status"] = self.cycle_status
             
         elif self.role == "machining":
-            tags["spindle_speed"] = round(3500.0 if self.cycle_status == "RUNNING" else 0.0, 1)
-            tags["program_id"] = "PRG_8821_OP10"
-            tags["part_count"] = self.processed_count
-            tags["good_part_count"] = self.good_count
-            tags["reject_count"] = self.reject_count
-            tags["cycle_time"] = self.cycle_time
-            tags["cycle_status"] = self.cycle_status
+            tags["Spindle_Speed"] = round(3500.0 if self.cycle_status == "RUNNING" else 0.0, 1)
+            tags["Program_ID"] = "PRG_8821_OP10"
+            tags["Part_Count"] = self.processed_count
+            tags["Total_Parts_Machined"] = getattr(self, 'total_machined', self.processed_count)
+            tags["Good_Part_Count"] = self.good_count
+            tags["Reject_Count"] = self.reject_count
+            tags["Cycle_Time"] = self.cycle_time
+            tags["Cycle_Status"] = self.cycle_status
             
         elif "paint" in self.role:
-            tags["booth_temp"] = round(self.temperature, 1)
-            tags["booth_humidity"] = round(self.humidity, 1)
-            tags["air_flow_status"] = "ACTIVE"
-            tags["booth_cycle_status"] = self.cycle_status
+            tags["Booth_Temp"] = round(self.temperature, 1)
+            tags["Booth_Humidity"] = round(self.humidity, 1)
+            tags["Air_Flow_Status"] = "ACTIVE"
+            tags["Booth_Cycle_Status"] = self.cycle_status
             
-        elif "pretreat" in self.role:
-            tags["conveyor_speed"] = self.conveyor_speed
-            tags["stage_status"] = self.cycle_status
-            tags["dryer_temp"] = 120.0 if self.cycle_status == "DRY" else 45.0
+        elif self.role == "pretreat":
+            tags["Conveyor_Speed"] = round(1.2 if self.state.value == MachineState.RUNNING.value else 0.0, 1)
+            tags["Stage_Status"] = self.cycle_status
+            tags["Dryer_Temperature"] = round(120.0 if self.cycle_status == "DRY" else 45.0, 1)
+            tags["Progress"] = round(self.progress, 1)
+            tags["Step_Timer"] = round((self.progress / 100.0) * self.cycle_time, 1)
             
-        elif self.role == "buffer" or "storage" in self.id.lower() or "inbound" in self.id.lower() or "outbound" in self.id.lower():
-            tags["part_count"] = self.part_count
-            tags["total_runtime"] = round(self.runtime_total_hrs, 2)
-            if "inbound" in self.id.lower():
-                tags["inbound_count"] = self.processed_count
-            if "outbound" in self.id.lower():
-                tags["outbound_count"] = self.processed_count
+        elif self.role == "inbound_buffer" or "inbound" in self.id.lower():
+            capacity = self.capacity or 500
+            # Total stock = items waiting + processing + ready
+            total_parts = len(self.queue_in) + (1 if self.current_item else 0) + len(self.queue_out)
+            self.part_count = total_parts 
+            
+            tags["Part_Count"] = self.part_count
+            tags["Capacity"] = capacity
+            tags["Utilization"] = round((self.part_count / capacity) * 100, 1)
+            tags["Total_Runtime"] = round(self.runtime_total_hrs, 2)
+            
+            # Inventory Status Logic
+            if self.part_count == 0: tags["Inventory_Status"] = "EMPTY"
+            elif self.part_count < (capacity * 0.2): tags["Inventory_Status"] = "LOW_STOCK"
+            elif self.part_count >= capacity: tags["Inventory_Status"] = "FULL"
+            else: tags["Inventory_Status"] = "HEALTHY"
+
+            # Predictive TTE (Time to Empty)
+            # Simulated consumption rate if not provided by orchestrator
+            consumption = getattr(self, 'consumption_rate', 0.5) 
+            tags["Consumption_Rate"] = round(consumption, 2)
+            tags["TTE"] = round(self.part_count / consumption, 1) if consumption > 0 else 999.0
+
+        elif self.role == "outbound_buffer" or "outbound" in self.id.lower():
+            capacity = self.capacity or 200
+            # Total stock = items waiting + processing + ready
+            total_parts = len(self.queue_in) + (1 if self.current_item else 0) + len(self.queue_out)
+            self.part_count = total_parts
+
+            tags["Part_Count"] = self.part_count
+            tags["Capacity"] = capacity
+            tags["Utilization"] = round((self.part_count / capacity) * 100, 1)
+            tags["Total_Runtime"] = round(self.runtime_total_hrs, 2)
+            
+            # Storage Pressure Logic
+            if self.part_count >= capacity: tags["Storage_Pressure"] = "BLOCKED"
+            elif self.part_count > (capacity * 0.85): tags["Storage_Pressure"] = "BACKPRESSURE"
+            else: tags["Storage_Pressure"] = "CLEAR"
+
+            # Predictive TTF (Time to Full)
+            production = getattr(self, 'production_rate', 0.4)
+            tags["Production_Rate"] = round(production, 2)
+            tags["TTF"] = round((capacity - self.part_count) / production, 1) if production > 0 else 999.0
+            tags["Ready_For_Shipping"] = (self.part_count >= capacity * 0.8)
+        
+        elif self.role == "inspection":
+            tags["Scan_Status"] = self.cycle_status
+            tags["Inspection_Cycle"] = self.processed_count + 1
+            tags["Inspection_Cycle_Time"] = self.cycle_time
+            tags["Inspected_Count"] = self.processed_count
+            tags["OK_Count"] = self.good_count
+            tags["Not_Good_Count"] = self.reject_count
+        
+        elif self.role == "heat_treat":
+            tags["Furnace_Temperature"] = round(getattr(self, 'furnace_temp', 0.0), 1)
+            tags["Temperature_Setpoint"] = round(getattr(self, 'temp_setpoint', 0.0), 1)
+            tags["Process_Step"] = self.cycle_status
+            tags["Step_Timer"] = round(self.stage_timer, 1)
+            tags["Progress"] = round(self.progress, 1)
                 
         return tags
 
@@ -268,6 +367,8 @@ class SimpleMachine(BaseMachine):
             base = 60.0 if is_running else 10.0
         elif "paint" in self.role:
             base = 25.0 if is_running else 4.0
+        elif self.role == "heat_treat":
+            base = 120.0 if is_running else 15.0
         elif self.role == "buffer":
             base = 2.0 if is_running else 0.5
         else:

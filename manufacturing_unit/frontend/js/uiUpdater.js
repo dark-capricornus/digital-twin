@@ -449,7 +449,7 @@ class UIUpdater {
         //     furnace_mode, process_step, mode.
         //   - Already covered by Asset Info (assets.json): model_id.
         const isStatusTag = (t) => /^(run_status|is_running|state|cycle_status|stage_status|scan_status|booth_cycle_status|furnace_mode|process_step|mode|model_id)$/i.test(t);
-        const isProductionTag = (t) => /(^|_)(count|cycle_time|fill_time|solidification_time|shot_count|part_count|progress|processed|inspected|good_part|reject|degassed_metal|capacity|accumulating|queue_in|queue_out)/i.test(t) && !/_status$|_mode$/i.test(t);
+        const isProductionTag = (t) => /(^|_)(count|cycle_time|step_timer|program_id|speed|machined|inspection_cycle|fill_time|solidification_time|shot_count|part_count|progress|processed|inspected|good_part|reject|degassed_metal|capacity|accumulating|queue_in|queue_out|input_buffer)/i.test(t) && !/_status$|_mode$/i.test(t);
         const isAlarmTag = (t) => /^(alarm_status|fault)$/i.test(t);
 
         if (dict) {

@@ -7,69 +7,209 @@
     "zones": {
         "raw_materials": {
             "label": "Raw Materials",
-            "departments": ["raw_materials"]
+            "departments": [
+                "raw_materials"
+            ]
         },
         "smelting": {
             "label": "Smelting",
-            "departments": ["smelting", "degassing"]
+            "departments": [
+                "smelting",
+                "degassing"
+            ]
         },
         "die_casting": {
             "label": "Die Casting",
-            "departments": ["casting"]
+            "departments": [
+                "casting"
+            ]
         },
         "quality_control": {
             "label": "Quality Control",
-            "departments": ["inspection"]
+            "departments": [
+                "inspection"
+            ]
         },
         "heat_treatment": {
             "label": "Heat Treatment",
-            "departments": ["treatment"]
+            "departments": [
+                "treatment"
+            ]
         },
         "machining": {
             "label": "Machining",
-            "departments": ["machining"]
+            "departments": [
+                "machining"
+            ]
         },
         "finishing": {
             "label": "Finishing",
-            "departments": ["painting"]
+            "departments": [
+                "painting"
+            ]
         },
         "shipping": {
             "label": "Shipping",
-            "departments": ["warehouse"]
+            "departments": [
+                "warehouse"
+            ]
         }
     },
     "departments": {
-        "raw_materials": { "label": "Raw Materials", "machines": ["INBOUND_01", "INBOUND_02"] },
-        "smelting": { "label": "Smelting", "machines": ["FURNACE_01"] },
-        "degassing": { "label": "Degassing", "machines": ["DEGASSER_01", "DEGASSER_02"] },
-        "casting": { "label": "Die Casting", "machines": ["LPDC_01", "LPDC_02", "LPDC_03", "COOLING_01"] },
-        "machining": { "label": "Machining", "machines": ["CNC_01", "CNC_02"] },
-        "inspection": { "label": "Quality Control", "machines": ["INSPECTION_01"] },
-        "treatment": { "label": "Heat Treatment", "machines": ["HEAT_01"] },
-        "painting": { "label": "Finishing Department", "machines": ["PAINT_01", "PAINT_02", "PRETREAT_01"] },
-        "warehouse": { "label": "Shipping", "machines": ["OUTBOUND_01", "OUTBOUND_02"] }
+        "raw_materials": {
+            "label": "Raw Materials",
+            "machines": [
+                "INBOUND_01"
+            ]
+        },
+        "smelting": {
+            "label": "Smelting",
+            "machines": [
+                "FURNACE_01"
+            ]
+        },
+        "degassing": {
+            "label": "Degassing",
+            "machines": [
+                "DEGASSER_01",
+                "DEGASSER_02"
+            ]
+        },
+        "casting": {
+            "label": "Die Casting",
+            "machines": [
+                "LPDC_01",
+                "LPDC_02",
+                "LPDC_03",
+                "COOLING_01"
+            ]
+        },
+        "machining": {
+            "label": "Machining",
+            "machines": [
+                "CNC_01",
+                "CNC_02"
+            ]
+        },
+        "inspection": {
+            "label": "Quality Control",
+            "machines": [
+                "INSPECTION_01"
+            ]
+        },
+        "treatment": {
+            "label": "Heat Treatment",
+            "machines": [
+                "HEAT_01"
+            ]
+        },
+        "painting": {
+            "label": "Finishing",
+            "machines": [
+                "PAINT_01",
+                "PAINT_02",
+                "PRETREAT_01"
+            ]
+        },
+        "warehouse": {
+            "label": "Shipping",
+            "machines": [
+                "OUTBOUND_01",
+                "OUTBOUND_02"
+            ]
+        }
     },
     "machines": {
-        "FURNACE_01": { "type": "FURNACE", "sim_id": "FURNACE_01", "plc_path": "VirtualPLC.Devices.FURNACE_01" },
-        "DEGASSER_01": { "type": "DEGASSER", "sim_id": "DEGASSER_01", "plc_path": "VirtualPLC.Devices.DEGASSER_01" },
-        "DEGASSER_02": { "type": "DEGASSER", "sim_id": "DEGASSER_02", "plc_path": "VirtualPLC.Devices.DEGASSER_02" },
-        "LPDC_01": { "type": "LPDC", "sim_id": "LPDC_01", "plc_path": "VirtualPLC.Devices.LPDC_01" },
-        "LPDC_02": { "type": "LPDC", "sim_id": "LPDC_02", "plc_path": "VirtualPLC.Devices.LPDC_02" },
-        "LPDC_03": { "type": "LPDC", "sim_id": "LPDC_03", "plc_path": "VirtualPLC.Devices.LPDC_03" },
-        "HEAT_01": { "type": "HEAT_TREAT", "sim_id": "HEAT_01", "plc_path": "VirtualPLC.Devices.HEAT_01" },
-        "CNC_01": { "type": "CNC", "sim_id": "CNC_01", "plc_path": "VirtualPLC.Devices.CNC_01" },
-        "CNC_02": { "type": "CNC", "sim_id": "CNC_02", "plc_path": "VirtualPLC.Devices.CNC_02" },
-        "INSPECTION_01": { "type": "INSPECTION", "sim_id": "INSPECTION_01", "plc_path": "VirtualPLC.Devices.INSPECTION_01" },
-        "PAINT_01": { "type": "PAINT_BOOTH", "sim_id": "PAINT_01", "plc_path": "VirtualPLC.Devices.PAINT_01" },
-        "PAINT_02": { "type": "PAINT_BOOTH", "sim_id": "PAINT_02", "plc_path": "VirtualPLC.Devices.PAINT_02" },
-        "INBOUND_01": { "type": "CONVEYOR", "sim_id": "INBOUND_01", "plc_path": "VirtualPLC.Devices.INBOUND_01" },
-        "INBOUND_02": { "type": "CONVEYOR", "sim_id": "INBOUND_02", "plc_path": "VirtualPLC.Devices.INBOUND_02" },
-
-        "COOLING_01": { "type": "COOLING", "sim_id": "COOLING_01", "plc_path": "VirtualPLC.Devices.COOLING_01" },
-        "PRETREAT_01": { "type": "PRETREAT", "sim_id": "PRETREAT_01", "plc_path": "VirtualPLC.Devices.PRETREAT_01" },
-        "VIRTUAL_PLC": { "type": "PLC_CORE", "sim_id": "PLC_01", "plc_path": "VirtualPLC" },
-        "OUTBOUND_01": { "type": "CONVEYOR", "sim_id": "OUTBOUND_01", "plc_path": "VirtualPLC.Devices.OUTBOUND_01" },
-        "OUTBOUND_02": { "type": "CONVEYOR", "sim_id": "OUTBOUND_02", "plc_path": "VirtualPLC.Devices.OUTBOUND_02" }
+        "FURNACE_01": {
+            "type": "FURNACE",
+            "sim_id": "FURNACE_01",
+            "plc_path": "VirtualPLC.Devices.FURNACE_01"
+        },
+        "DEGASSER_01": {
+            "type": "DEGASSER",
+            "sim_id": "DEGASSER_01",
+            "plc_path": "VirtualPLC.Devices.DEGASSER_01"
+        },
+        "DEGASSER_02": {
+            "type": "DEGASSER",
+            "sim_id": "DEGASSER_02",
+            "plc_path": "VirtualPLC.Devices.DEGASSER_02"
+        },
+        "LPDC_01": {
+            "type": "LPDC",
+            "sim_id": "LPDC_01",
+            "plc_path": "VirtualPLC.Devices.LPDC_01"
+        },
+        "LPDC_02": {
+            "type": "LPDC",
+            "sim_id": "LPDC_02",
+            "plc_path": "VirtualPLC.Devices.LPDC_02"
+        },
+        "LPDC_03": {
+            "type": "LPDC",
+            "sim_id": "LPDC_03",
+            "plc_path": "VirtualPLC.Devices.LPDC_03"
+        },
+        "COOLING_01": {
+            "type": "COOLING",
+            "sim_id": "COOLING_01",
+            "plc_path": "VirtualPLC.Devices.COOLING_01"
+        },
+        "HEAT_01": {
+            "type": "HEAT_TREAT",
+            "sim_id": "HEAT_01",
+            "plc_path": "VirtualPLC.Devices.HEAT_01"
+        },
+        "CNC_01": {
+            "type": "CNC",
+            "sim_id": "CNC_01",
+            "plc_path": "VirtualPLC.Devices.CNC_01"
+        },
+        "CNC_02": {
+            "type": "CNC",
+            "sim_id": "CNC_02",
+            "plc_path": "VirtualPLC.Devices.CNC_02"
+        },
+        "INSPECTION_01": {
+            "type": "INSPECTION",
+            "sim_id": "INSPECTION_01",
+            "plc_path": "VirtualPLC.Devices.INSPECTION_01"
+        },
+        "PAINT_01": {
+            "type": "PAINT_BOOTH",
+            "sim_id": "PAINT_01",
+            "plc_path": "VirtualPLC.Devices.PAINT_01"
+        },
+        "PAINT_02": {
+            "type": "PAINT_BOOTH",
+            "sim_id": "PAINT_02",
+            "plc_path": "VirtualPLC.Devices.PAINT_02"
+        },
+        "INBOUND_01": {
+            "type": "INBOUND_BUFFER",
+            "sim_id": "INBOUND_01",
+            "plc_path": "VirtualPLC.Devices.INBOUND_01"
+        },
+        "PRETREAT_01": {
+            "type": "PRETREAT",
+            "sim_id": "PRETREAT_01",
+            "plc_path": "VirtualPLC.Devices.PRETREAT_01"
+        },
+        "VIRTUAL_PLC": {
+            "type": "PLC_CORE",
+            "sim_id": "PLC_01",
+            "plc_path": "VirtualPLC"
+        },
+        "OUTBOUND_01": {
+            "type": "OUTBOUND_BUFFER",
+            "sim_id": "OUTBOUND_01",
+            "plc_path": "VirtualPLC.Devices.OUTBOUND_01"
+        },
+        "OUTBOUND_02": {
+            "type": "OUTBOUND_BUFFER",
+            "sim_id": "OUTBOUND_02",
+            "plc_path": "VirtualPLC.Devices.OUTBOUND_02"
+        }
     },
     "plant_telemetry": {
         "WIP": {

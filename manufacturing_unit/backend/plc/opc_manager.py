@@ -11,9 +11,9 @@ logger = logging.getLogger("OPCManager")
 # Status tag names that should be String (state-machine / mode strings).
 # Names mirror the SCADA UDT (docs/scada_udt_definitions.json).
 _STATUS_STRING_TAGS = {
-    "State", "Process_Step", "Stage_Status", "Booth_Cycle_Status", "Air_Flow_Status",
+    "Status", "Process_Step", "Stage_Status", "Booth_Cycle_Status", "Air_Flow_Status",
     "Furnace_Mode", "Cycle_Status", "Scan_Status", "Program_ID", "Model_ID",
-    "Alarm_Status"
+    "Alarm_Status", "Cooling_Mode", "Inventory_Status", "Storage_Pressure"
 }
 # Status tag names that should be Int32 (counters / discrete counts).
 _STATUS_INT_TAGS = {
@@ -29,7 +29,7 @@ def _infer_status_type(tag: str):
         return ua.VariantType.String
     if any(tag_lower == s.lower() for s in _STATUS_INT_TAGS):
         return ua.VariantType.Int32
-    if tag_lower.startswith("is") or tag_lower.startswith("is_"):
+    if tag_lower.startswith("is") or tag_lower.startswith("is_") or tag_lower == "ready_for_shipping":
         return ua.VariantType.Boolean
     return ua.VariantType.Double
 

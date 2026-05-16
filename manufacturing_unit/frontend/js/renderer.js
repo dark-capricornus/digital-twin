@@ -661,7 +661,7 @@ class Renderer {
         // if the component belongs to a larger group (like Raw Materials).
         let hlKey = targetNorm;
         if (isLogisticsGroup) hlKey = 'rawmaterials';
-        else if (targetNorm === 'preteatment' || targetNorm.includes('pretreat')) hlKey = 'pretreat';
+        else if (normId.includes('pretreat') || targetNorm.includes('preteat')) hlKey = 'pretreat';
         else if (targetNorm.includes('furnace')) hlKey = 'furnace';
         else if (targetNorm.includes('heat')) hlKey = 'heat';
         else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;
@@ -1328,8 +1328,6 @@ class Renderer {
             targetZoom = Math.max(this.controls.minZoom, Math.min(this.controls.maxZoom, targetZoom));
         }
 
-        // [CAMERA] Forward/backward only — preserve the existing isometric
-        // viewing angle by reusing the default offset vector. No orbit/rotation.
         const isometricOffset = new THREE.Vector3().subVectors(this.defaultPosition, this.defaultTarget);
         const cameraTargetPosition = center.clone().add(isometricOffset);
 
@@ -1436,7 +1434,7 @@ class Renderer {
 
         let hlKey = targetNorm;
         if (isLogisticsGroup) hlKey = 'rawmaterials';
-        else if (targetNorm === 'preteatment' || targetNorm.includes('pretreat')) hlKey = 'pretreat';
+        else if (normId.includes('pretreat') || targetNorm.includes('preteat')) hlKey = 'pretreat';
         else if (targetNorm.includes('furnace')) hlKey = 'furnace';
         else if (targetNorm.includes('heat')) hlKey = 'heat';
         else if (!this.highlightRegistry.has(hlKey)) hlKey = normId;

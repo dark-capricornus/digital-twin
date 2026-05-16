@@ -75,12 +75,12 @@ class InspectionMachine(BaseMachine):
 
     def _get_device_specific_tags(self) -> Dict[str, Any]:
         return {
-            "scan_status": self.scan_status,
-            "cycle_time": self.cycle_time,
-            "inspected_count": self.processed_count,
-            "ok_count": self.processed_count - self.reject_count,
-            "not_good_count": self.reject_count,
-            "progress": round(self.progress, 2),
+            "Scan_Status": self.scan_status,
+            "Cycle_Time": self.cycle_time,
+            "Inspected_Count": self.processed_count,
+            "OK_Count": self.processed_count - self.reject_count,
+            "Not_Good_Count": self.reject_count,
+            "Progress": round(self.progress, 2),
         }
 
     def _calculate_power(self) -> float:

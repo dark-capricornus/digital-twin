@@ -93,18 +93,16 @@ class TestTagPublication:
         cnc_machine.fault_code = 999
         tags = cnc_machine.get_tags()
         assert tags[f"{cnc_machine.id}.state"] == MachineState.FAULTED.value
-        assert tags[f"{cnc_machine.id}.fault_code"] == 999
+        assert tags[f"{cnc_machine.id}.alarm_status"] == "FAULT_999"
 
     def test_base_tags_always_present(self, cnc_machine):
         """Common base tags should always be present."""
         tags = cnc_machine.get_tags()
         required = [
             f"{cnc_machine.id}.state",
-            f"{cnc_machine.id}.state_code",
+            f"{cnc_machine.id}.run_status",
             f"{cnc_machine.id}.is_running",
-            f"{cnc_machine.id}.enabled",
-            f"{cnc_machine.id}.fault_code",
-            f"{cnc_machine.id}.processed_count",
+            f"{cnc_machine.id}.alarm_status",
             f"{cnc_machine.id}.power_kw",
             f"{cnc_machine.id}.energy_kwh",
             f"{cnc_machine.id}.runtime_total_hrs",

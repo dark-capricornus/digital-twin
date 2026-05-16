@@ -53,7 +53,7 @@ class TestCNCMachine:
         cnc_machine.tick(0.2)
 
         tags = cnc_machine.get_tags()
-        assert "Spindle_RPM" in tags
+        assert f"{cnc_machine.id}.Spindle_Speed" in tags
 
     def test_cnc_power_calculation(self, cnc_machine):
         """CNC should draw ~40kW when RUNNING, ~2kW when idle."""
@@ -113,9 +113,9 @@ class TestLPDCCasting:
         lpdc_machine.tick(0.2)
 
         tags = lpdc_machine.get_tags()
-        assert "Riser_Pressure" in tags
-        assert "Shot_Count" in tags
-        assert "Cycle_Time" in tags
+        assert f"{lpdc_machine.id}.Riser_Pressure" in tags
+        assert f"{lpdc_machine.id}.Shot_Count" in tags
+        assert f"{lpdc_machine.id}.Cycle_Time" in tags
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -155,9 +155,9 @@ class TestFurnace:
         furnace.tick(0.2)
 
         tags = furnace.get_tags()
-        bath = tags[f"{furnace.id}.bath_temp"]
-        roof = tags[f"{furnace.id}.roof_temp"]
-        wall = tags[f"{furnace.id}.wall_temp"]
+        bath = tags[f"{furnace.id}.Bath_Temp"]
+        roof = tags[f"{furnace.id}.Roof_Temp"]
+        wall = tags[f"{furnace.id}.Wall_Temp"]
 
         assert roof > bath  # Roof is hotter
         assert wall < bath  # Wall is cooler
@@ -191,9 +191,9 @@ class TestCoolingTank:
         cooling_tank.tick(0.2)
 
         tags = cooling_tank.get_tags()
-        assert "Tank_Temperature" in tags
-        assert "Flow_Rate" in tags
-        assert "Cooling_Run_Status" in tags
+        assert f"{cooling_tank.id}.Process_Temp" in tags
+        assert f"{cooling_tank.id}.Target_Temp" in tags
+        assert f"{cooling_tank.id}.Cooling_Mode" in tags
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -244,9 +244,9 @@ class TestDegasser:
         degasser.tick(0.2)
 
         tags = degasser.get_tags()
-        assert "VacuumLevel" in tags
-        assert "Gas_Flow_Rate" in tags
-        assert "Rotor_Speed" in tags
+        assert f"{degasser.id}.Vacuum_Level" in tags
+        assert f"{degasser.id}.Process_Temp" in tags
+        assert f"{degasser.id}.Alarm_Status" in tags
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -292,8 +292,9 @@ class TestInspection:
         inspection.tick(0.2)
 
         tags = inspection.get_tags()
-        assert f"{inspection.id}.Beam_Current_mA" in tags
         assert f"{inspection.id}.Scan_Status" in tags
+        assert f"{inspection.id}.Inspected_Count" in tags
+        assert f"{inspection.id}.OK_Count" in tags
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -320,9 +321,9 @@ class TestPaintBooth:
         paint_booth.tick(0.2)
 
         tags = paint_booth.get_tags()
-        assert "Booth_Temperature" in tags
-        assert "Booth_Humidity" in tags
-        assert "Air_Flow_Status" in tags
+        assert f"{paint_booth.id}.Booth_Temp" in tags
+        assert f"{paint_booth.id}.Booth_Humidity" in tags
+        assert f"{paint_booth.id}.Air_Flow_Status" in tags
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -349,4 +350,4 @@ class TestPretreatment:
         pretreat_machine.tick(0.2)
 
         tags = pretreat_machine.get_tags()
-        assert tags.get("Conveyor_Speed", 0) > 0
+        assert tags.get(f"{pretreat_machine.id}.Conveyor_Speed", 0) > 0

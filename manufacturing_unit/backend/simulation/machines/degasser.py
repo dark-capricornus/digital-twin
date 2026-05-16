@@ -90,12 +90,12 @@ class DegasserMachine(BaseMachine):
             tags[key] = val
 
         # snake_case keys consumed by SimulationAdapter.TAG_MAP → SCADA UDT names.
-        add_tag("vacuum_level", round(self.vacuum_level, 2))
-        add_tag("process_temp", round(self.temperature, 1))
-        add_tag("progress", round(self.progress, 2))
-        add_tag("queue_in", len(self.queue_in))
-        add_tag("queue_out", len(self.queue_out))
-        add_tag("alarm_status", "NONE" if self.state.value != MachineState.FAULTED.value else "FAULT")
+        add_tag("Vacuum_Level", round(self.vacuum_level, 2))
+        add_tag("Process_Temp", round(self.temperature, 1))
+        add_tag("Progress", round(self.progress, 2))
+        add_tag("Queue_In", len(self.queue_in))
+        add_tag("Queue_Out", len(self.queue_out))
+        add_tag("Alarm_Status", "NONE" if self.state.value != MachineState.FAULTED.value else "FAULT")
         
         # Plant level WIP for this sector
         wip_val = round(450.0 + (self.processed_count * 25.5) % 1000, 1)

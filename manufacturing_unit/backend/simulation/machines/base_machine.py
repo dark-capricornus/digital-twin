@@ -236,7 +236,13 @@ class BaseMachine(ABC):
             f"{self.id}.power_kw": round(self.power_kw, 2),
             f"{self.id}.energy_kwh": round(self.energy_kwh, 4),
             f"{self.id}.alarm_status": "NONE" if self.fault_code == 0 else f"FAULT_{self.fault_code}",
-            f"{self.id}.progress": round(getattr(self, 'progress', 0.0), 2), # Ensure progress is available
+            f"{self.id}.progress": round(getattr(self, 'progress', 0.0), 2),
+            f"{self.id}.vibration": round(self.vibration, 3),
+            f"{self.id}.motor_load": round(self.motor_load, 1),
+            f"{self.id}.oil_level": round(self.oil_level, 2),
+            f"{self.id}.air_pressure": round(self.air_pressure, 1),
+            f"{self.id}.internal_temp": round(self.internal_temp, 1),
+            f"{self.id}.runtime_total_hrs": round(self.runtime_total_hrs, 2),
         }
         
         # Add device-specific tags

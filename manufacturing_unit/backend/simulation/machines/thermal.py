@@ -171,10 +171,10 @@ class ThermalMachine(BaseMachine):
         tags = {}
         
         if self.is_cooling_tank:
-            tags["process_temp"] = temp
-            tags["target_temp"] = self.target_temp
-            tags["progress"] = round(self.progress, 2)
-            tags["cooling_mode"] = self.mode
+            tags["Process_Temp"] = temp
+            tags["Target_Temp"] = self.target_temp
+            tags["Progress"] = round(self.progress, 2)
+            tags["Cooling_Mode"] = self.mode
             
         elif "furnace" in self.id.lower():
             tags["Roof_Temp"] = round(self.zone_temps["roof"], 1)

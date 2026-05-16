@@ -47,7 +47,7 @@ class TestManualFaultInjection:
         tags = cnc_machine.get_tags()
 
         assert tags[f"{cnc_machine.id}.state"] == MachineState.FAULTED.value
-        assert tags[f"{cnc_machine.id}.fault_code"] == 123
+        assert tags[f"{cnc_machine.id}.alarm_status"] == "FAULT_123"
         assert tags[f"{cnc_machine.id}.is_running"] is False
 
 
@@ -215,13 +215,13 @@ class TestFaultTagExposure:
         cnc_machine.fault_code = 502
         tags = cnc_machine.get_tags()
 
-        assert f"{cnc_machine.id}.fault_code" in tags
-        assert tags[f"{cnc_machine.id}.fault_code"] == 502
+        assert f"{cnc_machine.id}.alarm_status" in tags
+        assert tags[f"{cnc_machine.id}.alarm_status"] == "FAULT_502"
 
     def test_state_code_reflects_faulted(self, cnc_machine):
         cnc_machine.state = MachineState.FAULTED
         tags = cnc_machine.get_tags()
-        assert tags[f"{cnc_machine.id}.state_code"] == MachineState.FAULTED.value
+        assert tags[f"{cnc_machine.id}.state"] == MachineState.FAULTED.value
 
     def test_is_running_false_when_faulted(self, cnc_machine):
         cnc_machine.state = MachineState.FAULTED
@@ -230,13 +230,15 @@ class TestFaultTagExposure:
 
     def test_degasser_alarm_status_when_faulted(self, degasser):
         degasser.state = MachineState.FAULTED
+        degasser.fault_code = 1
         tags = degasser.get_tags()
-        assert tags.get("Alarm_Status") == "Alarm"
+        assert tags.get(f"{degasser.id}.alarm_status") == "FAULT_1"
 
     def test_inspection_alarm_when_faulted(self, inspection):
         inspection.state = MachineState.FAULTED
+        inspection.fault_code = 2
         tags = inspection.get_tags()
-        assert tags[f"{inspection.id}.Alarm_Status"] == "Fault"
+        assert tags[f"{inspection.id}.alarm_status"] == "FAULT_2"
 
 
 class TestForceStopAsFaultMitigation:

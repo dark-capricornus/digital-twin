@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO, format='[BRIDGE] %(asctime)s | %(message
 logger = logging.getLogger("Bridge")
 
 # --- Configuration ---
-MQTT_BROKER = os.getenv("MQTT_HOST", "localhost")
+MQTT_BROKER = os.getenv("MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = "#"
 

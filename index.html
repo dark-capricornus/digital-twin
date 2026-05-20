@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Twin — Alloy Wheel Manufacturing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..0"
+        rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="assets/angles logo.ico">
+    <link rel="stylesheet" href="css/style.css?v=3">
+</head>
+
+<body>
+
+    <!-- ─── Top Navbar ─────────────────────────────────────── -->
+    <div id="top-navbar">
+        <div class="navbar-left">
+            <div class="navbar-accent-bar"></div>
+            <h1 class="navbar-title">DT-MANUFACTURING</h1>
+        </div>
+        <div class="navbar-right">
+            <div class="navbar-status-dot"></div>
+            <span class="navbar-status-text">Online</span>
+        </div>
+    </div>
+
+    <!-- ─── Unified Right Sidebar (V1.2) Component ─── -->
+    <div id="hud-right-sidebar">
+        <!-- Injected via SidebarController -->
+    </div>
+
+            <!-- 2. Plant Data (plant-level KPIs) -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">factory</span>
+                    <span class="sb-section-title">PLANT DATA</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-plant" class="sb-metric-flow"></div>
+            </div>
+
+            <!-- 3. Production Data -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">inventory_2</span>
+                    <span class="sb-section-title">PRODUCTION</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-production" class="sb-metric-flow"></div>
+            </div>
+
+            <!-- 4. Alarms -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">warning</span>
+                    <span class="sb-section-title">ALARMS</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-alarms"></div>
+            </div>
+
+            <!-- 5. Maintenance -->
+            <div class="sb-section">
+                <div class="sb-section-header">
+                    <span class="material-symbols-outlined sb-section-icon">build</span>
+                    <span class="sb-section-title">MAINTENANCE</span>
+                </div>
+                <div class="sb-divider"></div>
+                <div id="sb-maintenance"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- ─── 3D Scene Container (viewport minus sidebar) ────── -->
+    <div id="container"></div>
+
+    <!-- ─── Home Button (bottom-left) ──────────────────────── -->
+    <button id="home-btn" title="Reset camera">
+        <span class="material-symbols-outlined">home</span>
+    </button>
+
+
+
+
+
+
+
+    <!-- Import maps for Three.js ES modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "three/addons/loaders/EXRLoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/EXRLoader.js",
+                "three/addons/loaders/RGBELoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/RGBELoader.js"
+            }
+        }
+    </script>
+
+
+
+    <!-- Application modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

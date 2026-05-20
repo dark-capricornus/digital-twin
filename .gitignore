@@ -34,3 +34,27 @@ Session Storage
 Shared Dictionary
 User
 logs
+Cache
+Dictionaries
+DawnWebGPUCache
+DawnGraphiteCache
+Crashpad
+Code Cache
+CachedProfilesData/__default__profile__
+CachedData
+GPUCache
+Local Storage
+logs
+Session Storage
+Shared Dictionary
+User
+Cookies
+Cookies-journal
+DIPS
+languagepacks.json
+machineid
+Network Persistent State
+Preferences
+TransportSecurity
+Trust Tokens
+Trust Tokens-journal

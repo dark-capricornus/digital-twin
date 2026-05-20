@@ -380,37 +380,37 @@ class DigitalTwinApp {
         if (this._wsStatus && this._wsStatus !== 'connected') {
             return 'OFFLINE';
         }
-        // 0b. PLC-wide override: if the PLC isn't RUNNING, no machine can be
-        //     running, regardless of the last per-machine payload. This keeps
-        //     the 3D icons / mesh colors honest after a PLC stop.
+
+        // Get PLC state
         const plcState = (this.stateManager?.getDeviceState('PLANT')?.data?.PLC_State || '')
             .toString().toUpperCase();
-        if (plcState && plcState !== 'RUNNING') {
-            return plcState === 'FAULTED' ? 'FAULTED' : 'STOPPED';
-        }
 
+        // Get machine data
         const raw = this.stateManager?.getDeviceState(id)?.data || {};
 
-        // 1. Exact State string is the most specific signal (covers IDLE/RUNNING/
-        //    FAULTED/STOPPED). Must beat the Is_Running boolean — otherwise an
-        //    IDLE machine (Is_Running=false) would be reported as STOPPED.
-        const state = raw['State'] ?? raw['state'];
-        if (state) return String(state).toUpperCase();
-
-        // 2. Boolean fallback when no State string is present.
+        // 1. Resolve isRunning boolean value from various forms
         const isRunning = raw['IsRunning'] ?? raw['Is_Running'] ?? raw['is_running'];
-        if (isRunning === true) return 'RUNNING';
-        if (isRunning === false) return 'STOPPED';
 
-        // 3. StateCode Fallback (PackML)
-        const code = raw['StateCode'];
-        if (code !== undefined) {
-            const mapping = { 0: 'STOPPED', 1: 'IDLE', 2: 'RUNNING', 3: 'FAULTED' };
-            return mapping[code] || 'UNKNOWN';
+        // If PLC is FAULTED, return FAULTED
+        if (plcState === 'FAULTED') {
+            return 'FAULTED';
         }
 
-        return 'OFFLINE';
+        // --- Core Rules requested by user ---
+        // 1. "if it is true then it should show running"
+        if (isRunning === true || isRunning === 1 || isRunning === 'true') {
+            return 'RUNNING';
+        }
+
+        // 2. "if the plc is running but the machine is off then it should show idle"
+        if (plcState === 'RUNNING') {
+            return 'IDLE';
+        }
+
+        // 3. "if both are off then it is stopped" (PLC is off and machine is off)
+        return 'STOPPED';
     }
+
 
     _findAsset(id) {
         if (!this.assetData) return null;
@@ -438,9 +438,14 @@ class DigitalTwinApp {
         }
 
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        // [UNIVERSAL] Reconnect to the same host that served the page
-        // This handles localhost, tunnels, IPs, and QR codes automatically.
-        return `${protocol}//${window.location.host}/ws`;
+        const host = window.location.hostname;
+        
+        // If served via Apache (pathname contains '/manufacturing_unit/'),
+        // route WebSocket through the Apache proxy on the same port.
+        const isApache = window.location.pathname.includes('/manufacturing_unit/');
+        const port = window.location.port || (isApache ? '' : '8000');
+        
+        return `${protocol}//${host}${port ? ':' + port : ''}/ws`;
     }
 
     async init() {
@@ -466,8 +471,7 @@ class DigitalTwinApp {
             };
 
             // [WEBSOCKET] Start Real-time Data Stream (Sidebar Feed Only)
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            const wsUrl = this._getWebSocketUrl();
             
             if (typeof WebSocketHandler === 'undefined') {
                 console.error('[App] CRITICAL: WebSocketHandler is missing/undefined!');
@@ -493,8 +497,12 @@ class DigitalTwinApp {
                 this.forceRefresh = true;
             });
 
+            const isApache = window.location.pathname.includes('/manufacturing_unit/frontend/');
+            const manifestsPath = isApache ? '../../docs/manifests/' : '';
+            const tagsPath = isApache ? '../../docs/' : '';
+
             updateLoading('Fetching assets metadata...');
-            const assetPromise = fetch('./assets.json').then(r => {
+            const assetPromise = fetch(manifestsPath + 'assets.json').then(r => {
                 if (!r.ok) throw new Error(`assets.json: ${r.status} ${r.statusText}`);
                 return r.json();
             }).then(json => {
@@ -512,7 +520,7 @@ class DigitalTwinApp {
             });
 
             updateLoading('Indexing tag metadata...');
-            const tagPromise = fetch('tags.json').then(r => {
+            const tagPromise = fetch(tagsPath + 'tags.json').then(r => {
                 if (!r.ok) throw new Error(`tags.json: ${r.status} ${r.statusText}`);
                 return r.json();
             }).then(json => {
@@ -524,7 +532,7 @@ class DigitalTwinApp {
             });
 
             updateLoading('Loading sidebar configurator...');
-            const dictPromise = fetch('telemetry_dictionary.json').then(r => {
+            const dictPromise = fetch(manifestsPath + 'telemetry_dictionary.json').then(r => {
                 if (!r.ok) throw new Error(`telemetry_dictionary.json: ${r.status} ${r.statusText}`);
                 return r.json();
             }).then(json => {
@@ -549,7 +557,7 @@ class DigitalTwinApp {
             });
 
             updateLoading('Syncing site topology...');
-            const manifestPromise = fetch('site_manifest.json').then(r => {
+            const manifestPromise = fetch(manifestsPath + 'site_manifest.json').then(r => {
                 if (!r.ok) throw new Error(`site_manifest.json: ${r.status} ${r.statusText}`);
                 return r.json();
             }).then(json => {
@@ -1407,7 +1415,9 @@ class DigitalTwinApp {
             const prod = Math.round(m.production || 0).toLocaleString();
             const machState = this._getMachineState(mid);
             const machStateLower = machState.toLowerCase();
-            const machStateColor = machStateLower === 'running' ? 'var(--success)' : (machStateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)');
+            const machStateColor = machStateLower === 'running' ? 'var(--success)' : 
+                                   (machStateLower === 'idle' ? 'var(--warning)' : 
+                                   (machStateLower === 'stopped' ? 'var(--text-dim)' : 'var(--danger)'));
 
             html += `
                 <a href="#" class="sidebar-nav-item" onclick="event.preventDefault(); window.app.setContext('machine', '${mid}')" style="padding: 12px 16px;">

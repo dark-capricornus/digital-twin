@@ -9,3 +9,28 @@ __pycache__
 postman/
 000-default.conf   
 000-default.conf.pdf   
+CachedProfilesData
+CachedProfilesData/__default__profile__
+Cookies
+Cookies-journal
+DIPS
+languagepacks.json
+machineid
+Network Persistent State
+Preferences
+TransportSecurity
+Trust Tokens
+Trust Tokens-journal
+Cache
+CachedData
+Code Cache
+Crashpad
+DawnGraphiteCache
+Dictionaries
+DawnWebGPUCache
+GPUCache
+Local Storage
+Session Storage
+Shared Dictionary
+User
+logs

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Digital Twin – Alloy Wheel Manufacturing (V2)
 **Version**: V2 – Integrated Process Flow & 3D Visualization  
 **Status**: Completed, Verified.
@@ -75,4 +74,3 @@ python manufacturing_unit/middleware/bridge.py
 ## Key Technical Details
 *   **Industrial Protocols**: Supports OPC-UA (polling), MQTT (pub/sub), and Sparkplug B decoding.
 *   **3D Engine**: Built on Three.js with custom GLB mesh highlighting and dynamic labeling.
->>>>>>> f109be2 (Updated README.md)
